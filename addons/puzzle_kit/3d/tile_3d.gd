@@ -2,6 +2,7 @@
 class_name Tile3D
 extends Node3D
 
+## `piece.transform * position`, rounded to snap to the grid
 var grid_position: Vector3i: get = _get_grid_position
 var piece: Piece3D: set = _set_piece
 
@@ -12,7 +13,10 @@ func _exit_tree() -> void:
     piece = null
 
 func _get_grid_position() -> Vector3i:
-    return round(global_position)
+    if not piece:
+        return round(position)
+    
+    return round(piece.transform * position)
 
 func _set_piece(value: Piece3D):
     if piece:
@@ -23,6 +27,6 @@ func _set_piece(value: Piece3D):
 
 func _to_string() -> String:
     if piece:
-        return "%s %s" % [piece.name, grid_position]
+        return "%s Tile3D%s" % [piece.name, grid_position]
     
-    return "Invalid Tile3D"
+    return "[Missing Piece] Tile3D%s" % grid_position

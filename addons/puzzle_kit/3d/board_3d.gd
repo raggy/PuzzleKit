@@ -4,23 +4,47 @@ class_name Board3D
 extends Node3D
 
 var _pieces: Array[Piece3D] = []
-var _cells_by_position: Dictionary[Vector3i, Cell3D] = {}
-var _cells_by_tile: Dictionary[Tile3D, Cell3D] = {}
+# var _cells_by_position: Dictionary[Vector3i, Cell3D] = {}
+var _cells_by_position: Dictionary = {}
+# var _cells_by_tile: Dictionary[Tile3D, Cell3D] = {}
+var _cells_by_tile: Dictionary = {}
 
-func is_empty(grid_position: Vector3i) -> bool:
+func is_empty(grid_position: Vector3i, group: String = "") -> bool:
     _update_piece_cells()
 
-    var cell := _cells_by_position.get(grid_position)
-
-    return not cell or cell.tiles.size() == 0
-
-func get_tiles_at(grid_position: Vector3i) -> Array[Tile3D]:
-    _update_piece_cells()
-
-    if _cells_by_position.has(grid_position):
-        return _cells_by_position[grid_position].tiles
+    var cell := _cells_by_position.get(grid_position) as Cell3D
+    # Nothing here
+    if not cell or cell.is_empty():
+        return true
     
-    return []
+    # No group filter and there is a non-empty cell
+    if group == "":
+        return false
+    
+    for tile in cell.tiles:
+        if tile.piece.is_in_group(group):
+            return false
+    
+    return true
+
+func get_tiles_at(grid_position: Vector3i, group: String = "") -> Array[Tile3D]:
+    _update_piece_cells()
+
+    var cell := _cells_by_position.get(grid_position) as Cell3D
+    # Nothing here
+    if not cell or cell.is_empty():
+        return []
+    # No group filter, return all tiles in cell
+    if group == "":
+        return cell.tiles
+    
+    var result: Array[Tile3D] = []
+    # Build an array of all tiles that match the group filter
+    for tile in _cells_by_position[grid_position].tiles:
+        if tile.piece.is_in_group(group):
+            result.append(tile)
+    
+    return result
 
 func _register_piece(piece: Piece3D):
     _pieces.append(piece)
@@ -49,7 +73,7 @@ func _update_piece_tile_cells(piece: Piece3D):
     piece._board_cached_transform = piece.transform
     # Update which cells the tiles sit in
     for tile in piece.tiles:
-        var previous_cell := _cells_by_tile.get(tile)
+        var previous_cell := _cells_by_tile.get(tile) as Cell3D
         var new_cell := _get_or_create_cell(tile.grid_position)
         # Tile didn't change cells
         if previous_cell == new_cell:
@@ -73,3 +97,6 @@ class Cell3D:
 
     func _init(_grid_position: Vector3i) -> void:
         grid_position = _grid_position
+    
+    func is_empty() -> bool:
+        return tiles.size() == 0
