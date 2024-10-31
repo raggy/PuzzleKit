@@ -1,0 +1,34 @@
+[gd_scene load_steps=6 format=3 uid="uid://byykmq22i0r2q"]
+
+[ext_resource type="Script" path="res://addons/puzzle_kit/piece_3d_editor/piece_3d_tile_editor.gd" id="1_3q710"]
+[ext_resource type="Material" uid="uid://c002m1niwegry" path="res://addons/puzzle_kit/piece_3d_editor/piece_3d_tile_editor_material.tres" id="2_t8vxg"]
+[ext_resource type="PackedScene" uid="uid://bu0gurj0f1gwp" path="res://addons/puzzle_kit/piece_3d_editor/piece_3d_new_tile.glb" id="3_guvkb"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_vr57r"]
+lightmap_size_hint = Vector2i(14, 21)
+material = ExtResource("2_t8vxg")
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_56byy"]
+
+[node name="Piece3dTileEditor" type="Node3D" node_paths=PackedStringArray("rigid_body", "mesh_instance")]
+script = ExtResource("1_3q710")
+rigid_body = NodePath("RigidBody3D")
+mesh_instance = NodePath("MeshInstance3D")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transparency = 0.5
+cast_shadow = 0
+mesh = SubResource("BoxMesh_vr57r")
+
+[node name="piece_3d_new_tile" parent="." instance=ExtResource("3_guvkb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1)
+
+[node name="Cube" parent="piece_3d_new_tile" index="0"]
+transparency = 0.5
+
+[node name="RigidBody3D" type="RigidBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
+shape = SubResource("BoxShape3D_56byy")
+
+[editable path="piece_3d_new_tile"]
