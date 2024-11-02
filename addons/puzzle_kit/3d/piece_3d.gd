@@ -3,6 +3,9 @@
 class_name Piece3D
 extends Node3D
 
+signal changes_committing()
+signal changes_reverting()
+
 ## `position`, rounded to snap to the grid
 var grid_position: Vector3i: get = _get_grid_position, set = _set_grid_position
 ## `transform.basis.x`, rounded to snap to the grid
@@ -13,6 +16,7 @@ var grid_up: Vector3i: get = _get_grid_up
 var grid_forward: Vector3i: get = _get_grid_forward
 ## List of `Tile3D`, representing the 3D shape of this piece
 var tiles: Array[Tile3D] = []
+var visual: PieceVisual3D
 
 var _board: Board3D: set = _set_board
 var _board_cached_transform: Transform3D
@@ -26,6 +30,14 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
     _board = null
+
+func commit_changes():
+    changes_committing.emit()
+    _previous_transform = transform
+
+func revert_changes():
+    changes_reverting.emit()
+    transform = _previous_transform
 
 func _get_grid_position() -> Vector3i:
     return round(position)

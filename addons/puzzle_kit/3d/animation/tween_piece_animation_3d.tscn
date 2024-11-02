@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://b4kqeccqqg6n2"]
+
+[ext_resource type="Script" path="res://addons/puzzle_kit/3d/animation/tween_piece_animation_3d.gd" id="1_hsy1h"]
+
+[node name="TweenPieceAnimation3D" type="Node"]
+script = ExtResource("1_hsy1h")
+position_tween_duration = 0.25
+position_catchup_duration = 0.1
+rotation_tween_duration = 0.25

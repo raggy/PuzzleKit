@@ -3,12 +3,18 @@
 class_name Board3D
 extends Node3D
 
+signal piece_added(piece: Piece3D)
+signal piece_removed(piece: Piece3D)
+signal changes_committing()
+signal changes_reverting()
+
 var _pieces: Array[Piece3D] = []
 # var _cells_by_position: Dictionary[Vector3i, Cell3D] = {}
 var _cells_by_position: Dictionary = {}
 # var _cells_by_tile: Dictionary[Tile3D, Cell3D] = {}
 var _cells_by_tile: Dictionary = {}
 
+#region Queries
 func is_empty(grid_position: Vector3i, group: String = "") -> bool:
     _update_piece_cells()
 
@@ -45,10 +51,27 @@ func get_tiles_at(grid_position: Vector3i, group: String = "") -> Array[Tile3D]:
             result.append(tile)
     
     return result
+#endregion
 
+#region Commit/revert
+func commit_changes():
+    changes_committing.emit()
+    
+    for piece in _pieces:
+        piece.commit_changes()
+
+func revert_changes():
+    changes_reverting.emit()
+    
+    for piece in _pieces:
+        piece.revert_changes()
+#endregion
+
+#region Internal
 func _register_piece(piece: Piece3D):
     _pieces.append(piece)
     _update_piece_tile_cells(piece)
+    piece_added.emit(piece)
 
 func _deregister_piece(piece: Piece3D):
     _pieces.erase(piece)
@@ -60,6 +83,7 @@ func _deregister_piece(piece: Piece3D):
             continue
         cell.tiles.erase(tile)
         _cells_by_tile.erase(tile)
+    piece_removed.emit(piece)
 
 func _update_piece_cells():
     for piece in _pieces:
@@ -90,6 +114,7 @@ func _get_or_create_cell(grid_position: Vector3i) -> Cell3D:
     if not _cells_by_position.has(grid_position):
         _cells_by_position[grid_position] = Cell3D.new(grid_position)
     return _cells_by_position[grid_position]
+#endregion
 
 class Cell3D:
     var grid_position: Vector3i
