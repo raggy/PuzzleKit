@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://cwdw622oqd5fl"]
+
+[ext_resource type="Script" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_315ov"]
+[ext_resource type="Script" path="res://addons/puzzle_kit/3d/tile_3d.gd" id="2_815ir"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_wjg4k"]
+radial_segments = 8
+rings = 2
+
+[node name="Rock" type="Node3D" groups=["physical"]]
+script = ExtResource("1_315ov")
+
+[node name="Visual" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+mesh = SubResource("CapsuleMesh_wjg4k")
+
+[node name="Tile3D" type="Node3D" parent="."]
+script = ExtResource("2_815ir")
