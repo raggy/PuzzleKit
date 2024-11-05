@@ -7,6 +7,7 @@ signal changes_committing()
 signal changes_reverting()
 signal teleported()
 
+var active: bool = true
 ## `position`, rounded to snap to the grid
 var grid_position: Vector3i: get = _get_grid_position, set = _set_grid_position
 ## `transform.basis.x`, rounded to snap to the grid
@@ -24,11 +25,19 @@ var tiles: Array[Tile3D] = []
 var visual: PieceVisual3D
 
 var _board: Board3D: set = _set_board
+var _board_cached_active: bool
 var _board_cached_transform: Transform3D
+
+var _original_active: bool
+var _previous_active: bool
+
 var _original_transform: Transform3D
 var _previous_transform: Transform3D
 
 func _enter_tree() -> void:
+    _original_active = active
+    _previous_active = active
+
     _original_transform = transform
     _previous_transform = transform
 
@@ -47,13 +56,17 @@ func _exit_tree() -> void:
 
 func commit_changes():
     changes_committing.emit()
+    _previous_active = active
     _previous_transform = transform
 
 func revert_changes():
     changes_reverting.emit()
+    active = _previous_active
     transform = _previous_transform
 
-func teleport(new_transform: Transform3D):
+func teleport(new_active: bool, new_transform: Transform3D):
+    active = new_active
+    _previous_active = new_active
     transform = new_transform
     _previous_transform = new_transform
     teleported.emit()

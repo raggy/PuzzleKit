@@ -14,10 +14,6 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
     _board = null
 
-func _ready() -> void:
-    for piece in _board._pieces:
-        _add_piece_visual(piece)
-
 ## Play animation now
 func play(animation: PieceAnimation3D):
     # TODO: Queue up animation until board.commit_changes() is called, so we can tell if we need to make a default animation
@@ -26,11 +22,13 @@ func play(animation: PieceAnimation3D):
     _animations_playing.append(animation)
     animation.finished.connect(_on_animation_finished.bind(animation))
     animation.start()
+    animation.visual._has_animation_this_step = true
     animation.visual.animation = animation
 
 ## Queue animation to play after a specific other animation
 func queue_after(animation: PieceAnimation3D, after_animation: PieceAnimation3D):
     animation._queued_after = after_animation
+    animation.visual._has_animation_this_step = true
     _animations_queued.append(animation)
 
 ## Queue animation to play after the piece's latest animation in the queue
@@ -79,14 +77,12 @@ func stop_for(piece: Piece3D):
 
 func _set_board(value: Board3D):
     if _board:
-        _board.piece_added.disconnect(_add_piece_visual)
-        _board.piece_removed.disconnect(_remove_piece_visual)
         _board.piece_removed.disconnect(stop_for)
+        _board.changes_committing.disconnect(_play_default_animations)
     _board = value
     if value:
-        value.piece_added.connect(_add_piece_visual)
-        value.piece_removed.connect(_remove_piece_visual)
         value.piece_removed.connect(stop_for)
+        value.changes_committing.connect(_play_default_animations)
 
 func _finish_animations(animations_to_finish: Array[PieceAnimation3D]):
     # Keep removing queued animations until we're done
@@ -150,10 +146,17 @@ func _find_latest_animation_for_piece(piece: Piece3D) -> PieceAnimation3D:
     
     return null
 
-func _add_piece_visual(piece: Piece3D):
-    if piece.visual:
-        piece.visual.animator = self
-
-func _remove_piece_visual(piece: Piece3D):
-    if piece.visual:
-        piece.visual.animator = null
+func _play_default_animations():
+    for piece in _board._pieces:
+        if not piece.visual:
+            continue
+        
+        var animation := piece.visual.create_default_animation()
+        # Reset for next step
+        piece.visual._has_animation_this_step = false
+        # Doesn't want to play an animation
+        if not animation:
+            continue
+        play(animation)
+        # Reset for next step
+        piece.visual._has_animation_this_step = false

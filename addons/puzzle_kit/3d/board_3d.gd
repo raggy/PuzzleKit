@@ -78,7 +78,7 @@ func _deregister_piece(piece: Piece3D):
     # Remove tiles from cells
     for tile in piece.tiles:
         var cell := _cells_by_tile.get(tile)
-        # Tile wasn't registered to a cell?
+        # Tile wasn't in a cell (piece must've been inactive)
         if not cell:
             continue
         cell.tiles.erase(tile)
@@ -87,18 +87,19 @@ func _deregister_piece(piece: Piece3D):
 
 func _update_piece_cells():
     for piece in _pieces:
-        # Piece hasn't changed transform since we last looked
-        if piece.transform == piece._board_cached_transform:
+        # Piece hasn't changed since we last looked
+        if piece.active == piece._board_cached_active and piece.transform == piece._board_cached_transform:
             continue
         _update_piece_tile_cells(piece)
 
 func _update_piece_tile_cells(piece: Piece3D):
-    # Note the transform state when we set the tiles in cells
+    # Note the state when we set the tiles in cells
+    piece._board_cached_active = piece.active
     piece._board_cached_transform = piece.transform
     # Update which cells the tiles sit in
     for tile in piece.tiles:
         var previous_cell := _cells_by_tile.get(tile) as Cell3D
-        var new_cell := _get_or_create_cell(tile.grid_position)
+        var new_cell := _get_or_create_cell(tile.grid_position) if piece.active else null
         # Tile didn't change cells
         if previous_cell == new_cell:
             continue
@@ -107,8 +108,9 @@ func _update_piece_tile_cells(piece: Piece3D):
             previous_cell.tiles.erase(tile)
             _cells_by_tile.erase(tile)
         # Add to new cell
-        new_cell.tiles.append(tile)
-        _cells_by_tile[tile] = new_cell
+        if new_cell:
+            new_cell.tiles.append(tile)
+            _cells_by_tile[tile] = new_cell
 
 func _get_or_create_cell(grid_position: Vector3i) -> Cell3D:
     if not _cells_by_position.has(grid_position):

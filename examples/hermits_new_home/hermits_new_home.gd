@@ -9,6 +9,8 @@ const GROUP_STANDABLE := "standable"
 
 const MAX_PUSH_PIECES := 8
 
+@export var shell: PackedScene
+
 @onready var board := $Board3D as Board3D
 @onready var animator := $PieceAnimator3D as PieceAnimator3D
 @onready var directions := $DirectionalInput as DirectionalInput
@@ -88,17 +90,20 @@ func _swap() -> void:
     # No shell to swap to
     if shells_on_connected_sand.is_empty():
         return
-    
-    # TODO Create new shell at player's old position
-    # TODO Move player to old shell position
-    # TODO Remove old shell
 
-    var new_shell := shells_on_connected_sand[0]
-    var player_new_transform := new_shell.transform
-    var player_old_transform := player.transform
+    # Deactivate existing shell
+    var shell_to_swap_to := shells_on_connected_sand[0]
+    shell_to_swap_to.active = false
 
-    player.transform = player_new_transform
-    new_shell.transform = player_old_transform
+    # Create new shell at player's current position
+    var shell_left_behind := shell.instantiate() as Piece3D
+    shell_left_behind.transform = player.transform
+    board.add_child(shell_left_behind)
+    # Ensure the shell will be removed on undo
+    shell_left_behind._previous_active = false
+
+    # Move player to existing shell position
+    player.transform = shell_to_swap_to.transform
 
     board.commit_changes()
 
