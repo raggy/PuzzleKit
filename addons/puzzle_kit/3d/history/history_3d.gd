@@ -102,6 +102,9 @@ func _undo_step_by_step() -> bool:
     return true
 
 func _undo_stop_at_important_steps() -> bool:
+    if _undo_steps.size() == 0:
+        return false
+    
     var important_step_index := _find_most_recent_important_step()
     
     # Most recent step is important, undo once
