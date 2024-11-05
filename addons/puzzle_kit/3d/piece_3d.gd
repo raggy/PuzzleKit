@@ -32,7 +32,14 @@ func _enter_tree() -> void:
     _original_transform = transform
     _previous_transform = transform
 
-func _ready() -> void:
+    # Find tiles
+    for i in range(get_child_count()):
+        var child := get_child(i)
+        var tile := child as Tile3D
+        if not tile:
+            continue
+        tile.piece = self
+    
     _board = _find_ancestor_board()
 
 func _exit_tree() -> void:

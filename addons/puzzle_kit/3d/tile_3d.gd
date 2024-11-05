@@ -6,12 +6,6 @@ extends Node3D
 var grid_position: Vector3i: get = _get_grid_position
 var piece: Piece3D: set = _set_piece
 
-func _enter_tree() -> void:
-    piece = get_parent() as Piece3D
-
-func _exit_tree() -> void:
-    piece = null
-
 func _get_grid_position() -> Vector3i:
     if not piece:
         return round(position)
