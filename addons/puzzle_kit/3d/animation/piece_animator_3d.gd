@@ -7,7 +7,9 @@ var _animations_playing: Array[PieceAnimation3D] = []
 var _animations_queued: Array[PieceAnimation3D] = []
 
 func _enter_tree() -> void:
-    _board = get_parent() as Board3D
+    for node in get_parent().get_children():
+        if node is Board3D:
+            _board = node as Board3D
 
 func _exit_tree() -> void:
     _board = null

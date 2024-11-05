@@ -9,8 +9,10 @@ signal undo_step_created(step: UndoStep3D)
 var _board: Board3D: set = _set_board
 var _undo_steps: Array[UndoStep3D] = []
 
-func _enter_tree() -> void:
-    _board = get_parent() as Board3D
+func _enter_tree():
+    for node in get_parent().get_children():
+        if node is Board3D:
+            _board = node as Board3D
 
 func _exit_tree() -> void:
     _board = null

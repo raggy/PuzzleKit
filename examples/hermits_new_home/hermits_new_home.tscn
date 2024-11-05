@@ -31,15 +31,15 @@ transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 4, 
 script = ExtResource("10_uayvv")
 alternate_diagonals = false
 
-[node name="Board3D" type="Node3D" parent="."]
-script = ExtResource("3_jqp8w")
-
-[node name="History3D" type="Node" parent="Board3D"]
+[node name="History3D" type="Node" parent="."]
 script = ExtResource("8_ryyxf")
 action_undo = &""
 
-[node name="PieceAnimator3D" type="Node" parent="Board3D"]
+[node name="PieceAnimator3D" type="Node" parent="."]
 script = ExtResource("10_f8pcv")
+
+[node name="Board3D" type="Node3D" parent="."]
+script = ExtResource("3_jqp8w")
 
 [node name="Player" parent="Board3D" instance=ExtResource("4_x4bk7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1, 0)
