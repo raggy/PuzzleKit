@@ -57,6 +57,10 @@ func _move(direction_2d: Vector2i) -> bool:
         pushed = true
         pushable.grid_position += direction
 
+        # Piece should roll
+        if pushable.is_in_group(GROUP_ROLLS):
+            pushable.rotate(Vector3(direction).cross(Vector3.UP), -TAU/4)
+
         # Nothing below pushable after movement
         if board.is_empty(pushable.grid_position + Vector3i.DOWN):
             pushable.grid_position.y = 0
