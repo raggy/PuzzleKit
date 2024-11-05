@@ -69,6 +69,9 @@ func undo() -> bool:
     
     return result
 
+func clear_undo_history() -> void:
+    _undo_steps.clear()
+
 func _process(_delta: float) -> void:
     if InputMap.has_action(action_undo) and Input.is_action_just_pressed(action_undo):
         undo()
