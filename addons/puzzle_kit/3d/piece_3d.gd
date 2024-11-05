@@ -92,5 +92,7 @@ func _find_ancestor_board() -> Board3D:
         # Found the Board
         if search_parent is Board3D:
             return search_parent as Board3D
+        # Update which node we're looking at for next iteration
+        search_node = search_parent
     # Reached max search depth
     return null
