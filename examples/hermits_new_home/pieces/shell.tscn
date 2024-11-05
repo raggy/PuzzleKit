@@ -1,10 +1,17 @@
-[gd_scene load_steps=5 format=3 uid="uid://on00ojmdj40p"]
+[gd_scene load_steps=7 format=3 uid="uid://on00ojmdj40p"]
 
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_uo3uf"]
+[ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/hermits_new_shader.tres" id="2_1827y"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/animation/piece_visual_3d.gd" id="2_k7lvu"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/tile_3d.gd" id="2_v1qs4"]
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ga7si"]
+render_priority = 0
+shader = ExtResource("2_1827y")
+shader_parameter/Color = Color(1, 0.952941, 0.968627, 1)
+
 [sub_resource type="CylinderMesh" id="CylinderMesh_846rb"]
+material = SubResource("ShaderMaterial_ga7si")
 top_radius = 0.0
 height = 1.0
 radial_segments = 8
