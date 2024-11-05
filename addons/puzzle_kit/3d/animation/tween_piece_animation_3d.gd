@@ -13,7 +13,7 @@ func start() -> void:
 
     tween.tween_property(self, "position_base", piece_transform_end.origin, position_tween_duration).from(piece_transform_start.origin)
     tween.parallel().tween_property(self, "position_offset", Vector3.ZERO, position_catchup_duration).from(visual.position - piece_transform_start.origin)
-    tween.parallel().tween_property(visual, "quaternion", piece_transform_end.basis.get_rotation_quaternion(), position_catchup_duration)
+    tween.parallel().tween_property(visual, "quaternion", piece_transform_end.basis.get_rotation_quaternion(), rotation_tween_duration)
     tween.tween_callback(finish)
 
 func finish() -> void:
