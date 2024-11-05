@@ -33,7 +33,7 @@ alternate_diagonals = false
 
 [node name="History3D" type="Node" parent="."]
 script = ExtResource("8_ryyxf")
-action_undo = &""
+undo_behavior = 1
 
 [node name="PieceAnimator3D" type="Node" parent="."]
 script = ExtResource("10_f8pcv")
