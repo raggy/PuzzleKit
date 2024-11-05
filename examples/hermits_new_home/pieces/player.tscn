@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://dexd7bsv1caxi"]
 
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_741vi"]
-[ext_resource type="Script" path="res://addons/puzzle_kit/3d/piece_visual_3d.gd" id="2_5uu4q"]
+[ext_resource type="Script" path="res://addons/puzzle_kit/3d/animation/piece_visual_3d.gd" id="2_5uu4q"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/tile_3d.gd" id="2_gpie1"]
 
 [sub_resource type="SphereMesh" id="SphereMesh_ny3gl"]
