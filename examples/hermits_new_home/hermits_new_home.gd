@@ -8,22 +8,25 @@ const GROUP_STANDABLE := "standable"
 const MAX_PUSH_PIECES := 8
 
 @onready var board := $Board3D as Board3D
-@onready var animator := $Board3D/PieceAnimator3D as PieceAnimator3D
+@onready var animator := $PieceAnimator3D as PieceAnimator3D
 @onready var directions := $DirectionalInput as DirectionalInput
-@onready var history := $Board3D/History3D as History3D
+@onready var history := $History3D as History3D
 @onready var player := $Board3D/Player as Piece3D
 
-var push_steps: Array[UndoStep3D] = []
+var push_steps: Array[PieceStateSnapshot3D] = []
 
 func _ready() -> void:
     directions.input = _move
     history.undo_step_created.connect(
-    func(step: UndoStep3D) -> void:
-        for change in step.changes:
-            if change.piece.is_in_group(GROUP_PUSHABLE):
+    func(step: PieceStateSnapshot3D) -> void:
+        for state in step.states:
+            if state.piece.is_in_group(GROUP_PUSHABLE):
                 push_steps.append(step)
                 return
     )
+
+    # Create initial checkpoint after everything has loaded
+    history.call_deferred("checkpoint")
 
 func _process(_delta: float) -> void:
     if Input.is_action_just_pressed("undo"):

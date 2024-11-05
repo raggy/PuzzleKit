@@ -15,15 +15,21 @@ var grid_right: Vector3i: get = _get_grid_right
 var grid_up: Vector3i: get = _get_grid_up
 ## `-transform.basis.z`, rounded to snap to the grid
 var grid_forward: Vector3i: get = _get_grid_forward
+
+## `PieceHistory3D` child (auto-set)
+var history: PieceHistory3D
 ## List of `Tile3D`, representing the 3D shape of this piece
 var tiles: Array[Tile3D] = []
+## `PieceVisual3D` child (auto-set)
 var visual: PieceVisual3D
 
 var _board: Board3D: set = _set_board
 var _board_cached_transform: Transform3D
+var _original_transform: Transform3D
 var _previous_transform: Transform3D
 
 func _enter_tree() -> void:
+    _original_transform = transform
     _previous_transform = transform
 
 func _ready() -> void:
@@ -31,9 +37,6 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
     _board = null
-
-func has_changes() -> bool:
-    return transform != _previous_transform
 
 func commit_changes():
     changes_committing.emit()

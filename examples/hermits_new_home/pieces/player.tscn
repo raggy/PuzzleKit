@@ -1,9 +1,10 @@
-[gd_scene load_steps=9 format=3 uid="uid://dexd7bsv1caxi"]
+[gd_scene load_steps=10 format=3 uid="uid://dexd7bsv1caxi"]
 
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_741vi"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/animation/piece_visual_3d.gd" id="2_5uu4q"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/tile_3d.gd" id="2_gpie1"]
 [ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/hermits_new_shader.tres" id="3_m4p25"]
+[ext_resource type="Script" path="res://addons/puzzle_kit/3d/history/piece_history_3d.gd" id="5_vjfo5"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_wkydw"]
 render_priority = 0
@@ -49,3 +50,6 @@ skeleton = NodePath("../..")
 
 [node name="Tile3D" type="Node3D" parent="."]
 script = ExtResource("2_gpie1")
+
+[node name="PieceHistory3D" type="Node" parent="."]
+script = ExtResource("5_vjfo5")
