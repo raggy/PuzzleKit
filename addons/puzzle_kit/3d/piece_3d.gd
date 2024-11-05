@@ -5,6 +5,7 @@ extends Node3D
 
 signal changes_committing()
 signal changes_reverting()
+signal teleported()
 
 ## `position`, rounded to snap to the grid
 var grid_position: Vector3i: get = _get_grid_position, set = _set_grid_position
@@ -31,6 +32,9 @@ func _ready() -> void:
 func _exit_tree() -> void:
     _board = null
 
+func has_changes() -> bool:
+    return transform != _previous_transform
+
 func commit_changes():
     changes_committing.emit()
     _previous_transform = transform
@@ -38,6 +42,11 @@ func commit_changes():
 func revert_changes():
     changes_reverting.emit()
     transform = _previous_transform
+
+func teleport(new_transform: Transform3D):
+    transform = new_transform
+    _previous_transform = new_transform
+    teleported.emit()
 
 func _get_grid_position() -> Vector3i:
     return round(position)

@@ -20,10 +20,12 @@ func _exit_tree() -> void:
 func _set_piece(value: Piece3D):
     if piece:
         piece.changes_committing.disconnect(_dequeue_animation)
+        piece.teleported.disconnect(_snap_to_piece_transform)
         piece.visual = null
     piece = value
     if value:
         value.changes_committing.connect(_dequeue_animation)
+        piece.teleported.connect(_snap_to_piece_transform)
         value.visual = self
 
 func _dequeue_animation():
@@ -39,3 +41,8 @@ func _dequeue_animation():
             return
     animator.play(_queued_animation)
     _queued_animation = null
+
+func _snap_to_piece_transform():
+    if animation:
+        animator.finish(animation)
+    transform = piece.transform

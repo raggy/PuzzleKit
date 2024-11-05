@@ -8,12 +8,35 @@ const GROUP_STANDABLE := "standable"
 const MAX_PUSH_PIECES := 8
 
 @onready var board := $Board3D as Board3D
-@onready var animator := $PieceAnimator3D as PieceAnimator3D
+@onready var animator := $Board3D/PieceAnimator3D as PieceAnimator3D
 @onready var directions := $DirectionalInput as DirectionalInput
+@onready var history := $Board3D/History3D as History3D
 @onready var player := $Board3D/Player as Piece3D
+
+var push_steps: Array[UndoStep3D] = []
 
 func _ready() -> void:
     directions.input = _move
+    history.undo_step_created.connect(
+    func(step: UndoStep3D) -> void:
+        for change in step.changes:
+            if change.piece.is_in_group(GROUP_PUSHABLE):
+                push_steps.append(step)
+                return
+    )
+
+func _process(_delta: float) -> void:
+    if Input.is_action_just_pressed("undo"):
+        # If no pushes logged, just undo once
+        if push_steps.is_empty():
+            history.undo()
+            return
+        
+        var step := push_steps[-1]
+        push_steps.remove_at(push_steps.size() - 1)
+        # Try to undo to just before the most recent push, otherwise just undo once
+        if not history.undo_until(step):
+            history.undo()
 
 func _move(direction_2d: Vector2i) -> bool:
     var direction := Vector3i(direction_2d.x, 0, direction_2d.y)
