@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://ckrr86q1cfgnb"]
+[gd_scene load_steps=12 format=3 uid="uid://ckrr86q1cfgnb"]
 
 [ext_resource type="Script" path="res://examples/hermits_new_home/hermits_new_home.gd" id="1_cm4va"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/board_3d.gd" id="3_jqp8w"]
@@ -10,12 +10,13 @@
 [ext_resource type="PackedScene" uid="uid://on00ojmdj40p" path="res://examples/hermits_new_home/pieces/shell.tscn" id="9_qujdy"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/animation/piece_animator_3d.gd" id="10_f8pcv"]
 [ext_resource type="Script" path="res://addons/puzzle_kit/input/directional_input.gd" id="10_uayvv"]
+[ext_resource type="PackedScene" uid="uid://bvrp2f17e18h0" path="res://examples/hermits_new_home/pieces/sand.tscn" id="11_gb1ek"]
 
 [node name="Node3D" type="Node3D"]
 script = ExtResource("1_cm4va")
 
 [node name="CameraContainer" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 3, 0, 2)
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 5, 0, 3)
 
 [node name="Camera3D" type="Camera3D" parent="CameraContainer"]
 transform = Transform3D(1, -3.55271e-15, -8.88178e-15, -1.77636e-15, 1, 0, 1.77636e-15, 0, 1, 0, 0, 10)
@@ -44,77 +45,138 @@ script = ExtResource("3_jqp8w")
 [node name="Player" parent="Board3D" instance=ExtResource("4_x4bk7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1, 0)
 
-[node name="Grass" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Level 4" type="Node" parent="Board3D"]
+
+[node name="Grass" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
 
-[node name="Grass2" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass2" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
 
-[node name="Grass3" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass3" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 2)
 
-[node name="Grass4" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass4" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 3)
 
-[node name="Grass5" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass5" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 4)
 
-[node name="Grass6" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass6" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 1)
 
-[node name="Grass7" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass7" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
 
-[node name="Grass8" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass8" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 3)
 
-[node name="Grass9" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass9" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
 
-[node name="Grass10" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass10" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 5)
 
-[node name="Grass11" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass11" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 0)
 
-[node name="Grass12" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass12" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 1)
 
-[node name="Grass13" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass13" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 2)
 
-[node name="Grass14" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass14" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 3)
 
-[node name="Grass15" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass15" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 4)
 
-[node name="Grass16" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass16" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 1)
 
-[node name="Grass17" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass17" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
 
-[node name="Grass18" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass18" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 3)
 
-[node name="Grass19" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass19" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 4)
 
-[node name="Grass20" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass20" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 2)
 
-[node name="Grass21" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass21" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 3)
 
-[node name="Grass22" parent="Board3D" instance=ExtResource("5_f1fcd")]
+[node name="Grass22" parent="Board3D/Level 4" instance=ExtResource("5_f1fcd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 4)
 
-[node name="Coconut" parent="Board3D" instance=ExtResource("7_4s0kf")]
+[node name="Coconut" parent="Board3D/Level 4" instance=ExtResource("7_4s0kf")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 2)
 
-[node name="Rock" parent="Board3D" instance=ExtResource("8_2l8el")]
+[node name="Rock" parent="Board3D/Level 4" instance=ExtResource("8_2l8el")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1)
 
-[node name="Shell" parent="Board3D" instance=ExtResource("9_qujdy")]
+[node name="Shell" parent="Board3D/Level 4" instance=ExtResource("9_qujdy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1, 3)
+
+[node name="Level 6" type="Node" parent="Board3D"]
+
+[node name="Sand" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 4)
+
+[node name="Sand2" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 5)
+
+[node name="Sand3" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 2)
+
+[node name="Sand4" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 3)
+
+[node name="Sand5" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 4)
+
+[node name="Sand6" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 5)
+
+[node name="Sand7" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 1)
+
+[node name="Sand8" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 2)
+
+[node name="Sand9" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 3)
+
+[node name="Sand10" parent="Board3D/Level 6" instance=ExtResource("11_gb1ek")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 4)
+
+[node name="Shell" parent="Board3D/Level 6" instance=ExtResource("9_qujdy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1, 2)
+
+[node name="Rock" parent="Board3D/Level 6" instance=ExtResource("8_2l8el")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1, 4)
+
+[node name="Coconut" parent="Board3D/Level 6" instance=ExtResource("7_4s0kf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 1, 4)
+
+[node name="Grass" parent="Board3D/Level 6" instance=ExtResource("5_f1fcd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 6)
+
+[node name="Grass2" parent="Board3D/Level 6" instance=ExtResource("5_f1fcd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 7)
+
+[node name="Grass3" parent="Board3D/Level 6" instance=ExtResource("5_f1fcd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 5)
+
+[node name="Grass4" parent="Board3D/Level 6" instance=ExtResource("5_f1fcd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 6)
+
+[node name="Grass5" parent="Board3D/Level 6" instance=ExtResource("5_f1fcd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 7)
+
+[node name="Coconut2" parent="Board3D/Level 6" instance=ExtResource("7_4s0kf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 1, 6)

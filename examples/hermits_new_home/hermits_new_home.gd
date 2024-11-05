@@ -3,6 +3,8 @@ extends Node3D
 const GROUP_PHYSICAL := "physical"
 const GROUP_PUSHABLE := "pushable"
 const GROUP_ROLLS := "rolls"
+const GROUP_SAND := "sand"
+const GROUP_SHELL := "shell"
 const GROUP_STANDABLE := "standable"
 
 const MAX_PUSH_PIECES := 8
@@ -21,6 +23,10 @@ func _ready() -> void:
 
     # Create initial checkpoint after everything has loaded
     history.call_deferred("checkpoint")
+
+func _process(_delta: float) -> void:
+    if Input.is_action_just_pressed("swap"):
+        _swap()
 
 func _move(direction_2d: Vector2i) -> bool:
     var direction := Vector3i(direction_2d.x, 0, direction_2d.y)
@@ -70,6 +76,32 @@ func _move(direction_2d: Vector2i) -> bool:
 
     return true
 
+func _swap() -> void:
+    # No sand below player
+    if board.is_empty(player.grid_position + Vector3i.DOWN, GROUP_SAND):
+        return
+
+    var sand_below := board.get_tiles_at(player.grid_position + Vector3i.DOWN, GROUP_SAND)
+    var connected_sand := _get_touching(sand_below[0].piece, GROUP_SAND)
+    var shells_on_connected_sand := _get_pieces_on_top_of(connected_sand, GROUP_SHELL)
+
+    # No shell to swap to
+    if shells_on_connected_sand.is_empty():
+        return
+    
+    # TODO Create new shell at player's old position
+    # TODO Move player to old shell position
+    # TODO Remove old shell
+
+    var new_shell := shells_on_connected_sand[0]
+    var player_new_transform := new_shell.transform
+    var player_old_transform := player.transform
+
+    player.transform = player_new_transform
+    new_shell.transform = player_old_transform
+
+    board.commit_changes()
+
 func _get_end_pushable(start_position: Vector3i, direction: Vector3i) -> Piece3D:
     var search_position := start_position + direction
     var end_piece: Piece3D
@@ -84,3 +116,38 @@ func _get_end_pushable(start_position: Vector3i, direction: Vector3i) -> Piece3D
         search_position += direction
     
     return end_piece
+
+func _get_touching(piece: Piece3D, group: String = "") -> Array[Piece3D]:
+    const DIRECTIONS_ADJACENT: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT, Vector3i.UP, Vector3i.DOWN, Vector3i.FORWARD, Vector3i.BACK]
+    var pieces_touching: Array[Piece3D] = [piece]
+    var search_index := 0
+
+    while (search_index < pieces_touching.size()):
+        var origin_piece := pieces_touching[search_index]
+
+        for origin_tile in origin_piece.tiles:
+            for direction in DIRECTIONS_ADJACENT:
+                var touching_tiles := board.get_tiles_at(origin_tile.grid_position + direction, group)
+                # Add touching pieces to check (if not already in the list)
+                for touching_tile in touching_tiles:
+                    if pieces_touching.has(touching_tile.piece):
+                        continue
+                    pieces_touching.append(touching_tile.piece)
+        
+        search_index += 1
+    
+    return pieces_touching
+
+func _get_pieces_on_top_of(pieces: Array[Piece3D], group: String = "") -> Array[Piece3D]:
+    var pieces_on_top: Array[Piece3D] = []
+
+    for piece_below in pieces:
+        for tile_below in piece_below.tiles:
+            var tiles_on_top := board.get_tiles_at(tile_below.grid_position + Vector3i.UP, group)
+            # Add pieces on top (if not already in the list)
+            for tile_on_top in tiles_on_top:
+                if pieces_on_top.has(tile_on_top.piece):
+                    continue
+                pieces_on_top.append(tile_on_top.piece)
+
+    return pieces_on_top
