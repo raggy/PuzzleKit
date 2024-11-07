@@ -1,3 +1,4 @@
+@icon("res://addons/puzzle_kit/icons/directional_input.svg")
 class_name DirectionalInput
 extends Node
 
