@@ -11,12 +11,12 @@ signal changes_reverting()
 var _pieces: Array[Piece3D] = []
 # var _cells_by_position: Dictionary[Vector3i, Cell3D] = {}
 var _cells_by_position: Dictionary = {}
-# var _cells_by_tile: Dictionary[Tile3D, Cell3D] = {}
-var _cells_by_tile: Dictionary = {}
+# var _cells_by_piece: Dictionary[Piece3D, Cell3D] = {}
+var _cells_by_piece: Dictionary = {}
 
 #region Queries
 func is_empty(grid_position: Vector3i, group: String = "") -> bool:
-    _update_piece_cells()
+    _update_cells()
 
     var cell := _cells_by_position.get(grid_position) as Cell3D
     # Nothing here
@@ -27,28 +27,47 @@ func is_empty(grid_position: Vector3i, group: String = "") -> bool:
     if group == "":
         return false
     
-    for tile in cell.tiles:
-        if tile.piece.is_in_group(group):
+    for piece in cell.pieces:
+        if piece.is_in_group(group):
             return false
     
     return true
 
-func get_tiles_at(grid_position: Vector3i, group: String = "") -> Array[Tile3D]:
-    _update_piece_cells()
+func get_piece_at(grid_position: Vector3i, group: String = "") -> Piece3D:
+    _update_cells()
+
+    var cell := _cells_by_position.get(grid_position) as Cell3D
+    # Nothing here
+    if not cell or cell.is_empty():
+        return null
+    # No group filter, return first piece in cell
+    if group == "":
+        return cell.pieces[0]
+    
+    var result: Array[Piece3D] = []
+    # Return first piece that matches group
+    for piece in _cells_by_position[grid_position].pieces:
+        if piece.is_in_group(group):
+            return piece
+    
+    return null
+
+func get_pieces_at(grid_position: Vector3i, group: String = "") -> Array[Piece3D]:
+    _update_cells()
 
     var cell := _cells_by_position.get(grid_position) as Cell3D
     # Nothing here
     if not cell or cell.is_empty():
         return []
-    # No group filter, return all tiles in cell
+    # No group filter, return all pieces in cell
     if group == "":
-        return cell.tiles
+        return cell.pieces
     
-    var result: Array[Tile3D] = []
-    # Build an array of all tiles that match the group filter
-    for tile in _cells_by_position[grid_position].tiles:
-        if tile.piece.is_in_group(group):
-            result.append(tile)
+    var result: Array[Piece3D] = []
+    # Build an array of all pieces that match the group filter
+    for piece in _cells_by_position[grid_position].pieces:
+        if piece.is_in_group(group):
+            result.append(piece)
     
     return result
 #endregion
@@ -70,47 +89,43 @@ func revert_changes():
 #region Internal
 func _register_piece(piece: Piece3D):
     _pieces.append(piece)
-    _update_piece_tile_cells(piece)
+    _update_piece_cell(piece)
     piece_added.emit(piece)
 
 func _deregister_piece(piece: Piece3D):
     _pieces.erase(piece)
-    # Remove tiles from cells
-    for tile in piece.tiles:
-        var cell := _cells_by_tile.get(tile)
-        # Tile wasn't in a cell (piece must've been inactive)
-        if not cell:
-            continue
-        cell.tiles.erase(tile)
-        _cells_by_tile.erase(tile)
+    # Remove piece from cell if it was active
+    if _cells_by_piece.has(piece):
+        var cell := _cells_by_piece[piece] as Cell3D
+        cell.pieces.erase(piece)
+        _cells_by_piece.erase(piece)
     piece_removed.emit(piece)
 
-func _update_piece_cells():
+func _update_cells():
     for piece in _pieces:
         # Piece hasn't changed since we last looked
-        if piece.active == piece._board_cached_active and piece.transform == piece._board_cached_transform:
+        if piece.active == piece._board_cached_active and piece.global_transform == piece._board_cached_transform:
             continue
-        _update_piece_tile_cells(piece)
+        _update_piece_cell(piece)
 
-func _update_piece_tile_cells(piece: Piece3D):
-    # Note the state when we set the tiles in cells
+func _update_piece_cell(piece: Piece3D):
+    # Note the state when we set the piece in cell
     piece._board_cached_active = piece.active
-    piece._board_cached_transform = piece.transform
-    # Update which cells the tiles sit in
-    for tile in piece.tiles:
-        var previous_cell := _cells_by_tile.get(tile) as Cell3D
-        var new_cell := _get_or_create_cell(tile.grid_position) if piece.active else null
-        # Tile didn't change cells
-        if previous_cell == new_cell:
-            continue
-        # Remove from old cell
-        if previous_cell:
-            previous_cell.tiles.erase(tile)
-            _cells_by_tile.erase(tile)
-        # Add to new cell
-        if new_cell:
-            new_cell.tiles.append(tile)
-            _cells_by_tile[tile] = new_cell
+    piece._board_cached_transform = piece.global_transform
+    # Update which cell the piece sits in
+    var previous_cell := _cells_by_piece.get(piece) as Cell3D
+    var new_cell := _get_or_create_cell(piece.grid_position) if piece.active else null
+    # Piece didn't change cells
+    if previous_cell == new_cell:
+        return
+    # Remove from old cell
+    if previous_cell:
+        previous_cell.pieces.erase(piece)
+        _cells_by_piece.erase(piece)
+    # Add to new cell
+    if new_cell:
+        new_cell.pieces.append(piece)
+        _cells_by_piece[piece] = new_cell
 
 func _get_or_create_cell(grid_position: Vector3i) -> Cell3D:
     if not _cells_by_position.has(grid_position):
@@ -120,10 +135,10 @@ func _get_or_create_cell(grid_position: Vector3i) -> Cell3D:
 
 class Cell3D:
     var grid_position: Vector3i
-    var tiles: Array[Tile3D] = []
+    var pieces: Array[Piece3D] = []
 
     func _init(_grid_position: Vector3i) -> void:
         grid_position = _grid_position
     
     func is_empty() -> bool:
-        return tiles.size() == 0
+        return pieces.size() == 0

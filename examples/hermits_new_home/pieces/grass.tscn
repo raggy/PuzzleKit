@@ -1,7 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://ql5al82sv5"]
+[gd_scene load_steps=5 format=3 uid="uid://ql5al82sv5"]
 
 [ext_resource type="Script" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_6l3wu"]
-[ext_resource type="Script" path="res://addons/puzzle_kit/3d/tile_3d.gd" id="2_be1jf"]
 [ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/hermits_new_shader.tres" id="2_imtr5"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xxh86"]
@@ -17,6 +16,3 @@ script = ExtResource("1_6l3wu")
 
 [node name="Visual" type="MeshInstance3D" parent="."]
 mesh = SubResource("BoxMesh_txay2")
-
-[node name="Tile3D" type="Node3D" parent="."]
-script = ExtResource("2_be1jf")

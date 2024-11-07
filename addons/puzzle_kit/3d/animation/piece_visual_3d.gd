@@ -22,7 +22,7 @@ func create_default_animation() -> PieceAnimation3D:
         return null
     
     # Piece didn't change state
-    if piece._previous_active == piece.active and piece._previous_transform == piece.transform:
+    if piece._previous_active == piece.active and piece._previous_transform == piece.global_transform:
         return null
     
     # No default animation to play
@@ -46,4 +46,4 @@ func _snap_to_piece_state():
     if animation:
         animation.finish()
     visible = piece.active
-    transform = piece.transform
+    global_transform = piece.global_transform

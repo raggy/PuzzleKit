@@ -16,7 +16,7 @@ func setup(_visual: PieceVisual3D):
 	piece_was_active = visual.piece._previous_active
 	piece_will_be_active = visual.piece.active
 	piece_transform_start = visual.piece._previous_transform
-	piece_transform_end = visual.piece.transform
+	piece_transform_end = visual.piece.global_transform
 
 func start() -> void:
 	pass

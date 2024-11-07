@@ -25,9 +25,7 @@ var _undo_steps: Array[PieceStateSnapshot3D] = []
 var _recently_deactivated_pieces: Array[Piece3D] = []
 
 func _enter_tree() -> void:
-    for node in get_parent().get_children():
-        if node is Board3D:
-            _board = node as Board3D
+    _board = get_parent() as Board3D
 
 func _exit_tree() -> void:
     _board = null
@@ -39,7 +37,7 @@ func checkpoint() -> void:
         
         piece.history._in_checkpoint = true
         piece.history._checkpoint_active = piece.active
-        piece.history._checkpoint_transform = piece.transform
+        piece.history._checkpoint_transform = piece.global_transform
 
 func reset() -> void:
     # Create undo step with all the pieces that have changed

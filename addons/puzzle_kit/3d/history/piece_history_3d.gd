@@ -18,7 +18,7 @@ func get_current_state() -> PieceState3D:
     var state := PieceState3D.new()
     state.piece = piece
     state.active = piece.active
-    state.transform = piece.transform
+    state.transform = piece.global_transform
     return state
 
 ## Get `PieceState3D` for previous step
@@ -31,12 +31,12 @@ func get_previous_state() -> PieceState3D:
 
 ## Has this piece changed this step?
 func has_changed() -> bool:
-    return piece.active != piece._previous_active or piece.transform != piece._previous_transform
+    return piece.active != piece._previous_active or piece.global_transform != piece._previous_transform
 
 func reset_to_checkpoint() -> void:
     # Deactivate pieces that were created after the checkpoint
     if not piece.history._in_checkpoint:
-        piece.teleport(false, piece.transform)
+        piece.teleport(false, piece.global_transform)
         return
     
     # Move piece to checkpoint state
