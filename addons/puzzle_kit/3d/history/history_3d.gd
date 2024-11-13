@@ -1,6 +1,8 @@
 class_name History3D
 extends Node
 
+signal resetted()
+signal undid()
 signal undo_step_created(step: PieceStateSnapshot3D)
 
 enum UndoBehavior {
@@ -51,6 +53,8 @@ func reset() -> void:
         
         undo_step.states.append(piece.history.get_current_state())
         piece.history.reset_to_checkpoint()
+    
+    resetted.emit()
 
 func undo() -> bool:
     var result := false
@@ -64,6 +68,9 @@ func undo() -> bool:
         _free_inactive_orphaned_pieces()
 
     _recently_deactivated_pieces.clear()
+
+    if result:
+        undid.emit()
     
     return result
 
