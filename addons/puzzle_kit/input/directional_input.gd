@@ -53,6 +53,9 @@ func _process(_delta: float) -> void:
         _repeat_direction_h = Vector2i.ZERO
 
 func _input_immediately(direction: Vector2i) -> bool:
+    if not enabled:
+        return false
+    
     if not input:
         return false
     
@@ -110,15 +113,7 @@ func set_enabled(value: bool):
     
     enabled = value
 
-    if enabled:
-        enable()
-    else:
-        disable()
-
-func enable():
-    pass
-
-func disable():
-    _last_accepted_direction = Vector2i.ZERO
-    _repeat_direction_h = Vector2i.ZERO
-    _repeat_direction_v = Vector2i.ZERO
+    if not enabled:
+        _last_accepted_direction = Vector2i.ZERO
+        _repeat_direction_h = Vector2i.ZERO
+        _repeat_direction_v = Vector2i.ZERO
