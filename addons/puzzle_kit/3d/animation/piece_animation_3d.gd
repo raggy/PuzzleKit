@@ -1,7 +1,9 @@
 class_name PieceAnimation3D
 extends Node
 
+signal started()
 signal finished()
+signal stopped()
 
 var visual: PieceVisual3D
 var piece_was_active: bool
@@ -19,10 +21,10 @@ func setup(_visual: PieceVisual3D):
 	piece_transform_end = visual.piece.global_transform
 
 func start() -> void:
-	pass
+	started.emit()
 
 func finish() -> void:
 	finished.emit()
 
 func stop() -> void:
-	pass
+	stopped.emit()

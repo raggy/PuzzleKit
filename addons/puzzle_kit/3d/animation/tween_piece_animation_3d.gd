@@ -21,6 +21,8 @@ func start() -> void:
 
     tween.tween_callback(finish)
 
+    super.start()
+
 func finish() -> void:
     _clean_up()
     
