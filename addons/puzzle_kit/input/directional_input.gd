@@ -11,6 +11,8 @@ extends Node
 @export_group("Behavior")
 ## If true, will alternate between diagonals when held. Else, will repeat the most recent direction
 @export var alternate_diagonals: bool = true
+## If bigger than 0, will auto-repeat after a delay presses when inputs are held
+@export var auto_repeat_delay: float = 0.2
 
 var enabled: bool = true: set = set_enabled
 var input: Callable
@@ -18,8 +20,9 @@ var input: Callable
 var _last_accepted_direction := Vector2i.ZERO
 var _repeat_direction_h := Vector2i.ZERO
 var _repeat_direction_v := Vector2i.ZERO
+var _time_until_next_repeat: float = 0.0
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
     # Handle newly-pressed input directions
     if Input.is_action_just_pressed(action_up):
         _input_immediately(Vector2i.UP)
@@ -51,6 +54,14 @@ func _process(_delta: float) -> void:
         _repeat_direction_h = Vector2i.ZERO
     if Input.is_action_just_released(action_right) and _repeat_direction_h == Vector2i.RIGHT:
         _repeat_direction_h = Vector2i.ZERO
+    
+    # Count down until repeat input
+    if _time_until_next_repeat > 0.0:
+        _time_until_next_repeat -= delta
+        # Repeat timer reached 0
+        if _time_until_next_repeat <= 0.0:
+            repeat()
+
 
 func _input_immediately(direction: Vector2i) -> bool:
     if not enabled:
@@ -63,6 +74,9 @@ func _input_immediately(direction: Vector2i) -> bool:
         return false
 
     _last_accepted_direction = direction
+
+    if auto_repeat_delay > 0.0:
+        _time_until_next_repeat += auto_repeat_delay
     
     return true
 
