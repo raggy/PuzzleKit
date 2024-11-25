@@ -18,6 +18,8 @@ enum UndoBehavior {
 
 @export_group("Behavior")
 @export var undo_behavior: UndoBehavior = UndoBehavior.STEP_BY_STEP
+## Which group should we keep track of? (Or all if left blank)
+@export var group_filter: String = ""
 ## Should we free inactive pieces that aren't referenced in our history?
 @export var auto_free_inactive_orphaned_pieces: bool = true
 
@@ -34,7 +36,11 @@ func _exit_tree() -> void:
 
 func checkpoint() -> void:
     for piece in _board._pieces:
+        # We don't track this piece
         if not piece.history:
+            continue
+        # Piece doesn't match the group filter
+        if group_filter and not piece.is_in_group(group_filter):
             continue
         
         piece.history._in_checkpoint = true
@@ -48,7 +54,11 @@ func reset() -> void:
     _undo_steps.append(undo_step)
 
     for piece in _board._pieces:
+        # We don't track this piece
         if not piece.history:
+            continue
+        # Piece doesn't match the group filter
+        if group_filter and not piece.is_in_group(group_filter):
             continue
         
         undo_step.states.append(piece.history.get_current_state())
@@ -98,6 +108,9 @@ func _create_undo_step() -> void:
         # We don't track this piece
         if not piece.history:
             continue
+        # Piece doesn't match the group filter
+        if group_filter and not piece.is_in_group(group_filter):
+            continue
         # Piece didn't change
         if not piece.history.has_changed():
             continue
@@ -110,11 +123,13 @@ func _create_undo_step() -> void:
     _undo_steps.push_back(undo_step)
     undo_step_created.emit(undo_step)
 
+    # print("%s Created undo step" % name)
+
 func _free_inactive_orphaned_pieces() -> void:
     _remove_pieces_that_will_reactivate(_recently_deactivated_pieces)
 
     for piece in _recently_deactivated_pieces:
-        # print("Auto-freeing %s" % piece)
+        # print("%s Auto-freeing %s" % [name, piece])
         if piece.get_parent():
             piece.get_parent().remove_child(piece)
         piece.queue_free()
