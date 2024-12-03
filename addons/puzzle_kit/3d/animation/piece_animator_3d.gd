@@ -16,7 +16,7 @@ func _exit_tree() -> void:
 func play(animation: PieceAnimation3D):
     # TODO: Queue up animation until board.commit_changes() is called, so we can tell if we need to make a default animation
     # Maybe store this animation on the PieceVisual3D?
-    add_child(animation)
+    add_child(animation, true)
     _animations_playing.append(animation)
     animation.finished.connect(_on_animation_finished.bind(animation))
     animation.start()
@@ -50,7 +50,8 @@ func stop(animation: PieceAnimation3D):
 
     # Keep removing queued animations until we're done
     while (animations_to_stop.size() > 0):
-        var animation_to_stop := animations_to_stop.pop_back()
+        var animation_to_stop := animations_to_stop[0]
+        animations_to_stop.remove_at(0)
         
         if _animations_playing.has(animation_to_stop):
             animation_to_stop.stop()
@@ -64,9 +65,6 @@ func stop(animation: PieceAnimation3D):
                 animations_to_stop.append(queued_animation)
         
         animation_to_stop.queue_free()
-    
-    # Clear queued animations just in case any were orphaned
-    _animations_queued.clear()
 
 ## Stop animations for piece
 func stop_for(piece: Piece3D):
@@ -85,7 +83,12 @@ func _set_board(value: Board3D):
 func _finish_animations(animations_to_finish: Array[PieceAnimation3D]):
     # Keep removing queued animations until we're done
     while (animations_to_finish.size() > 0):
-        var animation_to_finish := animations_to_finish.pop_back()
+        var animation_to_finish := animations_to_finish[0]
+        animations_to_finish.remove_at(0)
+
+        for queued_animation in _animations_queued:
+            if queued_animation._queued_after == animation_to_finish:
+                animations_to_finish.append(queued_animation)
         
         if _animations_playing.has(animation_to_finish):
             animation_to_finish.finish()
@@ -93,15 +96,8 @@ func _finish_animations(animations_to_finish: Array[PieceAnimation3D]):
         if _animations_queued.has(animation_to_finish):
             animation_to_finish.finish()
             _animations_queued.erase(animation_to_finish)
-
-        for queued_animation in _animations_queued:
-            if queued_animation._queued_after == animation_to_finish:
-                animations_to_finish.append(queued_animation)
         
         animation_to_finish.queue_free()
-    
-    # Clear queued animations just in case any were orphaned
-    _animations_queued.clear()
 
 func _stop_for_in_list(piece: Piece3D, animation_list: Array[PieceAnimation3D]):
     var animations_stopped := 0
