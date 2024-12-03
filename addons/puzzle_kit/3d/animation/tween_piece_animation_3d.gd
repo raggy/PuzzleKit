@@ -28,6 +28,7 @@ func finish() -> void:
     
     visual.position = piece_transform_end.origin
     visual.quaternion = piece_transform_end.basis.get_rotation_quaternion()
+    visual.visible = piece_will_be_active
 
     super.finish()
 
