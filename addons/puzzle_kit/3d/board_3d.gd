@@ -70,6 +70,38 @@ func get_pieces_at(grid_position: Vector3i, group: String = "") -> Array[Piece3D
             result.append(piece)
     
     return result
+
+## Get the first piece registered (optionally filtered by group, optionally including inactive)
+func get_piece(group: String = "", include_inactive: bool = false) -> Piece3D:
+    for piece in _pieces:
+        # Piece matches filter
+        if _piece_filter(piece, group, include_inactive):
+            return piece
+    # Found nothing
+    return null
+
+## Get all pieces (optionally filtered by group, optionally including inactive)
+func get_pieces(group: String = "", include_inactive: bool = false) -> Array[Piece3D]:
+    var filtered_by_group: bool = not group.is_empty()
+    # We just want all pieces
+    if not filtered_by_group and include_inactive:
+        return _pieces
+    # Filter pieces by what matches 
+    return _pieces.filter(_piece_filter.bind(group, include_inactive))
+
+## Count all pieces (optionally filtered by group, optionally including inactive)
+func count_pieces(group: String = "", include_inactive: bool = false) -> int:
+    var filtered_by_group: bool = not group.is_empty()
+    # We just want all pieces
+    if not filtered_by_group and include_inactive:
+        return _pieces.size()
+    # Filter pieces by what matches
+    var piece_count := 0
+    for piece in _pieces:
+        if _piece_filter(piece, group, include_inactive):
+            piece_count += 1
+    return piece_count
+
 #endregion
 
 #region Commit/revert
@@ -131,6 +163,17 @@ func _get_or_create_cell(grid_position: Vector3i) -> Cell3D:
     if not _cells_by_position.has(grid_position):
         _cells_by_position[grid_position] = Cell3D.new(grid_position)
     return _cells_by_position[grid_position]
+
+func _piece_filter(piece: Piece3D, group: String, include_inactive: bool) -> bool:
+    # We don't want inactive pieces and piece is inactive
+    if not include_inactive and not piece.active:
+        return false
+    var filtered_by_group: bool = not group.is_empty()
+    # Piece doesn't match the group filter
+    if filtered_by_group and not piece.is_in_group(group):
+        return false
+    # Piece satisfies filter
+    return true
 #endregion
 
 class Cell3D:

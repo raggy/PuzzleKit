@@ -8,7 +8,7 @@ var tween: Tween
 var position_base: Vector3: set = _set_position_base
 var position_offset: Vector3: set = _set_position_offset
 
-func start() -> void:
+func _start() -> void:
     tween = create_tween()
 
     if piece_transform_start != piece_transform_end:
@@ -19,23 +19,12 @@ func start() -> void:
     if piece_was_active != piece_will_be_active:
         tween.tween_callback(func(): visual.visible = piece_will_be_active)
 
-    tween.tween_callback(finish)
+    tween.tween_callback(done)
 
-    super.start()
-
-func finish() -> void:
-    _clean_up()
-    
+func _finish() -> void:
     visual.position = piece_transform_end.origin
     visual.quaternion = piece_transform_end.basis.get_rotation_quaternion()
     visual.visible = piece_will_be_active
-
-    super.finish()
-
-func stop() -> void:
-    _clean_up()
-
-    super.stop()
 
 func _clean_up():
     if tween:

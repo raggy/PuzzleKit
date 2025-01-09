@@ -17,6 +17,8 @@ var grid_up: Vector3i: get = _get_grid_up
 ## `-global_transform.basis.z`, rounded to snap to the grid
 var grid_forward: Vector3i: get = _get_grid_forward
 
+var original_grid_position: Vector3i: get = _get_original_grid_position
+
 ## `PieceHistory3D` child (auto-set)
 var history: PieceHistory3D
 ## `PieceVisual3D` child (auto-set)
@@ -75,6 +77,9 @@ func _get_grid_up() -> Vector3i:
 
 func _get_grid_forward() -> Vector3i:
     return round(-global_transform.basis.z)
+
+func _get_original_grid_position() -> Vector3i:
+    return round(_original_transform.origin)
 
 func _set_board(value: Board3D):
     if _board:

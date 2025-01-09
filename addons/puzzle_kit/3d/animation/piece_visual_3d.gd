@@ -1,7 +1,10 @@
 class_name PieceVisual3D
 extends Node3D
 
+signal event(event_id: String)
+
 @export var default_animation: PackedScene = preload("res://addons/puzzle_kit/3d/animation/tween_piece_animation_3d.tscn")
+@export var uses_default_animation: bool = true
 
 var animation: PieceAnimation3D
 var piece: Piece3D: set = _set_piece
@@ -17,6 +20,10 @@ func _exit_tree() -> void:
     top_level = false
 
 func create_default_animation() -> PieceAnimation3D:
+    # Default animation toggled off
+    if not uses_default_animation:
+        return null
+    
     # Already have something playing for this step
     if _has_animation_this_step:
         return null
