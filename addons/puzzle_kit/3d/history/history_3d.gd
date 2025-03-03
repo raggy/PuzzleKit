@@ -43,9 +43,7 @@ func checkpoint() -> void:
         if group_filter and not piece.is_in_group(group_filter):
             continue
         
-        piece.history._in_checkpoint = true
-        piece.history._checkpoint_active = piece.active
-        piece.history._checkpoint_transform = piece.global_transform
+        piece.history.set_checkpoint()
 
 func reset() -> void:
     # Create undo step with all the pieces that have changed

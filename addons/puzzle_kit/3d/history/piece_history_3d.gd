@@ -33,6 +33,11 @@ func get_previous_state() -> PieceState3D:
 func has_changed() -> bool:
     return piece.active != piece._previous_active or piece.global_transform != piece._previous_transform
 
+func set_checkpoint() -> void:
+    _in_checkpoint = true
+    _checkpoint_active = piece.active
+    _checkpoint_transform = piece.global_transform
+
 func reset_to_checkpoint() -> void:
     # Deactivate pieces that were created after the checkpoint
     if not _in_checkpoint:
