@@ -35,12 +35,12 @@ func has_changed() -> bool:
 
 func reset_to_checkpoint() -> void:
     # Deactivate pieces that were created after the checkpoint
-    if not piece.history._in_checkpoint:
+    if not _in_checkpoint:
         piece.teleport(false, piece.global_transform)
         return
     
     # Move piece to checkpoint state
-    piece.teleport(piece.history._checkpoint_active, piece.history._checkpoint_transform)
+    piece.teleport(_checkpoint_active, _checkpoint_transform)
 
 func _set_piece(value: Piece3D) -> void:
     if piece:
