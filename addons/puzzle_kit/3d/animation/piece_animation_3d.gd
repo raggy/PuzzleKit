@@ -24,7 +24,7 @@ var piece_transform_end: Transform3D
 var _done_immediately: bool
 var _queued_after: PieceAnimation3D
 
-func setup(_visual: PieceVisual3D):
+func setup(_visual: PieceVisual3D) -> void:
     if state != State.PRE_SETUP:
         return
     

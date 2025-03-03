@@ -4,7 +4,7 @@ class_name PieceStateSnapshot3D
 var important: bool = false
 var states: Array[PieceState3D] = []
 
-func apply():
+func apply() -> void:
     for state in states:
         state.apply()
 

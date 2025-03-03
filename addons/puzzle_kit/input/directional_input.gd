@@ -80,16 +80,16 @@ func _input_immediately(direction: Vector2i) -> bool:
     
     return true
 
-func _stop_movement():
+func _stop_movement() -> void:
     _last_accepted_direction = Vector2i.ZERO
 
-func repeat():
+func repeat() -> void:
     if alternate_diagonals:
         _repeat_alternate_diagonals()
     else:
         _repeat_latest_direction()
 
-func _repeat_alternate_diagonals():
+func _repeat_alternate_diagonals() -> void:
     # Last direction was horizontal and there's a vertical direction held
     if _repeat_direction_v != Vector2i.ZERO and (_last_accepted_direction == Vector2i.LEFT or _last_accepted_direction == Vector2i.RIGHT) and _input_immediately(_repeat_direction_v):
         return
@@ -105,7 +105,7 @@ func _repeat_alternate_diagonals():
     # No directions held, so stop
     _stop_movement()
 
-func _repeat_latest_direction():
+func _repeat_latest_direction() -> void:
     # Last direction was horizontal and it's still held
     if _last_accepted_direction == _repeat_direction_h and _input_immediately(_repeat_direction_h):
         return
@@ -121,7 +121,7 @@ func _repeat_latest_direction():
     # No directions held, so stop
     _stop_movement()
 
-func set_enabled(value: bool):
+func set_enabled(value: bool) -> void:
     if enabled == value:
         return
     

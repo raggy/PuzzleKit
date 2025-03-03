@@ -17,7 +17,7 @@ func _start() -> void:
         tween.parallel().tween_property(visual, "quaternion", piece_transform_end.basis.get_rotation_quaternion(), rotation_tween_duration)
     
     if piece_was_active != piece_will_be_active:
-        tween.tween_callback(func(): visual.visible = piece_will_be_active)
+        tween.tween_callback(func() -> void: visual.visible = piece_will_be_active)
 
     tween.tween_callback(done)
 
@@ -26,15 +26,15 @@ func _finish() -> void:
     visual.quaternion = piece_transform_end.basis.get_rotation_quaternion()
     visual.visible = piece_will_be_active
 
-func _clean_up():
+func _clean_up() -> void:
     if tween:
         tween.kill()
         tween = null
 
-func _set_position_base(value: Vector3):
+func _set_position_base(value: Vector3) -> void:
     position_base = value
     visual.position = position_base + position_offset
 
-func _set_position_offset(value: Vector3):
+func _set_position_offset(value: Vector3) -> void:
     position_offset = value
     visual.position = position_base + position_offset

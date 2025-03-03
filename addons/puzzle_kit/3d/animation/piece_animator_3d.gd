@@ -13,7 +13,7 @@ func _exit_tree() -> void:
     _board = null
 
 ## Play animation now
-func play(animation: PieceAnimation3D):
+func play(animation: PieceAnimation3D) -> void:
     # TODO: Queue up animation until board.commit_changes() is called, so we can tell if we need to make a default animation
     # Maybe store this animation on the PieceVisual3D?
     add_child(animation, true)
@@ -25,13 +25,13 @@ func play(animation: PieceAnimation3D):
     animation.start()
 
 ## Queue animation to play after a specific other animation
-func queue_after(animation: PieceAnimation3D, after_animation: PieceAnimation3D):
+func queue_after(animation: PieceAnimation3D, after_animation: PieceAnimation3D) -> void:
     animation._queued_after = after_animation
     animation.visual._has_animation_this_step = true
     _animations_queued.append(animation)
 
 ## Queue animation to play after the piece's latest animation in the queue
-func queue_for(animation: PieceAnimation3D, piece: Piece3D):
+func queue_for(animation: PieceAnimation3D, piece: Piece3D) -> void:
     var after_animation := _find_latest_animation_for_piece(piece)
 
     if not after_animation:
@@ -60,10 +60,10 @@ func unqueue(animation: PieceAnimation3D) -> void:
             if queued_animation._queued_after == animation_to_unqueue:
                 animations_to_unqueue.append(queued_animation)
 
-func finish(animation: PieceAnimation3D):
+func finish(animation: PieceAnimation3D) -> void:
     _finish_animations([animation])
 
-func finish_all(group: String = ""):
+func finish_all(group: String = "") -> void:
     # No group filter, finish all playing animations
     if group.is_empty():
         _finish_animations(_animations_playing.duplicate())
@@ -72,11 +72,11 @@ func finish_all(group: String = ""):
         _finish_animations(_animations_playing.filter(_is_animation_piece_in_group.bind(group)))
 
 ## Finish animations for piece
-func finish_for(piece: Piece3D):
+func finish_for(piece: Piece3D) -> void:
     _finish_animations(_animations_playing.filter(_does_animation_belong_to_piece.bind(piece)))
     _finish_animations(_animations_queued.filter(_does_animation_belong_to_piece.bind(piece)))
 
-func stop(animation: PieceAnimation3D):
+func stop(animation: PieceAnimation3D) -> void:
     _stop_animations([animation])
 
 func stop_all(group: String = "") -> void:
@@ -88,7 +88,7 @@ func stop_all(group: String = "") -> void:
         _stop_animations(_animations_playing.filter(_is_animation_piece_in_group.bind(group)))
 
 ## Stop animations for piece
-func stop_for(piece: Piece3D):
+func stop_for(piece: Piece3D) -> void:
     _stop_animations(_animations_playing.filter(_does_animation_belong_to_piece.bind(piece)))
     _stop_animations(_animations_queued.filter(_does_animation_belong_to_piece.bind(piece)))
 
@@ -114,7 +114,7 @@ func get_latest_queued_animation_for(piece: Piece3D) -> PieceAnimation3D:
     
     return null
 
-func _set_board(value: Board3D):
+func _set_board(value: Board3D) -> void:
     if _board:
         _board.piece_removed.disconnect(stop_for)
         _board.changes_committing.disconnect(_play_default_animations)
@@ -123,7 +123,7 @@ func _set_board(value: Board3D):
         value.piece_removed.connect(stop_for)
         value.changes_committing.connect(_play_default_animations)
 
-func _finish_animations(animations_to_finish: Array[PieceAnimation3D]):
+func _finish_animations(animations_to_finish: Array[PieceAnimation3D]) -> void:
     # Keep removing queued animations until we're done
     while (animations_to_finish.size() > 0):
         var animation_to_finish := animations_to_finish[0]
@@ -160,7 +160,7 @@ func _stop_animations(animations_to_stop: Array[PieceAnimation3D]) -> void:
             if queued_animation._queued_after == animation_to_stop:
                 animations_to_stop.append(queued_animation)
 
-func _on_animation_finished(animation: PieceAnimation3D):
+func _on_animation_finished(animation: PieceAnimation3D) -> void:
     animation.visual.animation = null
     _animations_playing.erase(animation)
     animation.queue_free()
@@ -174,7 +174,7 @@ func _on_animation_finished(animation: PieceAnimation3D):
         animations_played += 1
         play(queued_animation)
 
-func _on_animation_stopped(animation: PieceAnimation3D):
+func _on_animation_stopped(animation: PieceAnimation3D) -> void:
     animation.visual.animation = null
     _animations_playing.erase(animation)
     animation.queue_free()
@@ -182,7 +182,7 @@ func _on_animation_stopped(animation: PieceAnimation3D):
 func _does_animation_belong_to_piece(animation: PieceAnimation3D, piece: Piece3D) -> bool:
     return animation.visual.piece == piece
 
-func _play_default_animations():
+func _play_default_animations() -> void:
     for piece in _board._pieces:
         if not piece.visual:
             continue

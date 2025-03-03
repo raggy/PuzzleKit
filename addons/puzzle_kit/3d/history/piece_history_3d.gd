@@ -42,7 +42,7 @@ func reset_to_checkpoint() -> void:
     # Move piece to checkpoint state
     piece.teleport(piece.history._checkpoint_active, piece.history._checkpoint_transform)
 
-func _set_piece(value: Piece3D):
+func _set_piece(value: Piece3D) -> void:
     if piece:
         piece.history = null
     piece = value

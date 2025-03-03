@@ -144,7 +144,8 @@ func _undo_step_by_step() -> bool:
     if _undo_steps.size() == 0:
         return false
     
-    var step := _undo_steps.pop_back()
+    var step := _undo_steps[-1]
+    _undo_steps.pop_back()
     _apply_undo_step(step)
 
     return true
@@ -157,13 +158,15 @@ func _undo_stop_at_important_steps() -> bool:
     
     # Most recent step is important, undo once
     if important_step_index == _undo_steps.size() - 1:
-        var step := _undo_steps.pop_back()
+        var step := _undo_steps[-1]
+        _undo_steps.pop_back()
         _apply_undo_step(step)
         return true
     
     # Undo all the steps that were created after most recent important step
     for i in range(_undo_steps.size() - important_step_index - 1):
-        var head := _undo_steps.pop_back()
+        var head := _undo_steps[-1]
+        _undo_steps.pop_back()
         _apply_undo_step(head)
     
     return true

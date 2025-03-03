@@ -36,11 +36,11 @@ func create_default_animation() -> PieceAnimation3D:
     if not default_animation:
         return null
     
-    var result := default_animation.instantiate()
+    var result := default_animation.instantiate() as PieceAnimation3D
     result.setup(self)
     return result
 
-func _set_piece(value: Piece3D):
+func _set_piece(value: Piece3D) -> void:
     if piece:
         piece.teleported.disconnect(_snap_to_piece_state)
         piece.visual = null
@@ -49,7 +49,7 @@ func _set_piece(value: Piece3D):
         piece.teleported.connect(_snap_to_piece_state)
         value.visual = self
 
-func _snap_to_piece_state():
+func _snap_to_piece_state() -> void:
     if animation:
         animation.finish()
     visible = piece.active

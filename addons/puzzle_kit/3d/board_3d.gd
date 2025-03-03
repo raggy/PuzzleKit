@@ -9,18 +9,19 @@ signal changes_committing()
 signal changes_reverting()
 
 var _pieces: Array[Piece3D] = []
-# var _cells_by_position: Dictionary[Vector3i, Cell3D] = {}
-var _cells_by_position: Dictionary = {}
-# var _cells_by_piece: Dictionary[Piece3D, Cell3D] = {}
-var _cells_by_piece: Dictionary = {}
+var _cells_by_position: Dictionary[Vector3i, Cell3D] = {}
+var _cells_by_piece: Dictionary[Piece3D, Cell3D] = {}
 
 #region Queries
 func is_empty(grid_position: Vector3i, group: String = "") -> bool:
     _update_cells()
 
-    var cell := _cells_by_position.get(grid_position) as Cell3D
-    # Nothing here
-    if not cell or cell.is_empty():
+    # No cell here yet
+    if not _cells_by_position.has(grid_position):
+        return true
+    var cell := _cells_by_position[grid_position]
+    # Nothing in this cell
+    if cell.is_empty():
         return true
     
     # No group filter and there is a non-empty cell
@@ -36,9 +37,12 @@ func is_empty(grid_position: Vector3i, group: String = "") -> bool:
 func get_piece_at(grid_position: Vector3i, group: String = "") -> Piece3D:
     _update_cells()
 
-    var cell := _cells_by_position.get(grid_position) as Cell3D
-    # Nothing here
-    if not cell or cell.is_empty():
+    # No cell here yet
+    if not _cells_by_position.has(grid_position):
+        return null
+    var cell := _cells_by_position[grid_position]
+    # Nothing in this cell
+    if cell.is_empty():
         return null
     # No group filter, return first piece in cell
     if group == "":
@@ -55,9 +59,12 @@ func get_piece_at(grid_position: Vector3i, group: String = "") -> Piece3D:
 func get_pieces_at(grid_position: Vector3i, group: String = "") -> Array[Piece3D]:
     _update_cells()
 
-    var cell := _cells_by_position.get(grid_position) as Cell3D
-    # Nothing here
-    if not cell or cell.is_empty():
+    # No cell here yet
+    if not _cells_by_position.has(grid_position):
+        return []
+    var cell := _cells_by_position[grid_position]
+    # Nothing in this cell
+    if cell.is_empty():
         return []
     # No group filter, return all pieces in cell
     if group == "":
@@ -105,13 +112,13 @@ func count_pieces(group: String = "", include_inactive: bool = false) -> int:
 #endregion
 
 #region Commit/revert
-func commit_changes():
+func commit_changes() -> void:
     changes_committing.emit()
     
     for piece in _pieces:
         piece.commit_changes()
 
-func revert_changes():
+func revert_changes() -> void:
     changes_reverting.emit()
     
     for piece in _pieces:
@@ -119,33 +126,33 @@ func revert_changes():
 #endregion
 
 #region Internal
-func _register_piece(piece: Piece3D):
+func _register_piece(piece: Piece3D) -> void:
     _pieces.append(piece)
     _update_piece_cell(piece)
     piece_added.emit(piece)
 
-func _deregister_piece(piece: Piece3D):
+func _deregister_piece(piece: Piece3D) -> void:
     _pieces.erase(piece)
     # Remove piece from cell if it was active
     if _cells_by_piece.has(piece):
-        var cell := _cells_by_piece[piece] as Cell3D
+        var cell := _cells_by_piece[piece]
         cell.pieces.erase(piece)
         _cells_by_piece.erase(piece)
     piece_removed.emit(piece)
 
-func _update_cells():
+func _update_cells() -> void:
     for piece in _pieces:
         # Piece hasn't changed since we last looked
         if piece.active == piece._board_cached_active and piece.global_transform == piece._board_cached_transform:
             continue
         _update_piece_cell(piece)
 
-func _update_piece_cell(piece: Piece3D):
+func _update_piece_cell(piece: Piece3D) -> void:
     # Note the state when we set the piece in cell
     piece._board_cached_active = piece.active
     piece._board_cached_transform = piece.global_transform
     # Update which cell the piece sits in
-    var previous_cell := _cells_by_piece.get(piece) as Cell3D
+    var previous_cell := _cells_by_piece[piece] if _cells_by_piece.has(piece) else null
     var new_cell := _get_or_create_cell(piece.grid_position) if piece.active else null
     # Piece didn't change cells
     if previous_cell == new_cell:

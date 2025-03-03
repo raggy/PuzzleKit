@@ -46,17 +46,17 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
     _board = null
 
-func commit_changes():
+func commit_changes() -> void:
     changes_committing.emit()
     _previous_active = active
     _previous_transform = global_transform
 
-func revert_changes():
+func revert_changes() -> void:
     changes_reverting.emit()
     active = _previous_active
     global_transform = _previous_transform
 
-func teleport(new_active: bool, new_transform: Transform3D):
+func teleport(new_active: bool, new_transform: Transform3D) -> void:
     active = new_active
     _previous_active = new_active
     global_transform = new_transform
@@ -66,7 +66,7 @@ func teleport(new_active: bool, new_transform: Transform3D):
 func _get_grid_position() -> Vector3i:
     return round(global_position)
 
-func _set_grid_position(value: Vector3i):
+func _set_grid_position(value: Vector3i) -> void:
     global_position = value
 
 func _get_grid_right() -> Vector3i:
@@ -81,7 +81,7 @@ func _get_grid_forward() -> Vector3i:
 func _get_original_grid_position() -> Vector3i:
     return round(_original_transform.origin)
 
-func _set_board(value: Board3D):
+func _set_board(value: Board3D) -> void:
     if _board:
         _board._deregister_piece(self)
     _board = value

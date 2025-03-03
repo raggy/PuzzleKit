@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://bvrp2f17e18h0"]
 
-[ext_resource type="Script" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_1if0i"]
+[ext_resource type="Script" uid="uid://b7wwdt4l1d20h" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_1if0i"]
 [ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/hermits_new_shader.tres" id="2_ho3lp"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_msb46"]
