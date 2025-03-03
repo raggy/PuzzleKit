@@ -48,7 +48,6 @@ func get_piece_at(grid_position: Vector3i, group: String = "") -> Piece3D:
     if group == "":
         return cell.pieces[0]
     
-    var result: Array[Piece3D] = []
     # Return first piece that matches group
     for piece in _cells_by_position[grid_position].pieces:
         if piece.is_in_group(group):
