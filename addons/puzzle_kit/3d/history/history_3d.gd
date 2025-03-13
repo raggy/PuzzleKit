@@ -8,8 +8,8 @@ signal undo_step_created(step: PieceStateSnapshot3D)
 enum UndoBehavior {
     ## Each `undo()` call will undo exactly one step
     STEP_BY_STEP,
-    ## `undo()` will stop before and after steps marked as `important`
-    STOP_AT_IMPORTANT_STEPS,
+    ## `undo()` will stop before steps marked `stop_before` and after steps marked `stop_after`
+    STOP_AT_FLAGGED_STEPS,
 }
 
 @export_group("Action Bindings")
@@ -48,7 +48,8 @@ func checkpoint() -> void:
 func reset() -> void:
     # Create undo step with all the pieces that have changed
     var undo_step := PieceStateSnapshot3D.new()
-    undo_step.important = true
+    undo_step.stop_after = true
+    undo_step.stop_before = true
     _undo_steps.append(undo_step)
 
     for piece in _board._pieces:
@@ -69,7 +70,7 @@ func undo() -> bool:
 
     match undo_behavior:
         UndoBehavior.STEP_BY_STEP: result = _undo_step_by_step()
-        UndoBehavior.STOP_AT_IMPORTANT_STEPS: result = _undo_stop_at_important_steps()
+        UndoBehavior.STOP_AT_FLAGGED_STEPS: result = _undo_stop_at_flagged_steps()
         _: printerr("History3D: Invalid UndoBehavior")
     
     if result and auto_free_inactive_orphaned_pieces:
@@ -148,32 +149,27 @@ func _undo_step_by_step() -> bool:
 
     return true
 
-func _undo_stop_at_important_steps() -> bool:
+func _undo_stop_at_flagged_steps() -> bool:
     if _undo_steps.size() == 0:
         return false
     
-    var important_step_index := _find_most_recent_important_step()
+    var flagged_step_index := _find_most_recent_flagged_step()
     
-    # Most recent step is important, undo once
-    if important_step_index == _undo_steps.size() - 1:
-        var step := _undo_steps[-1]
-        _undo_steps.pop_back()
-        _apply_undo_step(step)
-        return true
-    
-    # Undo all the steps that were created after most recent important step
-    for i in range(_undo_steps.size() - important_step_index - 1):
+    # Undo all the steps that were created after most recent flagged step
+    for i in range(_undo_steps.size() - flagged_step_index - 1):
         var head := _undo_steps[-1]
         _undo_steps.pop_back()
         _apply_undo_step(head)
     
     return true
 
-func _find_most_recent_important_step() -> int:
+func _find_most_recent_flagged_step() -> int:
     for step_index in range(_undo_steps.size() - 1, -1, -1):
-        if _undo_steps[step_index].important:
+        if _undo_steps[step_index].stop_before and step_index < _undo_steps.size() - 1:
             return step_index
-    # Couldn't find an important step
+        if _undo_steps[step_index].stop_after:
+            return step_index - 1
+    # Couldn't find a flagged step
     return -1
 
 func _apply_undo_step(step: PieceStateSnapshot3D) -> void:

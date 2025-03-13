@@ -1,7 +1,9 @@
 class_name PieceStateSnapshot3D
 
-## When undoing, always stop before and after an important step
-var important: bool = false
+## When undoing, always stop after this step
+var stop_after: bool = false
+## When undoing, always stop before this step
+var stop_before: bool = false
 var states: Array[PieceState3D] = []
 
 func apply() -> void:
