@@ -22,7 +22,7 @@ var piece_transform_start: Transform3D
 var piece_transform_end: Transform3D
 
 var _done_immediately: bool
-var _queued_after: PieceAnimation3D
+var _queued_after: Array[PieceAnimation3D] = []
 
 func setup(_visual: PieceVisual3D) -> void:
     if state != State.PRE_SETUP:
@@ -67,6 +67,7 @@ func finish() -> void:
     if state != State.SETUP and state != State.PLAYING:
         return
     
+    _clean_up()
     _finish()
 
     state = State.FINISHED
@@ -76,12 +77,14 @@ func stop() -> void:
     if state != State.PLAYING:
         return
     
+    _clean_up()
     _stop()
     
     state = State.STOPPED
     stopped.emit()
 
 func _do_done() -> void:
+    _clean_up()
     _done()
 
     state = State.FINISHED
