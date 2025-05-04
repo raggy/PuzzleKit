@@ -1,10 +1,11 @@
-[gd_scene load_steps=12 format=3 uid="uid://ckrr86q1cfgnb"]
+[gd_scene load_steps=13 format=3 uid="uid://ckrr86q1cfgnb"]
 
 [ext_resource type="Script" uid="uid://3cmkdvjjjct1" path="res://examples/hermits_new_home/hermits_new_home.gd" id="1_cm4va"]
 [ext_resource type="Script" uid="uid://bm5ybkqrahvnl" path="res://addons/puzzle_kit/3d/board_3d.gd" id="3_jqp8w"]
 [ext_resource type="PackedScene" uid="uid://dexd7bsv1caxi" path="res://examples/hermits_new_home/pieces/player.tscn" id="4_x4bk7"]
 [ext_resource type="PackedScene" uid="uid://ql5al82sv5" path="res://examples/hermits_new_home/pieces/grass.tscn" id="5_f1fcd"]
 [ext_resource type="PackedScene" uid="uid://bwu56yn51ochr" path="res://examples/hermits_new_home/pieces/coconut.tscn" id="7_4s0kf"]
+[ext_resource type="Script" uid="uid://bceex4c4v2k7w" path="res://addons/puzzle_kit/3d/progress/progress_3d.gd" id="7_orvug"]
 [ext_resource type="PackedScene" uid="uid://cwdw622oqd5fl" path="res://examples/hermits_new_home/pieces/rock.tscn" id="8_2l8el"]
 [ext_resource type="Script" uid="uid://dfkhubpuwcax" path="res://addons/puzzle_kit/3d/history/history_3d.gd" id="8_ryyxf"]
 [ext_resource type="PackedScene" uid="uid://on00ojmdj40p" path="res://examples/hermits_new_home/pieces/shell.tscn" id="9_qujdy"]
@@ -44,8 +45,15 @@ undo_behavior = 1
 [node name="PieceAnimator3D" type="Node" parent="Board3D"]
 script = ExtResource("10_f8pcv")
 
+[node name="Progress3D" type="Node" parent="Board3D"]
+script = ExtResource("7_orvug")
+auto_load = true
+auto_save = true
+auto_save_frequency = 2.0
+metadata/_custom_type_script = "uid://bceex4c4v2k7w"
+
 [node name="Player" parent="Board3D" instance=ExtResource("4_x4bk7")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 1, 4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 1, 4)
 
 [node name="Level 4" type="Node3D" parent="Board3D"]
 
