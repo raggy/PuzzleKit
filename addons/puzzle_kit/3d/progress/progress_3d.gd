@@ -9,11 +9,11 @@ signal saved
 ## Override the save file path, otherwise bases the save file on the owner scene's name
 @export var file_path_override: String = ""
 ## Should we load automatically on start-up?
-@export var auto_load: bool
+@export var auto_load: bool = true
 ## Should we save automatically?
-@export var auto_save: bool
+@export var auto_save: bool = true
 ## Maximum auto-save frequency
-@export var auto_save_frequency: float = 0.0
+@export var auto_save_frequency: float = 2.0
 
 var _board: Board3D: set = _set_board
 var _auto_save_timer: SceneTreeTimer

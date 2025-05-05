@@ -47,9 +47,6 @@ script = ExtResource("10_f8pcv")
 
 [node name="Progress3D" type="Node" parent="Board3D"]
 script = ExtResource("7_orvug")
-auto_load = true
-auto_save = true
-auto_save_frequency = 2.0
 metadata/_custom_type_script = "uid://bceex4c4v2k7w"
 
 [node name="Player" parent="Board3D" instance=ExtResource("4_x4bk7")]
