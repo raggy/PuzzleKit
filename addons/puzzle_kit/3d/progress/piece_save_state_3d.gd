@@ -36,8 +36,7 @@ func apply() -> void:
         printerr("PieceSaveState3D.apply() failed: piece_reference.piece is null")
         return
     
-    piece_reference.piece.active = active
-    piece_reference.piece.global_transform = transform
+    piece_reference.piece.teleport(active, transform)
 
     if piece_reference.piece.history:
         piece_reference.piece.history._in_checkpoint = in_checkpoint
