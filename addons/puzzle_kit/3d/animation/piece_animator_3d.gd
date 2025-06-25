@@ -87,7 +87,6 @@ func finish_all(group: String = "") -> void:
 ## Finish animations for piece
 func finish_for(piece: Piece3D) -> void:
     _finish_animations(_animations_playing.filter(_does_animation_belong_to_piece.bind(piece)))
-    _finish_animations(_animations_queued.filter(_does_animation_belong_to_piece.bind(piece)))
 
 func stop(animation: PieceAnimation3D) -> void:
     _stop_animations([animation])
@@ -137,26 +136,23 @@ func _set_board(value: Board3D) -> void:
         value.changes_committing.connect(_play_default_animations)
 
 func _finish_animations(animations_to_finish: Array[PieceAnimation3D]) -> void:
+    # Finish any animations started by finishing others
+    animation_started.connect(animations_to_finish.append)
+
     # Keep finishing animations until we're done
     while (animations_to_finish.size() > 0):
         var animation_to_finish := animations_to_finish[0]
         animations_to_finish.remove_at(0)
+        
+        # Only finish playing animations
+        if not _animations_playing.has(animation_to_finish):
+            continue
 
-        # Any animations queued to play after this one should also be finished
-        for queued_animation in _animations_queued:
-            if queued_animation._queued_after.has(animation_to_finish):
-                animations_to_finish.append(queued_animation)
-        
-        # If animation was playing, finish it
-        if _animations_playing.has(animation_to_finish):
-            animation_to_finish.finish()
-        
-        # If animation was queued, finish it
-        if _animations_queued.has(animation_to_finish):
-            animation_to_finish.finish()
-            _animations_queued.erase(animation_to_finish)
-        
+        animation_to_finish.finish()
         animation_to_finish.queue_free()
+
+    # Done with finishing
+    animation_started.disconnect(animations_to_finish.append)
 
 func _stop_animations(animations_to_stop: Array[PieceAnimation3D]) -> void:
     # Keep stopping animations until we're done
