@@ -136,8 +136,9 @@ func _set_board(value: Board3D) -> void:
         value.changes_committing.connect(_play_default_animations)
 
 func _finish_animations(animations_to_finish: Array[PieceAnimation3D]) -> void:
+    var also_finish := func(animation: PieceAnimation3D) -> void: animations_to_finish.append(animation)
     # Finish any animations started by finishing others
-    animation_started.connect(animations_to_finish.append)
+    animation_started.connect(also_finish)
 
     # Keep finishing animations until we're done
     while (animations_to_finish.size() > 0):
@@ -152,7 +153,7 @@ func _finish_animations(animations_to_finish: Array[PieceAnimation3D]) -> void:
         animation_to_finish.queue_free()
 
     # Done with finishing
-    animation_started.disconnect(animations_to_finish.append)
+    animation_started.disconnect(also_finish)
 
 func _stop_animations(animations_to_stop: Array[PieceAnimation3D]) -> void:
     # Keep stopping animations until we're done
