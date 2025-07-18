@@ -9,6 +9,8 @@ signal changes_committing()
 signal changes_reverting()
 
 var _pieces: Array[Piece3D] = []
+var _active_pieces: Array[Piece3D] = []
+var _inactive_pieces: Array[Piece3D] = []
 var _cells_by_position: Dictionary[Vector3i, Cell3D] = {}
 var _cells_by_piece: Dictionary[Piece3D, Cell3D] = {}
 
@@ -127,11 +129,21 @@ func revert_changes() -> void:
 #region Internal
 func _register_piece(piece: Piece3D) -> void:
     _pieces.append(piece)
+    if piece.active:
+        piece._board_cached_active = true
+        _active_pieces.append(piece)
+    else:
+        piece._board_cached_active = false
+        _inactive_pieces.append(piece)
     _update_piece_cell(piece)
     piece_added.emit(piece)
 
 func _deregister_piece(piece: Piece3D) -> void:
     _pieces.erase(piece)
+    if piece.active:
+        _active_pieces.erase(piece)
+    else:
+        _inactive_pieces.erase(piece)
     # Remove piece from cell if it was active
     if _cells_by_piece.has(piece):
         var cell := _cells_by_piece[piece]
@@ -140,15 +152,14 @@ func _deregister_piece(piece: Piece3D) -> void:
     piece_removed.emit(piece)
 
 func _update_cells() -> void:
-    for piece in _pieces:
+    for piece in _active_pieces:
         # Piece hasn't changed since we last looked
-        if piece.active == piece._board_cached_active and piece.global_transform == piece._board_cached_transform:
+        if piece.global_transform == piece._board_cached_transform:
             continue
         _update_piece_cell(piece)
 
 func _update_piece_cell(piece: Piece3D) -> void:
     # Note the state when we set the piece in cell
-    piece._board_cached_active = piece.active
     piece._board_cached_transform = piece.global_transform
     # Update which cell the piece sits in
     var previous_cell := _cells_by_piece[piece] if _cells_by_piece.has(piece) else null
@@ -180,6 +191,27 @@ func _piece_filter(piece: Piece3D, group: String, include_inactive: bool) -> boo
         return false
     # Piece satisfies filter
     return true
+
+func _activate_piece(piece: Piece3D) -> void:
+    if piece._board_cached_active:
+        return
+    piece._board_cached_active = true
+    _inactive_pieces.erase(piece)
+    _active_pieces.append(piece)
+    # Add piece to cell
+    _update_piece_cell(piece)
+
+func _deactivate_piece(piece: Piece3D) -> void:
+    if not piece._board_cached_active:
+        return
+    piece._board_cached_active = false
+    _active_pieces.erase(piece)
+    _inactive_pieces.append(piece)
+    # Remove piece from cell
+    if _cells_by_piece.has(piece):
+        var cell := _cells_by_piece[piece]
+        cell.pieces.erase(piece)
+        _cells_by_piece.erase(piece)
 #endregion
 
 class Cell3D:

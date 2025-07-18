@@ -7,7 +7,7 @@ signal changes_committing()
 signal changes_reverting()
 signal teleported()
 
-var active: bool = true
+var active: bool = true: set = set_active
 ## `global_position`, rounded to snap to the grid
 var grid_position: Vector3i: get = _get_grid_position, set = _set_grid_position
 ## `global_transform.basis.x`, rounded to snap to the grid
@@ -63,6 +63,18 @@ func teleport(new_active: bool, new_transform: Transform3D) -> void:
     global_transform = new_transform
     _previous_transform = new_transform
     teleported.emit()
+
+func set_active(value: bool) -> void:
+    if active == value:
+        return
+    
+    active = value
+    
+    if _board:
+        if value:
+            _board._activate_piece(self)
+        else:
+            _board._deactivate_piece(self)
 
 func _get_grid_position() -> Vector3i:
     return round(global_position)
