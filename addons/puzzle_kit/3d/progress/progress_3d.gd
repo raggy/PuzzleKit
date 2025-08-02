@@ -49,6 +49,8 @@ func save() -> bool:
     var save_state := BoardSaveState3D.from_board(_board, group_filter)
     ResourceSaver.save(save_state, file_path)
 
+    saved.emit()
+
     return false
 
 func load() -> bool:
@@ -67,7 +69,12 @@ func load() -> bool:
     if not save_state:
         return false
     
-    return save_state.apply_to_board(_board, group_filter)
+    # BoardSaveState3D refused to apply to the board
+    if not save_state.apply_to_board(_board, group_filter):
+        return false
+    
+    loaded.emit()
+    return true
     
 func get_file_path() -> String:
     if not file_path_override.is_empty():
