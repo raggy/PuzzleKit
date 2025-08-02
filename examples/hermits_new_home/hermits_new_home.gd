@@ -21,8 +21,8 @@ func _ready() -> void:
     directions.input = _move
     history.undo_step_created.connect(func(step: PieceStateSnapshot3D) -> void: if step.has_a_piece_in_group(GROUP_PUSHABLE): step.stop_after = true; step.stop_before = true)
 
-    # Create initial checkpoint after everything has loaded
-    history.call_deferred("checkpoint")
+    # Create initial checkpoint
+    history.checkpoint()
 
 func _process(_delta: float) -> void:
     if Input.is_action_just_pressed("swap"):
