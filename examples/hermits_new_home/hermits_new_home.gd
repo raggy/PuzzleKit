@@ -30,7 +30,6 @@ func _process(_delta: float) -> void:
 
 func _move(direction_2d: Vector2i) -> bool:
     var direction := Vector3i(direction_2d.x, 0, direction_2d.y)
-    var pushed := false
 
     # Nothing to walk onto
     if board.is_empty(player.grid_position + direction + Vector3i.DOWN, GROUP_STANDABLE):
@@ -38,13 +37,12 @@ func _move(direction_2d: Vector2i) -> bool:
     
     # Push
     var pushable := board.get_piece_at(player.grid_position + direction, GROUP_PUSHABLE)
-    if pushable:
-        # Push was blocked
-        if not _push(pushable, direction):
-            return false
+    var pushed := pushable and _push(pushable, direction)
+    # Tried to push but it was blocked
+    if pushable and not pushed:
+        return false
     
     var blocked := board.is_occupied(player.grid_position + direction, GROUP_PHYSICAL)
-
     # We're blocked from moving but didn't push anything
     if blocked and not pushed:
         return false
@@ -64,13 +62,13 @@ func _move(direction_2d: Vector2i) -> bool:
 
     return true
 
-func _push(pushable: Piece3D, direction: Vector3i) -> bool:
+func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) -> bool:
     var blocking_piece := board.get_piece_at(pushable.grid_position + direction, GROUP_PHYSICAL)
     # There's something blocking it from being pushed so we won't move
     if blocking_piece:
         # If the blocking piece is pushable, push it instead
         if blocking_piece.is_in_group(GROUP_PUSHABLE):
-            return _push(blocking_piece, direction)
+            return _push(blocking_piece, direction, pushable if pushable.visual._has_animation_this_step else pushed_by)
         # Blocking piece wasn't pushable, nothing moves
         return false
 
@@ -81,10 +79,16 @@ func _push(pushable: Piece3D, direction: Vector3i) -> bool:
     # Piece should roll
     if roll:
         pushable.rotate(Vector3(direction).cross(Vector3.UP), -TAU/4)
+    
+    # If we know which piece pushed this, animate after its latest animation, or else this piece's latest animation
+    var animate_after := pushed_by if pushed_by else pushable
+    # Animate movement
+    animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), animate_after)
 
     # Nothing below pushable after movement
     if board.is_empty(pushable.grid_position + Vector3i.DOWN, GROUP_STANDABLE):
         pushable.grid_position += Vector3i.DOWN
+        animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), animate_after)
     # Keep moving if we rolled and there's something below where we moved
     elif roll:
         _push(pushable, direction)
