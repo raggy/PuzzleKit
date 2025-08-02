@@ -125,45 +125,43 @@ func count_pieces(group: String = "", include_inactive: bool = false) -> int:
             piece_count += 1
     return piece_count
 
-## Get all pieces adjacent to `pieces` in specified directions (and all pieces adjacent to those, and so on)
-func get_pieces_touching(pieces: Array[Piece3D], directions: Array[Vector3i], group: String = "") -> Array[Piece3D]:
-    var pieces_touching: Array[Piece3D] = pieces.duplicate()
+## Get all pieces adjacent to `pieces`, filtered by `group` and in specified `directions`. If `max_search_depth` is specified, returned pieces will be at most `max_search_depth` steps away
+func get_pieces_touching(pieces: Array[Piece3D], group: String = "", directions: Array[Vector3i] = DIRECTIONS_ADJACENT, max_search_depth: int = -1) -> Array[Piece3D]:
+    var pieces_touching: Array[Piece3D] = []
+    var pieces_size := pieces.size()
     var search_index := 0
+    var current_search_depth := 0
+    var piece_count_remaining_at_current_search_depth := pieces_size
+    var piece_count_at_next_search_depth := 0
 
-    while (search_index < pieces_touching.size()):
-        var origin_piece := pieces_touching[search_index]
+    while (search_index < pieces_size + pieces_touching.size()):
+        # Finished checking pieces at current search depth
+        if piece_count_remaining_at_current_search_depth == 0:
+            current_search_depth += 1
+            piece_count_remaining_at_current_search_depth = piece_count_at_next_search_depth
+            piece_count_at_next_search_depth = 0
+            # Reached max search depth, stop searching
+            if max_search_depth > -1 and current_search_depth >= max_search_depth:
+                break
+        # Remove this piece from the current count
+        piece_count_remaining_at_current_search_depth -= 1
 
-        for direction in directions:
-            var pieces_in_direction := get_pieces_at(origin_piece.grid_position + direction)
-            # Gather the pieces adjacent (if not already in list)
-            for piece_in_direction in pieces_in_direction:
-                # Check if in group here rather than get_pieces_at() to prevent an extra array being created
-                if not piece_in_direction.is_in_group(group):
-                    continue
-                if pieces_touching.has(piece_in_direction):
-                    continue
-                pieces_touching.append(piece_in_direction)
-        
-        search_index += 1
-    
-    return pieces_touching
+        var piece := pieces[search_index] if search_index < pieces_size else pieces_touching[search_index - pieces_size]
 
-## Get all pieces adjacent to `pieces` in specified directions
-func get_pieces_in_directions(pieces: Array[Piece3D], directions: Array[Vector3i], group: String = "") -> Array[Piece3D]:
-    var pieces_in_direction: Array[Piece3D] = []
-
-    for piece in pieces:
         for direction in directions:
             # Gather the pieces adjacent (if not already in list)
             for piece_in_direction in get_pieces_at(piece.grid_position + direction):
                 # Check if in group here rather than get_pieces_at() to prevent an extra array being created
                 if not piece_in_direction.is_in_group(group):
                     continue
-                if pieces_in_direction.has(piece_in_direction):
+                if pieces.has(piece_in_direction) or pieces_touching.has(piece_in_direction):
                     continue
-                pieces_in_direction.append(piece_in_direction)
-
-    return pieces_in_direction
+                pieces_touching.append(piece_in_direction)
+                piece_count_at_next_search_depth += 1
+        
+        search_index += 1
+    
+    return pieces_touching
 #endregion
 
 #region Commit/revert

@@ -109,8 +109,8 @@ func _swap() -> void:
     if not sand_below:
         return
 
-    var connected_sand := board.get_pieces_touching([sand_below], Board3D.DIRECTIONS_ADJACENT, GROUP_SAND)
-    var shells_on_connected_sand := board.get_pieces_in_directions(connected_sand, Board3D.DIRECTIONS_UP, GROUP_SHELL)
+    var connected_sand := board.get_pieces_touching([sand_below], GROUP_SAND)
+    var shells_on_connected_sand := board.get_pieces_touching(connected_sand, GROUP_SHELL, Board3D.DIRECTIONS_UP, 1)
 
     # No shell to swap to
     if shells_on_connected_sand.is_empty():
