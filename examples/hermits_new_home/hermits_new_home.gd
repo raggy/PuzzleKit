@@ -96,11 +96,12 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
     return true
 
 func _swap() -> void:
+    var sand_below := board.get_piece_at(player.grid_position + Vector3i.DOWN, GROUP_SAND)
+
     # No sand below player
-    if board.is_empty(player.grid_position + Vector3i.DOWN, GROUP_SAND):
+    if not sand_below:
         return
 
-    var sand_below := board.get_piece_at(player.grid_position + Vector3i.DOWN, GROUP_SAND)
     var connected_sand := _get_touching(sand_below, GROUP_SAND)
     var shells_on_connected_sand := _get_pieces_on_top_of(connected_sand, GROUP_SHELL)
 
