@@ -18,8 +18,10 @@ var state: State = State.PRE_SETUP
 var visual: PieceVisual3D
 var piece_was_active: bool
 var piece_will_be_active: bool
+var piece_visual_cached_active: bool
 var piece_transform_start: Transform3D
 var piece_transform_end: Transform3D
+var piece_visual_cached_transform: Transform3D
 
 var _done_immediately: bool
 var _queued_after: Array[PieceAnimation3D] = []
@@ -34,6 +36,11 @@ func setup(_visual: PieceVisual3D) -> void:
     piece_will_be_active = visual.piece.active
     piece_transform_start = visual.piece._previous_transform
     piece_transform_end = visual.piece.global_transform
+    # The animated state is cached for multiple animations between Board3D.commit_changes() calls
+    piece_visual_cached_active = visual.cached_active
+    piece_visual_cached_transform = visual.cached_transform
+    visual.cached_active = visual.piece.active
+    visual.cached_transform = visual.piece.global_transform
 
     _setup()
 

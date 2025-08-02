@@ -11,12 +11,12 @@ var position_offset: Vector3: set = _set_position_offset
 func _start() -> void:
     tween = create_tween()
 
-    if piece_transform_start != piece_transform_end:
-        tween.tween_property(self, "position_base", piece_transform_end.origin, position_tween_duration).from(piece_transform_start.origin)
-        tween.parallel().tween_property(self, "position_offset", Vector3.ZERO, position_catchup_duration).from(visual.position - piece_transform_start.origin)
+    if piece_visual_cached_transform != piece_transform_end:
+        tween.tween_property(self, "position_base", piece_transform_end.origin, position_tween_duration).from(piece_visual_cached_transform.origin)
+        tween.parallel().tween_property(self, "position_offset", Vector3.ZERO, position_catchup_duration).from(visual.position - piece_visual_cached_transform.origin)
         tween.parallel().tween_property(visual, "quaternion", piece_transform_end.basis.get_rotation_quaternion(), rotation_tween_duration)
     
-    if piece_was_active != piece_will_be_active:
+    if piece_visual_cached_active != piece_will_be_active:
         tween.tween_callback(func() -> void: visual.visible = piece_will_be_active)
 
     tween.tween_callback(done)

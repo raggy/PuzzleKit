@@ -9,6 +9,9 @@ signal event(event_id: String)
 var animation: PieceAnimation3D
 var piece: Piece3D: set = _set_piece
 
+var cached_transform: Transform3D
+var cached_active: bool
+
 var _has_animation_this_step: bool
 
 func _enter_tree() -> void:
@@ -42,12 +45,26 @@ func create_default_animation() -> PieceAnimation3D:
 
 func _set_piece(value: Piece3D) -> void:
     if piece:
+        value.changes_committing.disconnect(_reset_cached_state_to_current)
+        value.changes_reverting.disconnect(_reset_cached_state_to_previous)
+        value.teleported.disconnect(_reset_cached_state_to_current)
         piece.teleported.disconnect(_snap_to_piece_state)
         piece.visual = null
     piece = value
     if value:
-        piece.teleported.connect(_snap_to_piece_state)
+        value.changes_committing.connect(_reset_cached_state_to_current)
+        value.changes_reverting.connect(_reset_cached_state_to_previous)
+        value.teleported.connect(_reset_cached_state_to_current)
+        value.teleported.connect(_snap_to_piece_state)
         value.visual = self
+
+func _reset_cached_state_to_current() -> void:
+    cached_active = piece.active
+    cached_transform = piece.global_transform
+
+func _reset_cached_state_to_previous() -> void:
+    cached_active = piece._previous_active
+    cached_transform = piece._previous_transform
 
 func _snap_to_piece_state() -> void:
     if animation:
