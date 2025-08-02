@@ -52,9 +52,9 @@ func create_animation(animation_scene: PackedScene) -> PieceAnimation3D:
 
 func _set_piece(value: Piece3D) -> void:
     if piece:
-        value.changes_committing.disconnect(_reset_cached_state_to_current)
-        value.changes_reverting.disconnect(_reset_cached_state_to_previous)
-        value.teleported.disconnect(_reset_cached_state_to_current)
+        piece.changes_committing.disconnect(_reset_cached_state_to_current)
+        piece.changes_reverting.disconnect(_reset_cached_state_to_previous)
+        piece.teleported.disconnect(_reset_cached_state_to_current)
         piece.teleported.disconnect(_snap_to_piece_state)
         piece.visual = null
     piece = value
