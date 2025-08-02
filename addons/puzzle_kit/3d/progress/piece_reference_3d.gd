@@ -27,6 +27,7 @@ func dereference_from(pieces: Array[Piece3D]) -> bool:
     var piece_index := pieces.find_custom(_does_piece_match)
     # No pieces matched
     if piece_index == -1:
+        print("PieceReference3D.dereference_from(): Couldn't deference piece with original_active: %s, original_transform: %s, scene_file_path: %s" % [original_active, original_transform, scene_file_path])
         return false
     
     piece = pieces[piece_index]
