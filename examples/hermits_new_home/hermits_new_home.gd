@@ -1,5 +1,6 @@
 extends Node3D
 
+const GROUP_CHECKPOINT := "checkpoint"
 const GROUP_PHYSICAL := "physical"
 const GROUP_PUSHABLE := "pushable"
 const GROUP_ROLLS := "rolls"
@@ -52,6 +53,12 @@ func _move(direction_2d: Vector2i) -> bool:
     # Move in direction
     if not blocked:
         player.grid_position = player.grid_position + direction
+
+    var checkpoint := board.get_piece_at(player.grid_position, GROUP_CHECKPOINT)
+    # Reached a checkpoint
+    if checkpoint:
+        checkpoint.active = false
+        history.checkpoint()
 
     animator.stop_for(player)
 

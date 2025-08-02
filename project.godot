@@ -39,6 +39,7 @@ pushable=""
 physical=""
 standable=""
 shell=""
+checkpoint=""
 
 [input]
 

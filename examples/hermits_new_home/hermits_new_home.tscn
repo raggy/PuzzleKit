@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://ckrr86q1cfgnb"]
+[gd_scene load_steps=14 format=3 uid="uid://ckrr86q1cfgnb"]
 
 [ext_resource type="Script" uid="uid://3cmkdvjjjct1" path="res://examples/hermits_new_home/hermits_new_home.gd" id="1_cm4va"]
 [ext_resource type="Script" uid="uid://bm5ybkqrahvnl" path="res://addons/puzzle_kit/3d/board_3d.gd" id="3_jqp8w"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://v3slkolhqlnd" path="res://addons/puzzle_kit/3d/animation/piece_animator_3d.gd" id="10_f8pcv"]
 [ext_resource type="Script" uid="uid://bv3qcp1b7y6p4" path="res://addons/puzzle_kit/input/directional_input.gd" id="10_uayvv"]
 [ext_resource type="PackedScene" uid="uid://bvrp2f17e18h0" path="res://examples/hermits_new_home/pieces/sand.tscn" id="11_gb1ek"]
+[ext_resource type="PackedScene" uid="uid://nn03uahooxvg" path="res://examples/hermits_new_home/pieces/checkpoint.tscn" id="13_cqb77"]
 
 [node name="HermitsNewHome" type="Node3D"]
 script = ExtResource("1_cm4va")
@@ -188,3 +189,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 6)
 
 [node name="Coconut2" parent="Board3D/Level 6" instance=ExtResource("7_4s0kf")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 1, 5)
+
+[node name="Checkpoint" parent="Board3D/Level 6" instance=ExtResource("13_cqb77")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3)

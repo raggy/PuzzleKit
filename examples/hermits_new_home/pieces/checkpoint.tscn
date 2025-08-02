@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://nn03uahooxvg"]
+
+[ext_resource type="Script" uid="uid://b7wwdt4l1d20h" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_kjv27"]
+[ext_resource type="Script" uid="uid://bffkmccphyl60" path="res://addons/puzzle_kit/3d/history/piece_history_3d.gd" id="4_nq7n6"]
+
+[node name="Checkpoint" type="Node3D" groups=["checkpoint"]]
+script = ExtResource("1_kjv27")
+
+[node name="PieceHistory3D" type="Node" parent="."]
+script = ExtResource("4_nq7n6")
