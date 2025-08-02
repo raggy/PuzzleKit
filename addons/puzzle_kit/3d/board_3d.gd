@@ -8,6 +8,18 @@ signal piece_removed(piece: Piece3D)
 signal changes_committing()
 signal changes_reverting()
 
+const DIRECTIONS_ADJACENT: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT, Vector3i.DOWN, Vector3i.UP, Vector3i.FORWARD, Vector3i.BACK]
+const DIRECTIONS_CARDINAL: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT, Vector3i.FORWARD, Vector3i.BACK]
+const DIRECTIONS_X_AXIS: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT]
+const DIRECTIONS_Y_AXIS: Array[Vector3i] = [Vector3i.DOWN, Vector3i.UP]
+const DIRECTIONS_Z_AXIS: Array[Vector3i] = [Vector3i.FORWARD, Vector3i.BACK]
+const DIRECTIONS_LEFT: Array[Vector3i] = [Vector3i.LEFT]
+const DIRECTIONS_RIGHT: Array[Vector3i] = [Vector3i.RIGHT]
+const DIRECTIONS_DOWN: Array[Vector3i] = [Vector3i.DOWN]
+const DIRECTIONS_UP: Array[Vector3i] = [Vector3i.UP]
+const DIRECTIONS_FORWARD: Array[Vector3i] = [Vector3i.FORWARD]
+const DIRECTIONS_BACK: Array[Vector3i] = [Vector3i.BACK]
+
 var _pieces: Array[Piece3D] = []
 var _active_pieces: Array[Piece3D] = []
 var _inactive_pieces: Array[Piece3D] = []
@@ -113,6 +125,45 @@ func count_pieces(group: String = "", include_inactive: bool = false) -> int:
             piece_count += 1
     return piece_count
 
+## Get all pieces adjacent to `pieces` in specified directions (and all pieces adjacent to those, and so on)
+func get_pieces_touching(pieces: Array[Piece3D], directions: Array[Vector3i], group: String = "") -> Array[Piece3D]:
+    var pieces_touching: Array[Piece3D] = pieces.duplicate()
+    var search_index := 0
+
+    while (search_index < pieces_touching.size()):
+        var origin_piece := pieces_touching[search_index]
+
+        for direction in directions:
+            var pieces_in_direction := get_pieces_at(origin_piece.grid_position + direction)
+            # Gather the pieces adjacent (if not already in list)
+            for piece_in_direction in pieces_in_direction:
+                # Check if in group here rather than get_pieces_at() to prevent an extra array being created
+                if not piece_in_direction.is_in_group(group):
+                    continue
+                if pieces_touching.has(piece_in_direction):
+                    continue
+                pieces_touching.append(piece_in_direction)
+        
+        search_index += 1
+    
+    return pieces_touching
+
+## Get all pieces adjacent to `pieces` in specified directions
+func get_pieces_in_directions(pieces: Array[Piece3D], directions: Array[Vector3i], group: String = "") -> Array[Piece3D]:
+    var pieces_in_direction: Array[Piece3D] = []
+
+    for piece in pieces:
+        for direction in directions:
+            # Gather the pieces adjacent (if not already in list)
+            for piece_in_direction in get_pieces_at(piece.grid_position + direction):
+                # Check if in group here rather than get_pieces_at() to prevent an extra array being created
+                if not piece_in_direction.is_in_group(group):
+                    continue
+                if pieces_in_direction.has(piece_in_direction):
+                    continue
+                pieces_in_direction.append(piece_in_direction)
+
+    return pieces_in_direction
 #endregion
 
 #region Commit/revert

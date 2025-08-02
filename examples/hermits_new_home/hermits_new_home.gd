@@ -109,8 +109,8 @@ func _swap() -> void:
     if not sand_below:
         return
 
-    var connected_sand := _get_touching(sand_below, GROUP_SAND)
-    var shells_on_connected_sand := _get_pieces_on_top_of(connected_sand, GROUP_SHELL)
+    var connected_sand := board.get_pieces_touching([sand_below], Board3D.DIRECTIONS_ADJACENT, GROUP_SAND)
+    var shells_on_connected_sand := board.get_pieces_in_directions(connected_sand, Board3D.DIRECTIONS_UP, GROUP_SHELL)
 
     # No shell to swap to
     if shells_on_connected_sand.is_empty():
@@ -132,35 +132,3 @@ func _swap() -> void:
     player.global_transform = shell_to_swap_to.global_transform
 
     board.commit_changes()
-
-func _get_touching(piece: Piece3D, group: String = "") -> Array[Piece3D]:
-    const DIRECTIONS_ADJACENT: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT, Vector3i.UP, Vector3i.DOWN, Vector3i.FORWARD, Vector3i.BACK]
-    var pieces_touching: Array[Piece3D] = [piece]
-    var search_index := 0
-
-    while (search_index < pieces_touching.size()):
-        var origin_piece := pieces_touching[search_index]
-
-        for direction in DIRECTIONS_ADJACENT:
-            var touching_pieces := board.get_pieces_at(origin_piece.grid_position + direction, group)
-            # Add touching pieces to check (if not already in the list)
-            for touching_piece in touching_pieces:
-                if pieces_touching.has(touching_piece):
-                    continue
-                pieces_touching.append(touching_piece)
-        
-        search_index += 1
-    
-    return pieces_touching
-
-func _get_pieces_on_top_of(pieces: Array[Piece3D], group: String = "") -> Array[Piece3D]:
-    var pieces_on_top: Array[Piece3D] = []
-
-    for piece_below in pieces:
-        # Add pieces on top (if not already in the list)
-        for piece_on_top in board.get_pieces_at(piece_below.grid_position + Vector3i.UP, group):
-            if pieces_on_top.has(piece_on_top):
-                continue
-            pieces_on_top.append(piece_on_top)
-
-    return pieces_on_top
