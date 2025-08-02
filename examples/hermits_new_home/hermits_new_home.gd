@@ -37,25 +37,13 @@ func _move(direction_2d: Vector2i) -> bool:
         return false
     
     # Push
-    if not board.is_empty(player.grid_position + direction, GROUP_PUSHABLE):
-        # If there's multiple pushable pieces in a row, get the one furthest from us
-        var pushable := _get_end_pushable(player.grid_position, direction)
-        # There's something blocking it from being pushed so we won't move
-        if not board.is_empty(pushable.grid_position + direction):
+    var pushable := board.get_piece_at(player.grid_position + direction, GROUP_PUSHABLE)
+    if pushable:
+        # Push was blocked
+        if not _push(pushable, direction):
             return false
-
-        pushed = true
-        pushable.grid_position += direction
-
-        # Piece should roll
-        if pushable.is_in_group(GROUP_ROLLS):
-            pushable.rotate(Vector3(direction).cross(Vector3.UP), -TAU/4)
-
-        # Nothing below pushable after movement
-        if board.is_empty(pushable.grid_position + Vector3i.DOWN):
-            pushable.grid_position.y = 0
     
-    var blocked := not board.is_empty(player.grid_position + direction, GROUP_PHYSICAL)
+    var blocked := board.is_occupied(player.grid_position + direction, GROUP_PHYSICAL)
 
     # We're blocked from moving but didn't push anything
     if blocked and not pushed:
@@ -74,6 +62,33 @@ func _move(direction_2d: Vector2i) -> bool:
     if player.visual.animation:
         player.visual.animation.finished.connect(directions.repeat)
 
+    return true
+
+func _push(pushable: Piece3D, direction: Vector3i) -> bool:
+    var blocking_piece := board.get_piece_at(pushable.grid_position + direction, GROUP_PHYSICAL)
+    # There's something blocking it from being pushed so we won't move
+    if blocking_piece:
+        # If the blocking piece is pushable, push it instead
+        if blocking_piece.is_in_group(GROUP_PUSHABLE):
+            return _push(blocking_piece, direction)
+        # Blocking piece wasn't pushable, nothing moves
+        return false
+
+    pushable.grid_position += direction
+
+    var roll := pushable.is_in_group(GROUP_ROLLS)
+
+    # Piece should roll
+    if roll:
+        pushable.rotate(Vector3(direction).cross(Vector3.UP), -TAU/4)
+
+    # Nothing below pushable after movement
+    if board.is_empty(pushable.grid_position + Vector3i.DOWN, GROUP_STANDABLE):
+        pushable.grid_position += Vector3i.DOWN
+    # Keep moving if we rolled and there's something below where we moved
+    elif roll:
+        _push(pushable, direction)
+    
     return true
 
 func _swap() -> void:
@@ -104,20 +119,6 @@ func _swap() -> void:
     player.global_transform = shell_to_swap_to.global_transform
 
     board.commit_changes()
-
-func _get_end_pushable(start_position: Vector3i, direction: Vector3i) -> Piece3D:
-    var search_position := start_position + direction
-    var end_piece: Piece3D
-
-    for i in range(MAX_PUSH_PIECES):
-        # No pushable here, stop searching
-        if board.is_empty(search_position, GROUP_PUSHABLE):
-            break
-        # Update end_piece and set next search position
-        end_piece = board.get_piece_at(search_position, GROUP_PUSHABLE)
-        search_position += direction
-    
-    return end_piece
 
 func _get_touching(piece: Piece3D, group: String = "") -> Array[Piece3D]:
     const DIRECTIONS_ADJACENT: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT, Vector3i.UP, Vector3i.DOWN, Vector3i.FORWARD, Vector3i.BACK]
