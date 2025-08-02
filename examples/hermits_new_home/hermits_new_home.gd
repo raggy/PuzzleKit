@@ -17,8 +17,6 @@ const MAX_PUSH_PIECES := 8
 @onready var history := $Board3D/History3D as History3D
 @onready var player := $Board3D/Player as Piece3D
 
-var push_steps: Array[PieceStateSnapshot3D] = []
-
 func _ready() -> void:
     directions.input = _move
     history.undo_step_created.connect(func(step: PieceStateSnapshot3D) -> void: if step.has_a_piece_in_group(GROUP_PUSHABLE): step.stop_after = true; step.stop_before = true)
