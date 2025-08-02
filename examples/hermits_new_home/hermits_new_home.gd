@@ -95,7 +95,7 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
     # Nothing below pushable after movement
     if board.is_empty(pushable.grid_position + Vector3i.DOWN, GROUP_STANDABLE):
         pushable.grid_position += Vector3i.DOWN
-        animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), animate_after)
+        animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), pushable)
     # Keep moving if we rolled and there's something below where we moved
     elif roll:
         _push(pushable, direction)
