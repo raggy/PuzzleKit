@@ -118,6 +118,7 @@ func _swap() -> void:
     board.add_child(shell_left_behind)
     # Ensure the shell will be removed on undo
     shell_left_behind._previous_active = false
+    shell_left_behind._original_active = false
 
     # Move player to existing shell position
     player.global_transform = shell_to_swap_to.global_transform
