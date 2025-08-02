@@ -64,6 +64,7 @@ func _set_piece(value: Piece3D) -> void:
         value.teleported.connect(_reset_cached_state_to_current)
         value.teleported.connect(_snap_to_piece_state)
         value.visual = self
+        _reset_cached_state_to_current()
 
 func _reset_cached_state_to_current() -> void:
     cached_active = piece.active
