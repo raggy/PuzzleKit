@@ -36,6 +36,9 @@ func is_empty(grid_position: Vector3i, group: String = "") -> bool:
     
     return true
 
+func is_occupied(grid_position: Vector3i, group: String = "") -> bool:
+    return not is_empty(grid_position, group)
+
 func get_piece_at(grid_position: Vector3i, group: String = "") -> Piece3D:
     _update_cells()
 
