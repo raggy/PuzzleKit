@@ -39,7 +39,14 @@ func create_default_animation() -> PieceAnimation3D:
     if not default_animation:
         return null
     
-    var result := default_animation.instantiate() as PieceAnimation3D
+    return create_animation(default_animation)
+
+func create_animation(animation_scene: PackedScene) -> PieceAnimation3D:
+    var result := animation_scene.instantiate() as PieceAnimation3D
+    # PackedScene `animation_scene` was not a PieceAnimation3D
+    if not result:
+        return null
+
     result.setup(self)
     return result
 
