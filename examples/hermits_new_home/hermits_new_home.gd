@@ -1,13 +1,5 @@
 extends Node3D
 
-const GROUP_CHECKPOINT := "checkpoint"
-const GROUP_PHYSICAL := "physical"
-const GROUP_PUSHABLE := "pushable"
-const GROUP_ROLLS := "rolls"
-const GROUP_SAND := "sand"
-const GROUP_SHELL := "shell"
-const GROUP_STANDABLE := "standable"
-
 const MAX_PUSH_PIECES := 8
 
 @export var shell: PackedScene
@@ -18,9 +10,17 @@ const MAX_PUSH_PIECES := 8
 @onready var history := $Board3D/History3D as History3D
 @onready var player := $Board3D/Player as Piece3D
 
+@onready var group_checkpoint := board.group_filter_with("checkpoint")
+@onready var group_blocking := board.group_filter_any(["coconut", "rock", "shell"])
+@onready var group_pushable := board.group_filter_any(["coconut", "shell"])
+@onready var group_rolls := board.group_filter_any(["coconut"])
+@onready var group_sand := board.group_filter_with("sand")
+@onready var group_shell := board.group_filter_with("shell")
+@onready var group_standable := board.group_filter_any(["grass", "sand", "coconut"])
+
 func _ready() -> void:
     directions.input = _move
-    history.undo_step_created.connect(func(step: PieceStateSnapshot3D) -> void: if step.has_a_piece_in_group(GROUP_PUSHABLE): step.stop_after = true; step.stop_before = true)
+    history.undo_step_created.connect(func(step: PieceStateSnapshot3D) -> void: if step.has_a_piece_that_matches(group_pushable): step.stop_after = true; step.stop_before = true)
 
     # Create initial checkpoint
     history.checkpoint()
@@ -33,17 +33,17 @@ func _move(direction_2d: Vector2i) -> bool:
     var direction := Vector3i(direction_2d.x, 0, direction_2d.y)
 
     # Nothing to walk onto
-    if board.is_empty(player.grid_position + direction + Vector3i.DOWN, GROUP_STANDABLE):
+    if board.is_empty(player.grid_position + direction + Vector3i.DOWN, group_standable):
         return false
     
     # Push
-    var pushable := board.get_piece_at(player.grid_position + direction, GROUP_PUSHABLE)
+    var pushable := board.get_piece_at(player.grid_position + direction, group_pushable)
     var pushed := pushable and _push(pushable, direction)
     # Tried to push but it was blocked
     if pushable and not pushed:
         return false
     
-    var blocked := board.is_occupied(player.grid_position + direction, GROUP_PHYSICAL)
+    var blocked := board.is_occupied(player.grid_position + direction, group_blocking)
     # We're blocked from moving but didn't push anything
     if blocked and not pushed:
         return false
@@ -54,7 +54,7 @@ func _move(direction_2d: Vector2i) -> bool:
     if not blocked:
         player.grid_position = player.grid_position + direction
 
-    var checkpoint := board.get_piece_at(player.grid_position, GROUP_CHECKPOINT)
+    var checkpoint := board.get_piece_at(player.grid_position, group_checkpoint)
     # Reached a checkpoint
     if checkpoint:
         checkpoint.active = false
@@ -70,18 +70,18 @@ func _move(direction_2d: Vector2i) -> bool:
     return true
 
 func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) -> bool:
-    var blocking_piece := board.get_piece_at(pushable.grid_position + direction, GROUP_PHYSICAL)
+    var blocking_piece := board.get_piece_at(pushable.grid_position + direction, group_blocking)
     # There's something blocking it from being pushed so we won't move
     if blocking_piece:
         # If the blocking piece is pushable, push it instead
-        if blocking_piece.is_in_group(GROUP_PUSHABLE):
+        if group_pushable.matches(blocking_piece):
             return _push(blocking_piece, direction, pushable if pushable.visual._has_animation_this_step else pushed_by)
         # Blocking piece wasn't pushable, nothing moves
         return false
 
     pushable.grid_position += direction
 
-    var roll := pushable.is_in_group(GROUP_ROLLS)
+    var roll := group_rolls.matches(pushable)
 
     # Piece should roll
     if roll:
@@ -93,7 +93,7 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
     animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), animate_after)
 
     # Nothing below pushable after movement
-    if board.is_empty(pushable.grid_position + Vector3i.DOWN, GROUP_STANDABLE):
+    if board.is_empty(pushable.grid_position + Vector3i.DOWN, group_standable):
         pushable.grid_position += Vector3i.DOWN
         animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), pushable)
     # Keep moving if we rolled and there's something below where we moved
@@ -103,14 +103,14 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
     return true
 
 func _swap() -> void:
-    var sand_below := board.get_piece_at(player.grid_position + Vector3i.DOWN, GROUP_SAND)
+    var sand_below := board.get_piece_at(player.grid_position + Vector3i.DOWN, group_sand)
 
     # No sand below player
     if not sand_below:
         return
 
-    var connected_sand := board.get_pieces_touching([sand_below], GROUP_SAND)
-    var shells_on_connected_sand := board.get_pieces_touching(connected_sand, GROUP_SHELL, Board3D.DIRECTIONS_UP, 1)
+    var connected_sand := board.get_pieces_touching([sand_below], group_sand)
+    var shells_on_connected_sand := board.get_pieces_touching(connected_sand, group_shell, Board3D.DIRECTIONS_UP, 1)
 
     # No shell to swap to
     if shells_on_connected_sand.is_empty():

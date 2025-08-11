@@ -34,12 +34,11 @@ enabled=PackedStringArray("res://addons/puzzle_kit/plugin.cfg")
 [global_group]
 
 sand=""
-rolls=""
-pushable=""
-physical=""
-standable=""
 shell=""
 checkpoint=""
+coconut=""
+grass=""
+rock=""
 
 [input]
 

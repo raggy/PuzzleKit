@@ -12,7 +12,7 @@ shader_parameter/Color = Color(0.858824, 0.305882, 0.486275, 1)
 material = SubResource("ShaderMaterial_ovqc1")
 size = Vector3(1, 2, 1)
 
-[node name="Rock" type="Node3D" groups=["physical"]]
+[node name="Rock" type="Node3D" groups=["rock"]]
 script = ExtResource("1_315ov")
 
 [node name="Visual" type="MeshInstance3D" parent="."]

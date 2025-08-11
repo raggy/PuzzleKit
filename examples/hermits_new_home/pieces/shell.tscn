@@ -18,7 +18,7 @@ radial_segments = 8
 rings = 0
 cap_top = false
 
-[node name="Shell" type="Node3D" groups=["physical", "pushable", "shell"]]
+[node name="Shell" type="Node3D" groups=["shell"]]
 script = ExtResource("1_uo3uf")
 
 [node name="Visual" type="MeshInstance3D" parent="."]

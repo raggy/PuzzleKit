@@ -11,7 +11,7 @@ shader_parameter/Color = Color(1, 0.764706, 0.431373, 1)
 [sub_resource type="BoxMesh" id="BoxMesh_txay2"]
 material = SubResource("ShaderMaterial_msb46")
 
-[node name="Sand" type="Node3D" groups=["physical", "sand", "standable"]]
+[node name="Sand" type="Node3D" groups=["sand"]]
 script = ExtResource("1_1if0i")
 
 [node name="Visual" type="MeshInstance3D" parent="."]

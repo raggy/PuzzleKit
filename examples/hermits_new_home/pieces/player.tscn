@@ -30,7 +30,7 @@ radial_segments = 8
 rings = 0
 cap_top = false
 
-[node name="Player" type="Node3D" groups=["physical"]]
+[node name="Player" type="Node3D"]
 script = ExtResource("1_741vi")
 
 [node name="Visual" type="Node3D" parent="."]

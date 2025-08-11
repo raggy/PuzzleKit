@@ -16,7 +16,7 @@ material = SubResource("ShaderMaterial_1pou2")
 radial_segments = 8
 rings = 4
 
-[node name="Coconut" type="Node3D" groups=["physical", "pushable", "rolls", "standable"]]
+[node name="Coconut" type="Node3D" groups=["coconut"]]
 script = ExtResource("1_t4aj3")
 
 [node name="Visual" type="MeshInstance3D" parent="."]
