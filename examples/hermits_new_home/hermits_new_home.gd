@@ -10,13 +10,13 @@ const MAX_PUSH_PIECES := 8
 @onready var history := $Board3D/History3D as History3D
 @onready var player := $Board3D/Player as Piece3D
 
-@onready var group_checkpoint := board.group_filter_with("checkpoint")
-@onready var group_blocking := board.group_filter_any(["coconut", "rock", "shell"])
-@onready var group_pushable := board.group_filter_any(["coconut", "shell"])
-@onready var group_rolls := board.group_filter_any(["coconut"])
-@onready var group_sand := board.group_filter_with("sand")
-@onready var group_shell := board.group_filter_with("shell")
-@onready var group_standable := board.group_filter_any(["grass", "sand", "coconut"])
+var group_checkpoint := GroupFilter.new().with("checkpoint")
+var group_blocking := GroupFilter.new().with_any(["coconut", "rock", "shell"])
+var group_pushable := GroupFilter.new().with_any(["coconut", "shell"])
+var group_rolls := GroupFilter.new().with("coconut")
+var group_sand := GroupFilter.new().with("sand")
+var group_shell := GroupFilter.new().with("shell")
+var group_standable := GroupFilter.new().with_any(["grass", "sand", "coconut"])
 
 func _ready() -> void:
     directions.input = _move
@@ -74,14 +74,14 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
     # There's something blocking it from being pushed so we won't move
     if blocking_piece:
         # If the blocking piece is pushable, push it instead
-        if group_pushable.matches(blocking_piece):
+        if group_pushable.matches_3d(blocking_piece):
             return _push(blocking_piece, direction, pushable if pushable.visual._has_animation_this_step else pushed_by)
         # Blocking piece wasn't pushable, nothing moves
         return false
 
     pushable.grid_position += direction
 
-    var roll := group_rolls.matches(pushable)
+    var roll := group_rolls.matches_3d(pushable)
 
     # Piece should roll
     if roll:

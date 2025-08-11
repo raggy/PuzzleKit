@@ -17,9 +17,9 @@ func has_a_piece_in_group(group: String) -> bool:
     # None of the states' pieces were in group
     return false
 
-func has_a_piece_that_matches(group_filter: Board3D.GroupFilter) -> bool:
+func has_a_piece_that_matches(group_filter: GroupFilter) -> bool:
     for state in states:
-        if group_filter.matches(state.piece):
+        if group_filter.matches_3d(state.piece):
             return true
     # None of the states' pieces matched group filter
     return false

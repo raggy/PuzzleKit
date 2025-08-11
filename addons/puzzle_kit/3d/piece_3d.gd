@@ -20,8 +20,8 @@ var grid_forward: Vector3i: get = _get_grid_forward
 var original_grid_position: Vector3i: get = _get_original_grid_position
 var original_grid_forward: Vector3i: get = _get_original_grid_forward
 
-## Bits for filtering (auto-set from groups when added to Board3D)
-var bits: int
+## Flags for filtering (auto-set from groups)
+var flags: int
 
 ## `PieceHistory3D` child (auto-set)
 var history: PieceHistory3D
@@ -46,11 +46,10 @@ func _enter_tree() -> void:
     _previous_transform = global_transform
     
     _board = _find_ancestor_board()
-    bits = _board._groups_to_bitmask(get_groups())
+    flags = GroupFilter.groups_to_flags(get_groups())
 
 func _exit_tree() -> void:
     _board = null
-    bits = 0
 
 func commit_changes() -> void:
     changes_committing.emit()
