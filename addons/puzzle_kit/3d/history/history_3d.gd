@@ -179,4 +179,4 @@ func _apply_undo_step(step: PieceStateSnapshot3D) -> void:
             if state.piece.active and not state.active and not state.piece.history._in_checkpoint:
                 _recently_deactivated_pieces.append(state.piece)
     
-    step.apply()
+    step.apply(_board)

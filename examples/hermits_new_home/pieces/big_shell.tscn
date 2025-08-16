@@ -1,0 +1,113 @@
+[gd_scene load_steps=7 format=3 uid="uid://75iyhoe7br4t"]
+
+[ext_resource type="Script" uid="uid://b7wwdt4l1d20h" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_xbj8a"]
+[ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/single_color_shader.tres" id="2_q3ybe"]
+[ext_resource type="Script" uid="uid://ctl6vovilcjom" path="res://addons/puzzle_kit/3d/animation/piece_visual_3d.gd" id="3_1y7rm"]
+[ext_resource type="Script" uid="uid://bffkmccphyl60" path="res://addons/puzzle_kit/3d/history/piece_history_3d.gd" id="4_n67wl"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ga7si"]
+render_priority = 0
+shader = ExtResource("2_q3ybe")
+shader_parameter/Color = Color(1, 0.952941, 0.968627, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_846rb"]
+material = SubResource("ShaderMaterial_ga7si")
+top_radius = 0.0
+height = 1.0
+radial_segments = 8
+rings = 0
+cap_top = false
+
+[node name="BigShell" type="Node3D"]
+script = ExtResource("1_xbj8a")
+
+[node name="Visual" type="Node3D" parent="."]
+script = ExtResource("3_1y7rm")
+
+[node name="ShellVisual" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 1, 0)
+mesh = SubResource("CylinderMesh_846rb")
+skeleton = NodePath("../..")
+
+[node name="PieceHistory3D" type="Node" parent="."]
+script = ExtResource("4_n67wl")
+
+[node name="Collider" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, -1)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider2" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider2"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider3" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, -1)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider3"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider4" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider4"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider5" type="Node3D" parent="." groups=["shell"]]
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider5"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider6" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider6"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider7" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 1)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider7"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider8" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider8"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"
+
+[node name="Collider9" type="Node3D" parent="." groups=["shell"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1)
+script = ExtResource("1_xbj8a")
+metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
+
+[node name="PieceHistory3D" type="Node" parent="Collider9"]
+script = ExtResource("4_n67wl")
+metadata/_custom_type_script = "uid://bffkmccphyl60"

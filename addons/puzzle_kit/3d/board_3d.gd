@@ -207,7 +207,7 @@ func revert_changes() -> void:
 #region Internal
 func _register_piece(piece: Piece3D) -> void:
     _pieces.append(piece)
-    if piece.active:
+    if piece.is_active_in_tree():
         piece._board_cached_active = true
         _active_pieces.append(piece)
     else:
@@ -218,7 +218,7 @@ func _register_piece(piece: Piece3D) -> void:
 
 func _deregister_piece(piece: Piece3D) -> void:
     _pieces.erase(piece)
-    if piece.active:
+    if piece._board_cached_active:
         _active_pieces.erase(piece)
     else:
         _inactive_pieces.erase(piece)
@@ -267,6 +267,10 @@ func _activate_piece(piece: Piece3D) -> void:
     _active_pieces.append(piece)
     # Add piece to cell
     _update_piece_cell(piece)
+    # Activate piece's children
+    for child in piece.children:
+        if child.active:
+            _activate_piece(child)
 
 func _deactivate_piece(piece: Piece3D) -> void:
     if not piece._board_cached_active:
@@ -279,6 +283,10 @@ func _deactivate_piece(piece: Piece3D) -> void:
         var cell := _cells_by_piece[piece]
         cell.pieces.erase(piece)
         _cells_by_piece.erase(piece)
+    # Deactivate piece's children
+    for child in piece.children:
+        if child.active:
+            _deactivate_piece(child)
 #endregion
 
 class Cell extends RefCounted:

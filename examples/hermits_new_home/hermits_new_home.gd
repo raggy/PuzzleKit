@@ -70,15 +70,24 @@ func _move(direction_2d: Vector2i) -> bool:
     return true
 
 func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) -> bool:
-    var blocking_piece := board.get_piece_at(pushable.grid_position + direction, group_blocking)
-    # There's something blocking it from being pushed so we won't move
-    if blocking_piece:
+    var pushable_pieces: Array[Piece3D] = [pushable]
+    if pushable.parent:
+        pushable_pieces = pushable.parent.children
+        pushable = pushable.parent
+
+    var blocking_pieces := board.get_pieces_touching(pushable_pieces, group_blocking, [direction], 1)
+    # There's multiple things blocking it, too heavy to chain push
+    if blocking_pieces.size() > 1:
+        return false
+    # There's one thing blocking it from being pushed so we won't move
+    if blocking_pieces.size() == 1:
+        var blocking_piece := blocking_pieces[0]
         # If the blocking piece is pushable, push it instead
         if group_pushable.matches_3d(blocking_piece):
-            return _push(blocking_piece, direction, pushable if pushable.visual._has_animation_this_step else pushed_by)
+            return _push(blocking_piece, direction, pushable if pushable.visual and pushable.visual._has_animation_this_step else pushed_by)
         # Blocking piece wasn't pushable, nothing moves
         return false
-
+    
     pushable.grid_position += direction
 
     var roll := group_rolls.matches_3d(pushable)
@@ -93,7 +102,8 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
     animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), animate_after)
 
     # Nothing below pushable after movement
-    if board.is_empty(pushable.grid_position + Vector3i.DOWN, group_standable):
+    var standable_pieces := board.get_pieces_touching(pushable_pieces, group_standable, Board3D.DIRECTIONS_DOWN, 1)
+    if standable_pieces.is_empty():
         pushable.grid_position += Vector3i.DOWN
         animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), pushable)
     # Keep moving if we rolled and there's something below where we moved
