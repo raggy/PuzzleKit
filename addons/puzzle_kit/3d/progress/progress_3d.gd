@@ -107,6 +107,9 @@ func _auto_save_now() -> void:
     if not auto_save:
         return
     
+    if not _auto_save_timer:
+        return
+    
     _stop_auto_save()
 
     save()
