@@ -7,6 +7,7 @@ signal changes_committing()
 signal changes_reverting()
 signal teleported()
 
+## Inactive pieces aren't included in positional queries and (by-default) ignored in other queries
 var active: bool = true: set = set_active
 ## `global_position`, rounded to snap to the grid
 var grid_position: Vector3i: get = _get_grid_position, set = _set_grid_position
@@ -17,8 +18,11 @@ var grid_up: Vector3i: get = _get_grid_up
 ## `-global_transform.basis.z`, rounded to snap to the grid
 var grid_forward: Vector3i: get = _get_grid_forward
 
-var original_grid_position: Vector3i: get = _get_original_grid_position
-var original_grid_forward: Vector3i: get = _get_original_grid_forward
+## The closest ancestor `Piece3D` in the scene tree
+var parent_piece: Piece3D: set = set_parent_piece
+## Array of the closest descendant `Piece3D` in the scene tree.
+## Editing this manually will probably break things!
+var _child_pieces: Array[Piece3D] = []
 
 ## Flags for filtering (auto-set from groups)
 var flags: int
@@ -29,45 +33,95 @@ var history: PieceHistory3D
 var visual: PieceVisual3D
 
 var _board: Board3D: set = _set_board
-var _board_cached_active: bool
-var _board_cached_transform: Transform3D
 
-var _original_active: bool
 var _previous_active: bool
-
-var _original_transform: Transform3D
+var _previous_parent_piece: Piece3D
 var _previous_transform: Transform3D
 
-func _enter_tree() -> void:
-    _original_active = active
-    _previous_active = active
+@warning_ignore_start("unused_private_class_variable")
+var _board_cached_active: bool
+var _board_cached_transform: Transform3D
+var _piece_state_cached_top_level: bool
+@warning_ignore_restore("unused_private_class_variable")
 
-    _original_transform = global_transform
-    _previous_transform = global_transform
+func _enter_tree() -> void:
+    parent_piece = _find_piece_ancestor()
     
-    _board = _find_ancestor_board()
+    if not _board:
+        _board = _find_board()
+
+func _ready() -> void:
     flags = GroupFilter.groups_to_flags(get_groups())
 
-func _exit_tree() -> void:
-    _board = null
+func _notification(what: int) -> void:
+    match what:
+        NOTIFICATION_PREDELETE:
+            parent_piece = null
+            _board = null
 
-func commit_changes() -> void:
-    changes_committing.emit()
-    _previous_active = active
-    _previous_transform = global_transform
+## Fetches closest descendant `Piece3D` at `index`
+func get_child_piece(index: int) -> Piece3D:
+    return _child_pieces[index]
 
-func revert_changes() -> void:
-    changes_reverting.emit()
-    active = _previous_active
-    global_transform = _previous_transform
+## Returns the number of closest-descendant `Piece3D` in the scene tree
+func get_child_piece_count() -> int:
+    return _child_pieces.size()
 
-func teleport(new_active: bool, new_transform: Transform3D) -> void:
-    active = new_active
-    _previous_active = new_active
-    global_transform = new_transform
-    _previous_transform = new_transform
-    teleported.emit()
+## Returns a new Array of the closest descendant `Piece3D` in the scene tree
+func get_child_pieces() -> Array[Piece3D]:
+    return _child_pieces.duplicate()
 
+## Returns the closest ancestor `Piece3D` in the scene tree
+func get_parent_piece() -> Piece3D:
+    return parent_piece
+
+## Reparents this piece to `value`, if not already a descendant. Preserves `global_transform`.
+## Alternatively, you may use Godot's `add_child` and `remove_child` functions and `parent_piece` will be updated automatically
+func set_parent_piece(value: Piece3D) -> void:
+    if parent_piece == value:
+        return
+    if parent_piece:
+        parent_piece._child_pieces.erase(self)
+    parent_piece = value
+    if value:
+        value._child_pieces.append(self)
+    # Update node parent_piece in scene tree
+    var current_parent_node := get_parent()
+    # No parent_piece set, parent ourselves to the board (if we have one)
+    if not value and current_parent_node != _board:
+        _change_parent_node(current_parent_node, _board)
+    # parent_piece set, parent ourselves to it if we're not already a descendant
+    elif value and not is_ancestor_of(value):
+        _change_parent_node(current_parent_node, value)
+    # Ensure our active state is up-to-date in the board in case it's changed
+    if _board:
+        if is_active_in_tree():
+            _board._activate_piece(self)
+        else:
+            _board._deactivate_piece(self)
+
+## Returns true if this piece matches `group_filter`
+func matches(group_filter: GroupFilter) -> bool:
+    return group_filter.matches_3d(self)
+
+## Returns the first descendant `Piece3D` matching `group_filter`
+func get_first_child_piece_matching(group_filter: GroupFilter) -> Piece3D:
+    var child_piece_index := _child_pieces.find_custom(group_filter.matches_3d)
+    if child_piece_index != -1:
+        return _child_pieces[child_piece_index]
+    return null
+
+## Returns an Array of all descendant `Piece3D` matching `group_filter`
+func get_child_pieces_matching(group_filter: GroupFilter) -> Array[Piece3D]:
+    return _child_pieces.filter(group_filter.matches_3d)
+
+## Returns true if Piece3D's `active` property is true and all its ancestor Piece3D are also `active`
+func is_active_in_tree() -> bool:
+    if not parent_piece:
+        return active
+    return active and parent_piece.is_active_in_tree()
+
+## See `active`
 func set_active(value: bool) -> void:
     if active == value:
         return
@@ -84,6 +138,9 @@ func _get_grid_position() -> Vector3i:
     return round(global_position)
 
 func _set_grid_position(value: Vector3i) -> void:
+    if not is_inside_tree():
+        position = value
+        return
     global_position = value
 
 func _get_grid_right() -> Vector3i:
@@ -95,32 +152,76 @@ func _get_grid_up() -> Vector3i:
 func _get_grid_forward() -> Vector3i:
     return round(-global_transform.basis.z)
 
-func _get_original_grid_position() -> Vector3i:
-    return round(_original_transform.origin)
-
-func _get_original_grid_forward() -> Vector3i:
-    return round(-_original_transform.basis.z)
-
 func _set_board(value: Board3D) -> void:
+    if _board == value:
+        return
     if _board:
         _board._deregister_piece(self)
     _board = value
     if value:
         value._register_piece(self)
+        # _previous_active should be true if we exist during the initial scene
+        _previous_active = not value.is_node_ready()
+        _previous_parent_piece = parent_piece
+        _previous_transform = global_transform
 
-func _find_ancestor_board() -> Board3D:
-    const MAX_SEARCH_DEPTH := 8
-    var search_node: Node = self
+func _change_parent_node(current_parent_node: Node, new_parent_node: Node) -> void:
+    if current_parent_node == new_parent_node:
+        return
+    var current_top_level := top_level
+    # Set top_level to preserve our transform when changing parent
+    top_level = true
+    if current_parent_node:
+        current_parent_node.remove_child(self)
+    if new_parent_node:
+        new_parent_node.add_child(self)
+    top_level = current_top_level
+
+func _find_board() -> Board3D:
+    if not is_inside_tree():
+        return null
+    var search_parent := get_parent()
     # Search our parent and parent of parent, etc
-    for i in range(MAX_SEARCH_DEPTH):
-        var search_parent := search_node.get_parent()
-        # Reached the root without finding it
-        if not search_parent:
-            return null
-        # Found the Board
+    while search_parent:
+        # Found a piece
         if search_parent is Board3D:
-            return search_parent as Board3D
+            return search_parent
         # Update which node we're looking at for next iteration
-        search_node = search_parent
-    # Reached max search depth
+        search_parent = search_parent.get_parent()
+    # Reached the root without finding anything
     return null
+
+func _find_piece_ancestor() -> Piece3D:
+    if not is_inside_tree():
+        return null
+    var search_parent := get_parent()
+    # Search our parent and parent of parent, etc
+    while search_parent:
+        # Found a piece
+        if search_parent is Piece3D:
+            return search_parent
+        # Update which node we're looking at for next iteration
+        search_parent = search_parent.get_parent()
+    # Reached the root without finding anything
+    return null
+
+func _commit_changes() -> void:
+    changes_committing.emit()
+    _previous_active = active
+    _previous_parent_piece = parent_piece
+    _previous_transform = global_transform
+
+func _revert_changes() -> void:
+    changes_reverting.emit()
+    active = _previous_active
+    parent_piece = _previous_parent_piece
+    global_transform = _previous_transform
+
+func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Transform3D) -> void:
+    active = new_active
+    _previous_active = new_active
+    parent_piece = new_parent_piece
+    _previous_parent_piece = new_parent_piece
+    global_transform = new_transform
+    _previous_transform = new_transform
+    teleported.emit()

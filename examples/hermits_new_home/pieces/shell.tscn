@@ -1,8 +1,11 @@
-[gd_scene load_steps=7 format=3 uid="uid://on00ojmdj40p"]
+[gd_scene load_steps=15 format=3 uid="uid://on00ojmdj40p"]
 
 [ext_resource type="Script" uid="uid://b7wwdt4l1d20h" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_uo3uf"]
 [ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/single_color_shader.tres" id="2_1827y"]
-[ext_resource type="Script" uid="uid://ctl6vovilcjom" path="res://addons/puzzle_kit/3d/animation/piece_visual_3d.gd" id="2_k7lvu"]
+[ext_resource type="Script" uid="uid://cjka25o6jip2l" path="res://examples/hermits_new_home/pieces/shell_visual.gd" id="2_fof77"]
+[ext_resource type="PackedScene" uid="uid://dln4fe6xfayqb" path="res://examples/hermits_new_home/animations/shell_entered.tscn" id="3_dd16b"]
+[ext_resource type="PackedScene" uid="uid://b18uubyia0bmi" path="res://examples/hermits_new_home/animations/shell_exited.tscn" id="4_d3xrn"]
+[ext_resource type="PackedScene" uid="uid://b64fsn0bjdk7x" path="res://examples/hermits_new_home/animations/shell_fail_to_exit.tscn" id="5_dd16b"]
 [ext_resource type="Script" uid="uid://bffkmccphyl60" path="res://addons/puzzle_kit/3d/history/piece_history_3d.gd" id="5_lj0gw"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ga7si"]
@@ -18,12 +21,144 @@ radial_segments = 8
 rings = 0
 cap_top = false
 
-[node name="Shell" type="Node3D" groups=["shell"]]
+[sub_resource type="Animation" id="Animation_6ex12"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("ShellMesh:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("ShellMesh:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_fof77"]
+resource_name = "hermit_entering"
+length = 0.43
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("ShellMesh:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.233333, 0.423333),
+"transitions": PackedFloat32Array(0.5, -2, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0, 0.202087, 0.623224), Vector3(0, 0.21, 0.5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("ShellMesh:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.233333, 0.423333),
+"transitions": PackedFloat32Array(0.5, -2, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0.959931, 0, 0), Vector3(0.785398, 0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_yfsku"]
+resource_name = "hermit_leaving"
+length = 0.54
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("ShellMesh:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.366667, 0.533333),
+"transitions": PackedFloat32Array(1.56917, 0.466517, 1.62451, 1),
+"update": 0,
+"values": [Vector3(0, 0.21, 0.5), Vector3(0, 0, 0), Vector3(0, 0.118707, 0.135665), Vector3(0, 0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("ShellMesh:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.373333, 0.533333),
+"transitions": PackedFloat32Array(2, 0.466517, 1.86607, 1),
+"update": 0,
+"values": [Vector3(0.785398, 0, 0), Vector3(0, 0, 0), Vector3(0.261799, 0, 0), Vector3(0, 0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_dd16b"]
+resource_name = "player_fail_to_exit"
+length = 0.63
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("ShellMesh:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.433333, 0.623333),
+"transitions": PackedFloat32Array(1.56917, 0.5, -2, 1),
+"update": 0,
+"values": [Vector3(0, 0.21, 0.5), Vector3(0, 0, 0), Vector3(0, 0.202087, 0.623224), Vector3(0, 0.21, 0.5)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("ShellMesh:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.433333, 0.623333),
+"transitions": PackedFloat32Array(2, 0.5, -2, 1),
+"update": 0,
+"values": [Vector3(0.785398, 0, 0), Vector3(0, 0, 0), Vector3(0.959931, 0, 0), Vector3(0.785398, 0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_fof77"]
+_data = {
+&"RESET": SubResource("Animation_6ex12"),
+&"player_entering": SubResource("Animation_fof77"),
+&"player_exiting": SubResource("Animation_yfsku"),
+&"player_fail_to_exit": SubResource("Animation_dd16b")
+}
+
+[node name="Shell" type="Node3D" groups=["pushable", "shell"]]
 script = ExtResource("1_uo3uf")
 
-[node name="Visual" type="MeshInstance3D" parent="."]
+[node name="Visual" type="Node3D" parent="." node_paths=PackedStringArray("animation_player")]
+script = ExtResource("2_fof77")
+animation_player = NodePath("AnimationPlayer")
+entered_animation = ExtResource("3_dd16b")
+exited_animation = ExtResource("4_d3xrn")
+fail_to_exit_animation = ExtResource("5_dd16b")
+
+[node name="ShellMesh" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_846rb")
-script = ExtResource("2_k7lvu")
+skeleton = NodePath("../..")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Visual"]
+libraries = {
+&"": SubResource("AnimationLibrary_fof77")
+}
 
 [node name="PieceHistory3D" type="Node" parent="."]
 script = ExtResource("5_lj0gw")

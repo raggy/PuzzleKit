@@ -39,6 +39,7 @@ checkpoint=""
 coconut=""
 grass=""
 rock=""
+pushable=""
 
 [input]
 

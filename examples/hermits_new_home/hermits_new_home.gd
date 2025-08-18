@@ -2,8 +2,6 @@ extends Node3D
 
 const MAX_PUSH_PIECES := 8
 
-@export var shell: PackedScene
-
 @onready var board := $Board3D as Board3D
 @onready var animator := $Board3D/PieceAnimator3D as PieceAnimator3D
 @onready var directions := $DirectionalInput as DirectionalInput
@@ -11,8 +9,8 @@ const MAX_PUSH_PIECES := 8
 @onready var player := $Board3D/Player as Piece3D
 
 var group_checkpoint := GroupFilter.new().with("checkpoint")
-var group_blocking := GroupFilter.new().with_any(["coconut", "rock", "shell"])
-var group_pushable := GroupFilter.new().with_any(["coconut", "shell"])
+var group_blocking := GroupFilter.new().with_any(["pushable", "rock"])
+var group_pushable := GroupFilter.new().with("pushable")
 var group_rolls := GroupFilter.new().with("coconut")
 var group_sand := GroupFilter.new().with("sand")
 var group_shell := GroupFilter.new().with("shell")
@@ -24,6 +22,11 @@ func _ready() -> void:
 
     # Create initial checkpoint
     history.checkpoint()
+
+    var player_shell := player.get_first_child_piece_matching(group_shell)
+    # Teleport player's shell on-the-spot to set correct visual state on first play
+    if player_shell:
+        player_shell._teleport(player_shell.active, player_shell.parent_piece, player_shell.global_transform)
 
 func _process(_delta: float) -> void:
     if Input.is_action_just_pressed("swap"):
@@ -61,6 +64,11 @@ func _move(direction_2d: Vector2i) -> bool:
         history.checkpoint()
 
     animator.stop_for(player)
+    
+    var player_shell := player.get_first_child_piece_matching(group_shell)
+    if player_shell:
+        animator.stop_for(player_shell)
+        animator.play(player_shell.visual.create_animation(player_shell.visual.default_animation))
 
     board.commit_changes()
 
@@ -70,18 +78,28 @@ func _move(direction_2d: Vector2i) -> bool:
     return true
 
 func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) -> bool:
-    var blocking_piece := board.get_piece_at(pushable.grid_position + direction, group_blocking)
-    # There's something blocking it from being pushed so we won't move
-    if blocking_piece:
+    var pushable_pieces: Array[Piece3D] = [pushable]
+    # If we're trying to push a piece that's contained within another piece, push that instead
+    if pushable.parent_piece:
+        pushable_pieces = pushable.parent_piece.get_child_pieces()
+        pushable = pushable.parent_piece
+
+    var blocking_pieces := board.get_pieces_touching(pushable_pieces, group_blocking, [direction], 1)
+    # There's multiple things blocking it, too heavy to chain push
+    if blocking_pieces.size() > 1:
+        return false
+    # There's one thing blocking it from being pushed so we won't move
+    if blocking_pieces.size() == 1:
+        var blocking_piece := blocking_pieces[0]
         # If the blocking piece is pushable, push it instead
-        if group_pushable.matches_3d(blocking_piece):
-            return _push(blocking_piece, direction, pushable if pushable.visual._has_animation_this_step else pushed_by)
+        if blocking_piece.matches(group_pushable):
+            return _push(blocking_piece, direction, pushable if pushable.visual and pushable.visual._has_animation_this_step else pushed_by)
         # Blocking piece wasn't pushable, nothing moves
         return false
-
+    
     pushable.grid_position += direction
 
-    var roll := group_rolls.matches_3d(pushable)
+    var roll := pushable.matches(group_rolls)
 
     # Piece should roll
     if roll:
@@ -93,7 +111,8 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
     animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), animate_after)
 
     # Nothing below pushable after movement
-    if board.is_empty(pushable.grid_position + Vector3i.DOWN, group_standable):
+    var standable_pieces := board.get_pieces_touching(pushable_pieces, group_standable, Board3D.DIRECTIONS_DOWN, 1)
+    if standable_pieces.is_empty():
         pushable.grid_position += Vector3i.DOWN
         animator.queue_for(pushable.visual.create_animation(pushable.visual.default_animation), pushable)
     # Keep moving if we rolled and there's something below where we moved
@@ -107,6 +126,7 @@ func _swap() -> void:
 
     # No sand below player
     if not sand_below:
+        _swap_fail()
         return
 
     var connected_sand := board.get_pieces_touching([sand_below], group_sand)
@@ -114,21 +134,33 @@ func _swap() -> void:
 
     # No shell to swap to
     if shells_on_connected_sand.is_empty():
+        _swap_fail()
         return
 
-    # Deactivate existing shell
-    var shell_to_swap_to := shells_on_connected_sand[0]
-    shell_to_swap_to.active = false
+    var current_shell := player.get_first_child_piece_matching(group_shell)
+    # Leave current shell behind
+    if current_shell:
+        current_shell.parent_piece = null
+        var current_shell_visual := current_shell.visual as ShellVisual
+        animator.play(current_shell_visual.create_animation(current_shell_visual.exited_animation))
 
-    # Create new shell at player's current position
-    var shell_left_behind := shell.instantiate() as Piece3D
-    shell_left_behind.global_transform = player.global_transform
-    board.add_child(shell_left_behind)
-    # Ensure the shell will be removed on undo
-    shell_left_behind._previous_active = false
-    shell_left_behind._original_active = false
+    var new_shell := shells_on_connected_sand[0]
 
     # Move player to existing shell position
-    player.global_transform = shell_to_swap_to.global_transform
+    player.global_transform = new_shell.global_transform
+
+    # Grab new shell into player
+    new_shell.parent_piece = player
+    var new_shell_visual := new_shell.visual as ShellVisual
+    animator.play(new_shell_visual.create_animation(new_shell_visual.entered_animation))
 
     board.commit_changes()
+
+    animator.finish_for(player)
+
+func _swap_fail() -> void:
+    var player_shell := player.get_first_child_piece_matching(group_shell)
+    # Animate trying to leave shell and re-entering
+    if player_shell:
+        var player_shell_visual := player_shell.visual as ShellVisual
+        animator.play(player_shell_visual.create_animation(player_shell_visual.fail_to_exit_animation))
