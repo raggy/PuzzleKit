@@ -1,7 +1,5 @@
 extends Node3D
 
-const MAX_PUSH_PIECES := 8
-
 @onready var board := $Board3D as Board3D
 @onready var animator := $Board3D/PieceAnimator3D as PieceAnimator3D
 @onready var directions := $DirectionalInput as DirectionalInput
