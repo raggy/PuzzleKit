@@ -151,7 +151,6 @@ exited_animation = ExtResource("4_d3xrn")
 fail_to_exit_animation = ExtResource("5_dd16b")
 
 [node name="ShellMesh" type="MeshInstance3D" parent="Visual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_846rb")
 skeleton = NodePath("../..")
 

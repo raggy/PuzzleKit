@@ -77,6 +77,33 @@ func reset_to_checkpoint() -> void:
     # Move piece to checkpoint state
     piece._teleport(_checkpoint_active, _checkpoint_parent_piece, _checkpoint_transform)
 
+static func calculate_hash(piece_history: PieceHistory3D) -> String:
+    var reference_piece := piece_history.piece
+    if reference_piece.scene_file_path.is_empty():
+        if not reference_piece.history._original_ancestor:
+            return ""
+        reference_piece = reference_piece.history._original_ancestor
+
+    var input_text := "%s,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f" % [
+        reference_piece.scene_file_path,
+        piece_history._original_descendant_path,
+        reference_piece.history._original_active,
+        reference_piece.history._original_transform.basis.x.x,
+        reference_piece.history._original_transform.basis.x.y,
+        reference_piece.history._original_transform.basis.x.z,
+        reference_piece.history._original_transform.basis.y.x,
+        reference_piece.history._original_transform.basis.y.y,
+        reference_piece.history._original_transform.basis.y.z,
+        reference_piece.history._original_transform.basis.z.x,
+        reference_piece.history._original_transform.basis.z.y,
+        reference_piece.history._original_transform.basis.z.z,
+        reference_piece.history._original_transform.origin.x,
+        reference_piece.history._original_transform.origin.y,
+        reference_piece.history._original_transform.origin.z,
+    ]
+    prints(input_text, input_text.sha1_text())
+    return input_text.sha1_text()
+
 func _set_piece(value: Piece3D) -> void:
     if piece:
         piece.history = null

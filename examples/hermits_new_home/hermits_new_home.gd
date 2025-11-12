@@ -26,6 +26,8 @@ func _ready() -> void:
     if player_shell:
         player_shell._teleport(player_shell.active, player_shell.parent_piece, player_shell.global_transform)
 
+    PieceHistory3D.calculate_hash(player.history)
+
 func _process(_delta: float) -> void:
     if Input.is_action_just_pressed("swap"):
         _swap()

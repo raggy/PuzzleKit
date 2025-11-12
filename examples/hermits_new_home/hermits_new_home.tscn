@@ -72,10 +72,11 @@ script = ExtResource("10_f8pcv")
 
 [node name="Progress3D" type="Node" parent="Board3D"]
 script = ExtResource("7_orvug")
+auto_load = false
 metadata/_custom_type_script = "uid://bceex4c4v2k7w"
 
 [node name="Player" parent="Board3D" instance=ExtResource("4_x4bk7")]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 2, 1, 4)
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 2, 1, 2)
 
 [node name="Shell" parent="Board3D/Player" instance=ExtResource("9_qujdy")]
 
