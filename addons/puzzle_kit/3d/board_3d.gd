@@ -27,6 +27,14 @@ var _inactive_pieces: Array[Piece3D] = []
 var _cells_by_position: Dictionary[Vector3i, Cell] = {}
 var _cells_by_piece: Dictionary[Piece3D, Cell] = {}
 
+var _aabb: AABB
+var _aabb_needs_recalculating: bool = false
+
+func _process(_delta: float) -> void:
+    if _aabb_needs_recalculating:
+        _recalculate_aabb()
+        _aabb_needs_recalculating = false
+
 #region Queries
 func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null) -> bool:
     _update_cells()
@@ -188,6 +196,62 @@ func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = nul
         search_index += 1
     
     return pieces_touching
+
+func raycast_points(from: Vector3, direction: Vector3) -> Array[Vector3i]:
+    _update_cells()
+
+    var aabb_intersection: Variant = _aabb.intersects_ray(from, direction)
+    if not aabb_intersection:
+        # Ray didn't intersect our bounds
+        return []
+
+    var points: Array[Vector3i] = []
+
+    var intersection_point: Vector3 = aabb_intersection
+    var p: Vector3i = intersection_point.round()
+    var dt := Vector3(1.0 / absf(direction.x), 1.0 / absf(direction.y), 1.0 / absf(direction.z))
+    var step := Vector3i()
+    var next_edge := Vector3()
+
+    for i in range(3):
+        if direction[i] == 0:
+            step[i] = 0
+            next_edge[i] = dt[i]
+        elif direction[i] > 0:
+            step[i] = 1
+            next_edge[i] = (p[i] + 0.5 - intersection_point[i]) * dt[i]
+        else:
+            step[i] = -1
+            next_edge[i] = (intersection_point[i] + 0.5 - p[i]) * dt[i]
+
+    for i in range(_aabb.size.x + _aabb.size.y + _aabb.size.z):
+        # If we've left the bounds, stop searching
+        if p.x < _aabb.position.x or p.y < _aabb.position.y or p.z < _aabb.position.z or p.x > _aabb.end.x or p.y > _aabb.end.y or p.z > _aabb.end.z:
+            # Keep searching if only the first point is out of bounds
+            if i > 0:
+                break
+        # Add the point if it's in bounds
+        else:
+            points.append(p)
+
+        # Find the closest edge and move towards it
+        if next_edge.x < next_edge.y and next_edge.x < next_edge.z:
+            p.x += step.x
+            next_edge.x += dt.x
+        elif next_edge.y < next_edge.x and next_edge.y < next_edge.z:
+            p.y += step.y
+            next_edge.y += dt.y
+        else:
+            p.z += step.z
+            next_edge.z += dt.z
+    return points
+
+func raycast_piece(from: Vector3, direction: Vector3, group_filter: GroupFilter = null) -> Piece3D:
+    for point in raycast_points(from, direction):
+        var piece := get_piece_at(point, group_filter)
+        if piece:
+            return piece
+    return null
 #endregion
 
 #region Commit/revert
@@ -249,10 +313,12 @@ func _update_piece_cell(piece: Piece3D) -> void:
     if previous_cell:
         previous_cell.pieces.erase(piece)
         _cells_by_piece.erase(piece)
+        _aabb_needs_recalculating = true
     # Add to new cell
     if new_cell:
         new_cell.pieces.append(piece)
         _cells_by_piece[piece] = new_cell
+        _expand_aabb(piece.grid_position)
 
 func _get_or_create_cell(grid_position: Vector3i) -> Cell:
     if not _cells_by_position.has(grid_position):
@@ -283,10 +349,25 @@ func _deactivate_piece(piece: Piece3D) -> void:
         var cell := _cells_by_piece[piece]
         cell.pieces.erase(piece)
         _cells_by_piece.erase(piece)
+        _aabb_needs_recalculating = true
     # Deactivate piece's child pieces
     for child_piece in piece._child_pieces:
         if child_piece.active:
             _deactivate_piece(child_piece)
+#endregion
+
+#region AABB
+func _expand_aabb(point: Vector3) -> void:
+    if not _aabb.has_volume():
+        # This is the first point, centre AABB on it
+        _aabb = AABB(point - Vector3(0.5, 0.5, 0.5), Vector3.ONE)
+        return
+    _aabb = _aabb.merge(AABB(point - Vector3(0.5, 0.5, 0.5), Vector3.ONE))
+
+func _recalculate_aabb() -> void:
+    _aabb = AABB()
+    for piece in _active_pieces:
+        _expand_aabb(piece.grid_position)
 #endregion
 
 class Cell extends RefCounted:
