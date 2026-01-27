@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3 uid="uid://bmisndbnj2wmv"]
+
+[ext_resource type="Script" uid="uid://vbuogr241dq1" path="res://addons/puzzle_kit/3d/editor/puzzle_kit_editor_3d.gd" id="1_heuv1"]
+
+[node name="PuzzleKitEditor3D" type="VBoxContainer" node_paths=PackedStringArray("palette")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_heuv1")
+palette = NodePath("PiecePalette")
+metadata/_custom_type_script = "uid://vbuogr241dq1"
+
+[node name="PiecePalette" type="ItemList" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+max_text_lines = 2
+max_columns = 0
+same_column_width = true
+fixed_column_width = 80
+icon_mode = 0
