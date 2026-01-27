@@ -22,6 +22,8 @@ const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 
 var mode_buttons_group: ButtonGroup
 
+var palette_paths: Array[String] = []
+
 var _board: Board3D
 
 var _debug_material: StandardMaterial3D
@@ -122,6 +124,7 @@ func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
 
 func _update_palette() -> void:
     palette.clear()
+    palette_paths.clear()
 
     var piece_palette_base_directory: String = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
     if piece_palette_base_directory.is_empty():
@@ -132,9 +135,9 @@ func _update_palette() -> void:
         # Keep existing palette by default
         return
 
-    _add_to_palette_from_dir(piece_palette_base_directory)
+    _add_to_palette_from_dir(piece_palette_base_directory, piece_palette_base_directory)
 
-func _add_to_palette_from_dir(path: String) -> void:
+func _add_to_palette_from_dir(path: String, base_path: String) -> void:
     for filename in DirAccess.get_files_at(path):
         if not filename.ends_with(".tscn"):
             # Only interested in scenes
@@ -148,15 +151,21 @@ func _add_to_palette_from_dir(path: String) -> void:
         if scene_state.get_node_type(0) != "Node3D":
             # Only interested in scenes with Node3D root nodes
             continue
-        EditorInterface.get_resource_previewer().queue_resource_preview(file_path, self, "_add_palette_item", null)
+        var relative_file_path := file_path
+        if relative_file_path.begins_with(base_path):
+            relative_file_path = relative_file_path.substr(base_path.length())
+            if relative_file_path.begins_with("/"):
+                relative_file_path = relative_file_path.substr(1)
+        EditorInterface.get_resource_previewer().queue_resource_preview(file_path, self, "_add_palette_item", relative_file_path)
     for dir_name in DirAccess.get_directories_at(path):
         if dir_name.begins_with("."):
             # Ignore hidden directories
             continue
-        _add_to_palette_from_dir(path.path_join(dir_name))
+        _add_to_palette_from_dir(path.path_join(dir_name), base_path)
 
-func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Texture2D, _userdata: Variant) -> void:
-    palette.add_item(path, preview)
+func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Texture2D, item_text: String) -> void:
+    palette.add_item(item_text, preview)
+    palette_paths.append(path)
 #endregion
 
 #region Raycast WIP
