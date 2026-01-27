@@ -2,7 +2,13 @@
 class_name PuzzleKitEditor3D
 extends VBoxContainer
 
+const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
+
 @export var palette: ItemList
+
+@export var piece_directory_input: TextEdit
+@export var piece_directory_pick_button: Button
+@export var piece_directory_pick_dialog: FileDialog
 
 var _board: Board3D
 
@@ -24,17 +30,52 @@ func _enter_tree() -> void:
     _debug_mesh_instance.mesh = _debug_mesh
     add_child(_debug_mesh_instance)
 
+    visibility_changed.connect(_on_visibility_changed)
+
+    piece_directory_pick_button.pressed.connect(_on_piece_directory_pick_button_pressed)
+    piece_directory_pick_dialog.dir_selected.connect(_on_piece_directory_pick_dialog_dir_selected)
+
+    piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
+
+    ProjectSettings.settings_changed.connect(_on_settings_changed)
+
+func _exit_tree() -> void:
+    ProjectSettings.settings_changed.disconnect(_on_settings_changed)
 
 func edit(board: Board3D) -> void:
     _board = board
-    if not _board:
-        return
+
+func _on_visibility_changed() -> void:
+    if is_visible_in_tree():
+        _update_palette()
+
+func _on_settings_changed() -> void:
+    piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
+    if is_visible_in_tree():
+        _update_palette()
+
+#region Piece palette
+func _on_piece_directory_pick_button_pressed() -> void:
+    piece_directory_pick_dialog.show()
+
+func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
+    piece_directory_input.text = dir
+    ProjectSettings.set_setting(SETTING_PIECE_DIRECTORY, dir)
     _update_palette()
 
 func _update_palette() -> void:
     palette.clear()
 
-    _add_to_palette_from_dir("res://")
+    var piece_palette_base_directory: String = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
+    if piece_palette_base_directory.is_empty():
+        # Default to all resources
+        piece_palette_base_directory = "res://"
+    
+    if not DirAccess.dir_exists_absolute(piece_palette_base_directory):
+        # Keep existing palette by default
+        return
+
+    _add_to_palette_from_dir(piece_palette_base_directory)
 
 func _add_to_palette_from_dir(path: String) -> void:
     for filename in DirAccess.get_files_at(path):
@@ -59,7 +100,9 @@ func _add_to_palette_from_dir(path: String) -> void:
 
 func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Texture2D, _userdata: Variant) -> void:
     palette.add_item(path, preview)
+#endregion
 
+#region Raycast WIP
 func preview_raycast(from: Vector3, direction: Vector3) -> void:
     _debug_mesh.clear_surfaces()
 
@@ -121,3 +164,4 @@ func add_cube(center: Vector3, verts: PackedVector3Array, indices: PackedInt32Ar
     indices.append(offset +  6)
     indices.append(offset +  3)
     indices.append(offset +  7)
+#endregion
