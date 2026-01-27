@@ -4,11 +4,23 @@ extends VBoxContainer
 
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 
-@export var palette: ItemList
+@export var transform_mode_button: Button
+@export var selection_mode_button: Button
+@export var erase_mode_button: Button
+@export var paint_mode_button: Button
+@export var pick_mode_button: Button
+
+@export var rotate_x_button: Button
+@export var rotate_y_button: Button
+@export var rotate_z_button: Button
 
 @export var piece_directory_input: TextEdit
 @export var piece_directory_pick_button: Button
 @export var piece_directory_pick_dialog: FileDialog
+
+@export var palette: ItemList
+
+var mode_buttons_group: ButtonGroup
 
 var _board: Board3D
 
@@ -17,6 +29,11 @@ var _debug_mesh: ArrayMesh
 var _debug_mesh_instance: MeshInstance3D
 
 func _enter_tree() -> void:
+    if is_being_edited():
+        return
+    
+    _update_theme()
+
     _debug_material = StandardMaterial3D.new()
     _debug_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     _debug_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -30,6 +47,13 @@ func _enter_tree() -> void:
     _debug_mesh_instance.mesh = _debug_mesh
     add_child(_debug_mesh_instance)
 
+    mode_buttons_group = ButtonGroup.new()
+    transform_mode_button.button_group = mode_buttons_group
+    selection_mode_button.button_group = mode_buttons_group
+    erase_mode_button.button_group = mode_buttons_group
+    paint_mode_button.button_group = mode_buttons_group
+    pick_mode_button.button_group = mode_buttons_group
+
     visibility_changed.connect(_on_visibility_changed)
 
     piece_directory_pick_button.pressed.connect(_on_piece_directory_pick_button_pressed)
@@ -40,16 +64,49 @@ func _enter_tree() -> void:
     ProjectSettings.settings_changed.connect(_on_settings_changed)
 
 func _exit_tree() -> void:
+    if is_being_edited():
+        return
+
     ProjectSettings.settings_changed.disconnect(_on_settings_changed)
+
+func _notification(what: int) -> void:
+    if is_being_edited():
+        return
+    
+    match what:
+        NOTIFICATION_THEME_CHANGED:
+            _update_theme()
+
+func _update_theme() -> void:
+    var editor_theme := EditorInterface.get_editor_theme()
+
+    transform_mode_button.icon = editor_theme.get_icon("ToolMove", "EditorIcons")
+    selection_mode_button.icon = editor_theme.get_icon("ToolSelect", "EditorIcons")
+    erase_mode_button.icon = editor_theme.get_icon("Eraser", "EditorIcons")
+    paint_mode_button.icon = editor_theme.get_icon("Paint", "EditorIcons")
+    pick_mode_button.icon = editor_theme.get_icon("ColorPick", "EditorIcons")
+    rotate_x_button.icon = editor_theme.get_icon("RotateLeft", "EditorIcons")
+    rotate_y_button.icon = editor_theme.get_icon("ToolRotate", "EditorIcons")
+    rotate_z_button.icon = editor_theme.get_icon("RotateRight", "EditorIcons")
+    piece_directory_pick_button.icon = editor_theme.get_icon("Folder", "EditorIcons")
+
+func is_being_edited() -> bool:
+    return get_parent() is SubViewport
 
 func edit(board: Board3D) -> void:
     _board = board
 
 func _on_visibility_changed() -> void:
+    if is_being_edited():
+        return
+
     if is_visible_in_tree():
         _update_palette()
 
 func _on_settings_changed() -> void:
+    if is_being_edited():
+        return
+
     piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
     if is_visible_in_tree():
         _update_palette()
