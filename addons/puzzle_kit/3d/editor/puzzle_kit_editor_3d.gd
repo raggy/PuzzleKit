@@ -120,6 +120,7 @@ func _on_piece_directory_pick_button_pressed() -> void:
 func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
     piece_directory_input.text = dir
     ProjectSettings.set_setting(SETTING_PIECE_DIRECTORY, dir)
+    ProjectSettings.save()
     _update_palette()
 
 func _update_palette() -> void:
