@@ -109,28 +109,24 @@ layout_mode = 2
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_6u3ku")
 
 [node name="EraseModeButton" type="Button" parent="Toolbar" unique_id=48727496]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_vflvl")
 
 [node name="PaintModeButton" type="Button" parent="Toolbar" unique_id=251442037]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_heuv1")
 
 [node name="PickModeButton" type="Button" parent="Toolbar" unique_id=1535782127]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_acw8w")
 
 [node name="VSeparator2" type="VSeparator" parent="Toolbar" unique_id=1643324613]
@@ -171,13 +167,6 @@ theme_type_variation = &"FlatButton"
 [node name="OptionsButton" type="MenuButton" parent="Toolbar" unique_id=2084349763]
 layout_mode = 2
 theme_type_variation = &"FlatMenuButton"
-item_count = 3
-popup/item_0/checkable = 2
-popup/item_0/id = 0
-popup/item_1/checkable = 2
-popup/item_1/id = 1
-popup/item_2/checkable = 2
-popup/item_2/id = 2
 
 [node name="PiecePalette" type="ItemList" parent="." unique_id=1092692555]
 layout_mode = 2

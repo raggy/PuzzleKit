@@ -55,6 +55,9 @@ func _exit_tree() -> void:
     ProjectSettings.settings_changed.disconnect(_on_settings_changed)
 
 func _ready() -> void:
+    if is_being_edited():
+        return
+
     _debug_material = StandardMaterial3D.new()
     _debug_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     _debug_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
