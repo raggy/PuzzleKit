@@ -16,6 +16,8 @@ const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 
 @export var viewport_shortcut_buttons: Array[BaseButton]
 
+@export var draw_offset_spin_box: SpinBox
+
 @export var piece_directory_input: TextEdit
 @export var piece_directory_pick_button: Button
 @export var piece_directory_pick_dialog: FileDialog
@@ -28,9 +30,20 @@ enum Menu {
     MENU_OPTION_X_AXIS,
     MENU_OPTION_Y_AXIS,
     MENU_OPTION_Z_AXIS,
+    MENU_OPTION_CURSOR_ROTATE_X,
+    MENU_OPTION_CURSOR_ROTATE_Y,
+    MENU_OPTION_CURSOR_ROTATE_Z,
+    MENU_OPTION_CURSOR_BACK_ROTATE_X,
+    MENU_OPTION_CURSOR_BACK_ROTATE_Y,
+    MENU_OPTION_CURSOR_BACK_ROTATE_Z,
 }
 
+var options_axis_ids: Array[Menu] = [Menu.MENU_OPTION_X_AXIS, Menu.MENU_OPTION_Y_AXIS, Menu.MENU_OPTION_Z_AXIS]
+
 var mode_buttons_group: ButtonGroup
+
+var edit_axis: Vector3.Axis
+var draw_offset: int
 
 var _palette_index_to_path: Dictionary[int, String] = {}
 
@@ -71,6 +84,12 @@ func _ready() -> void:
     _debug_mesh_instance.mesh = _debug_mesh
     add_child(_debug_mesh_instance)
 
+    _add_shortcuts_to_editor_settings()
+
+    transform_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/transform_mode")
+    select_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/select_mode")
+    piece_directory_pick_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_piece_directory")
+
     mode_buttons_group = ButtonGroup.new()
     transform_mode_button.button_group = mode_buttons_group
     select_mode_button.button_group = mode_buttons_group
@@ -86,6 +105,8 @@ func _ready() -> void:
 
     visibility_changed.connect(_on_visibility_changed)
 
+    draw_offset_spin_box.value_changed.connect(_set_draw_offset)
+
     piece_directory_pick_button.pressed.connect(_on_piece_directory_pick_button_pressed)
     piece_directory_pick_dialog.dir_selected.connect(_on_piece_directory_pick_dialog_dir_selected)
 
@@ -93,6 +114,33 @@ func _ready() -> void:
 
     palette.item_selected.connect(_on_palette_item_selected)
 
+    edit_axis = Vector3.AXIS_Y
+    draw_offset = 0
+
+    options_button.get_popup().add_radio_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/edit_x_axis"), Menu.MENU_OPTION_X_AXIS)
+    options_button.get_popup().add_radio_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/edit_y_axis"), Menu.MENU_OPTION_Y_AXIS)
+    options_button.get_popup().add_radio_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/edit_z_axis"), Menu.MENU_OPTION_Z_AXIS)
+    options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_Y_AXIS), true);
+    options_button.get_popup().id_pressed.connect(_menu_option)
+
+func _add_shortcuts_to_editor_settings() -> void:
+    # Toolbar
+    var shortcut_transform_mode := Shortcut.new()
+    shortcut_transform_mode.resource_name = "Transform"
+    var input_event_transform_mode := InputEventKey.new()
+    input_event_transform_mode.physical_keycode = KEY_T
+    shortcut_transform_mode.events.append(input_event_transform_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/transform_mode", shortcut_transform_mode)
+    var shortcut_select_mode := Shortcut.new()
+    shortcut_select_mode.resource_name = "Select"
+    var input_event_select_mode := InputEventKey.new()
+    input_event_select_mode.physical_keycode = KEY_Q
+    shortcut_select_mode.events.append(input_event_select_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/select_mode", shortcut_select_mode)
+    var shortcut_piece_directory_pick := Shortcut.new()
+    shortcut_piece_directory_pick.resource_name = "Pick Piece Directory"
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_piece_directory", shortcut_piece_directory_pick)
+    # Options menu
     var shortcut_edit_x_axis := Shortcut.new()
     shortcut_edit_x_axis.resource_name = "Edit X Axis"
     var input_event_edit_x_axis := InputEventKey.new()
@@ -100,8 +148,6 @@ func _ready() -> void:
     input_event_edit_x_axis.shift_pressed = true
     shortcut_edit_x_axis.events.append(input_event_edit_x_axis)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_x_axis", shortcut_edit_x_axis)
-    options_button.get_popup().add_radio_check_shortcut(shortcut_edit_x_axis, Menu.MENU_OPTION_X_AXIS)
-    
     var shortcut_edit_y_axis := Shortcut.new()
     shortcut_edit_y_axis.resource_name = "Edit Y Axis"
     var input_event_edit_y_axis := InputEventKey.new()
@@ -109,16 +155,13 @@ func _ready() -> void:
     input_event_edit_y_axis.shift_pressed = true
     shortcut_edit_y_axis.events.append(input_event_edit_y_axis)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_y_axis", shortcut_edit_y_axis)
-    options_button.get_popup().add_radio_check_shortcut(shortcut_edit_y_axis, Menu.MENU_OPTION_Y_AXIS)
-
     var shortcut_edit_z_axis := Shortcut.new()
     shortcut_edit_z_axis.resource_name = "Edit Z Axis"
     var input_event_edit_z_axis := InputEventKey.new()
-    input_event_edit_z_axis.physical_keycode = KEY_X
+    input_event_edit_z_axis.physical_keycode = KEY_C
     input_event_edit_z_axis.shift_pressed = true
     shortcut_edit_z_axis.events.append(input_event_edit_z_axis)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_z_axis", shortcut_edit_z_axis)
-    options_button.get_popup().add_radio_check_shortcut(shortcut_edit_z_axis, Menu.MENU_OPTION_Z_AXIS)
 
 func _notification(what: int) -> void:
     if is_being_edited():
@@ -166,6 +209,17 @@ func _on_settings_changed() -> void:
 func _on_tool_mode_changed() -> void:
     pass
     #_show_viewports_transform_gizmo(mode_buttons_group.get_pressed_button() == transform_mode_button)
+
+func _set_draw_offset(value: float) -> void:
+    draw_offset = roundi(value)
+
+func _menu_option(id: Menu) -> void:
+    match id:
+        Menu.MENU_OPTION_X_AXIS, Menu.MENU_OPTION_Y_AXIS, Menu.MENU_OPTION_Z_AXIS:
+            for axis_id in options_axis_ids:
+                var index := options_button.get_popup().get_item_index(axis_id)
+                options_button.get_popup().set_item_checked(index, axis_id == id)
+                edit_axis = (id - Menu.MENU_OPTION_X_AXIS) as Vector3.Axis
 
 #region Piece palette
 func _on_piece_directory_pick_button_pressed() -> void:
@@ -246,7 +300,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             for button in viewport_shortcut_buttons:
                 if button.disabled:
                     continue
-                if button.shortcut.has_valid_event() and button.shortcut.matches_event(event):
+                if button.shortcut and button.shortcut.has_valid_event() and button.shortcut.matches_event(event):
                     if button.toggle_mode:
                         button.button_pressed = button.button_group or not button.pressed
                     else:
@@ -258,9 +312,17 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
     if event is InputEventMouseMotion:
         var motion_event := event as InputEventMouseMotion
         # preview_raycast(viewport_camera.project_ray_origin(motion_event.position), viewport_camera.project_ray_normal(motion_event.position))
-        preview_grid_position_along_plane(viewport_camera.project_ray_origin(motion_event.position), viewport_camera.project_ray_normal(motion_event.position), Vector3.AXIS_Y, 0)
+        preview_grid_position_along_plane(viewport_camera.project_ray_origin(motion_event.position), viewport_camera.project_ray_normal(motion_event.position), edit_axis, draw_offset)
     if event is InputEventMouseButton:
         var button_event := event as InputEventMouseButton
+        if button_event.button_index == MOUSE_BUTTON_WHEEL_UP and button_event.is_command_or_control_pressed():
+            if button_event.is_pressed():
+                draw_offset_spin_box.value += button_event.factor
+            return EditorPlugin.AFTER_GUI_INPUT_STOP
+        if button_event.button_index == MOUSE_BUTTON_WHEEL_DOWN and button_event.is_command_or_control_pressed():
+            if button_event.is_pressed():
+                draw_offset_spin_box.value -= button_event.factor
+            return EditorPlugin.AFTER_GUI_INPUT_STOP
         if button_event.pressed and button_event.button_index == MOUSE_BUTTON_RIGHT:
             var piece := _board.raycast_piece(viewport_camera.project_ray_origin(button_event.position), viewport_camera.project_ray_normal(button_event.position))
             prints(piece, piece.owner, _get_node_root_in_ancestor(piece, _board))

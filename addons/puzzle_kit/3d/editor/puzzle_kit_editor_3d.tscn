@@ -4,71 +4,7 @@
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_heuv1"]
 
-[sub_resource type="InputEventKey" id="InputEventKey_heuv1"]
-device = -1
-keycode = 84
-unicode = 116
-
-[sub_resource type="Shortcut" id="Shortcut_hp4jr"]
-events = [SubResource("InputEventKey_heuv1")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_6u3ku"]
-device = -1
-keycode = 81
-unicode = 113
-
-[sub_resource type="Shortcut" id="Shortcut_6u3ku"]
-events = [SubResource("InputEventKey_6u3ku")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_hp4jr"]
-device = -1
-keycode = 87
-unicode = 119
-
-[sub_resource type="Shortcut" id="Shortcut_vflvl"]
-events = [SubResource("InputEventKey_hp4jr")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_vflvl"]
-device = -1
-keycode = 69
-unicode = 101
-
-[sub_resource type="Shortcut" id="Shortcut_heuv1"]
-events = [SubResource("InputEventKey_vflvl")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_3speu"]
-device = -1
-keycode = 82
-unicode = 114
-
-[sub_resource type="Shortcut" id="Shortcut_acw8w"]
-events = [SubResource("InputEventKey_3speu")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_w0utr"]
-device = -1
-keycode = 65
-unicode = 97
-
-[sub_resource type="Shortcut" id="Shortcut_3speu"]
-events = [SubResource("InputEventKey_w0utr")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_1f488"]
-device = -1
-keycode = 83
-unicode = 115
-
-[sub_resource type="Shortcut" id="Shortcut_w0utr"]
-events = [SubResource("InputEventKey_1f488")]
-
-[sub_resource type="InputEventKey" id="InputEventKey_acw8w"]
-device = -1
-keycode = 68
-unicode = 100
-
-[sub_resource type="Shortcut" id="Shortcut_1f488"]
-events = [SubResource("InputEventKey_acw8w")]
-
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "select_mode_button", "erase_mode_button", "paint_mode_button", "pick_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "viewport_shortcut_buttons", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette", "options_button")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "select_mode_button", "erase_mode_button", "paint_mode_button", "pick_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette", "options_button")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -85,6 +21,7 @@ rotate_x_button = NodePath("Toolbar/RotateXButton")
 rotate_y_button = NodePath("Toolbar/RotateYButton")
 rotate_z_button = NodePath("Toolbar/RotateZButton")
 viewport_shortcut_buttons = [NodePath("Toolbar/TransformModeButton"), NodePath("Toolbar/SelectModeButton"), NodePath("Toolbar/EraseModeButton"), NodePath("Toolbar/PaintModeButton"), NodePath("Toolbar/PickModeButton"), NodePath("Toolbar/RotateXButton"), NodePath("Toolbar/RotateYButton"), NodePath("Toolbar/RotateZButton")]
+draw_offset_spin_box = NodePath("Toolbar/DrawOffsetSpinBox")
 piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
 piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
@@ -100,7 +37,6 @@ layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
 button_group = SubResource("ButtonGroup_heuv1")
-shortcut = SubResource("Shortcut_hp4jr")
 
 [node name="VSeparator" type="VSeparator" parent="Toolbar" unique_id=1062827530]
 layout_mode = 2
@@ -109,25 +45,21 @@ layout_mode = 2
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-shortcut = SubResource("Shortcut_6u3ku")
 
 [node name="EraseModeButton" type="Button" parent="Toolbar" unique_id=48727496]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-shortcut = SubResource("Shortcut_vflvl")
 
 [node name="PaintModeButton" type="Button" parent="Toolbar" unique_id=251442037]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-shortcut = SubResource("Shortcut_heuv1")
 
 [node name="PickModeButton" type="Button" parent="Toolbar" unique_id=1535782127]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
-shortcut = SubResource("Shortcut_acw8w")
 
 [node name="VSeparator2" type="VSeparator" parent="Toolbar" unique_id=1643324613]
 layout_mode = 2
@@ -135,24 +67,26 @@ layout_mode = 2
 [node name="RotateXButton" type="Button" parent="Toolbar" unique_id=143911936]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
-shortcut = SubResource("Shortcut_3speu")
 
 [node name="RotateYButton" type="Button" parent="Toolbar" unique_id=1523304643]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
-shortcut = SubResource("Shortcut_w0utr")
 
 [node name="RotateZButton" type="Button" parent="Toolbar" unique_id=1019687719]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
-shortcut = SubResource("Shortcut_1f488")
 
 [node name="HSpacer" type="Control" parent="Toolbar" unique_id=731216634]
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="DrawOffsetSpinBox" type="SpinBox" parent="Toolbar" unique_id=758478863]
+layout_mode = 2
+min_value = -32767.0
+max_value = 32767.0
+
 [node name="PieceDirectory" type="TextEdit" parent="Toolbar" unique_id=979114159]
-custom_minimum_size = Vector2(150, 0)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 tooltip_text = "Piece directory"
 text = "res://examples/hermits_new_home/pieces"
