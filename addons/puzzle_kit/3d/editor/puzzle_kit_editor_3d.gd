@@ -93,9 +93,32 @@ func _ready() -> void:
 
     palette.item_selected.connect(_on_palette_item_selected)
 
-    options_button.get_popup().add_radio_check_shortcut(Shortcut.new(), Menu.MENU_OPTION_X_AXIS)
-    options_button.get_popup().add_radio_check_shortcut(Shortcut.new(), Menu.MENU_OPTION_Y_AXIS)
-    options_button.get_popup().add_radio_check_shortcut(Shortcut.new(), Menu.MENU_OPTION_Z_AXIS)
+    var shortcut_edit_x_axis := Shortcut.new()
+    shortcut_edit_x_axis.resource_name = "Edit X Axis"
+    var input_event_edit_x_axis := InputEventKey.new()
+    input_event_edit_x_axis.physical_keycode = KEY_Z
+    input_event_edit_x_axis.shift_pressed = true
+    shortcut_edit_x_axis.events.append(input_event_edit_x_axis)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_x_axis", shortcut_edit_x_axis)
+    options_button.get_popup().add_radio_check_shortcut(shortcut_edit_x_axis, Menu.MENU_OPTION_X_AXIS)
+    
+    var shortcut_edit_y_axis := Shortcut.new()
+    shortcut_edit_y_axis.resource_name = "Edit Y Axis"
+    var input_event_edit_y_axis := InputEventKey.new()
+    input_event_edit_y_axis.physical_keycode = KEY_X
+    input_event_edit_y_axis.shift_pressed = true
+    shortcut_edit_y_axis.events.append(input_event_edit_y_axis)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_y_axis", shortcut_edit_y_axis)
+    options_button.get_popup().add_radio_check_shortcut(shortcut_edit_y_axis, Menu.MENU_OPTION_Y_AXIS)
+
+    var shortcut_edit_z_axis := Shortcut.new()
+    shortcut_edit_z_axis.resource_name = "Edit Z Axis"
+    var input_event_edit_z_axis := InputEventKey.new()
+    input_event_edit_z_axis.physical_keycode = KEY_X
+    input_event_edit_z_axis.shift_pressed = true
+    shortcut_edit_z_axis.events.append(input_event_edit_z_axis)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_z_axis", shortcut_edit_z_axis)
+    options_button.get_popup().add_radio_check_shortcut(shortcut_edit_z_axis, Menu.MENU_OPTION_Z_AXIS)
 
 func _notification(what: int) -> void:
     if is_being_edited():
