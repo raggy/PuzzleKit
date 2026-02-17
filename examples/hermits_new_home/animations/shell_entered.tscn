@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://dln4fe6xfayqb"]
+[gd_scene format=3 uid="uid://dln4fe6xfayqb"]
 
 [ext_resource type="Script" uid="uid://c4amtyypxsups" path="res://examples/hermits_new_home/animations/simple_animation_player.gd" id="1_s7j6t"]
 
-[node name="ShellEntered" type="Node"]
+[node name="ShellEntered" type="Node" unique_id=1844314889]
 script = ExtResource("1_s7j6t")
 animation_name = &"player_entering"
 metadata/_custom_type_script = "uid://dk5f002hpuqt3"

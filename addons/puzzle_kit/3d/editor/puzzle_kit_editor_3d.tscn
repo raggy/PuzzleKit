@@ -1,6 +1,8 @@
-[gd_scene load_steps=18 format=3 uid="uid://bmisndbnj2wmv"]
+[gd_scene format=3 uid="uid://bmisndbnj2wmv"]
 
 [ext_resource type="Script" uid="uid://vbuogr241dq1" path="res://addons/puzzle_kit/3d/editor/puzzle_kit_editor_3d.gd" id="1_heuv1"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_heuv1"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_heuv1"]
 device = -1
@@ -66,7 +68,7 @@ unicode = 100
 [sub_resource type="Shortcut" id="Shortcut_1f488"]
 events = [SubResource("InputEventKey_acw8w")]
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" node_paths=PackedStringArray("transform_mode_button", "selection_mode_button", "erase_mode_button", "paint_mode_button", "pick_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "select_mode_button", "erase_mode_button", "paint_mode_button", "pick_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "viewport_shortcut_buttons", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette", "options_button")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -75,90 +77,109 @@ grow_vertical = 2
 pivot_offset = Vector2(496, -146)
 script = ExtResource("1_heuv1")
 transform_mode_button = NodePath("Toolbar/TransformModeButton")
-selection_mode_button = NodePath("Toolbar/SelectionModeButton")
+select_mode_button = NodePath("Toolbar/SelectModeButton")
 erase_mode_button = NodePath("Toolbar/EraseModeButton")
 paint_mode_button = NodePath("Toolbar/PaintModeButton")
 pick_mode_button = NodePath("Toolbar/PickModeButton")
 rotate_x_button = NodePath("Toolbar/RotateXButton")
 rotate_y_button = NodePath("Toolbar/RotateYButton")
 rotate_z_button = NodePath("Toolbar/RotateZButton")
+viewport_shortcut_buttons = [NodePath("Toolbar/TransformModeButton"), NodePath("Toolbar/SelectModeButton"), NodePath("Toolbar/EraseModeButton"), NodePath("Toolbar/PaintModeButton"), NodePath("Toolbar/PickModeButton"), NodePath("Toolbar/RotateXButton"), NodePath("Toolbar/RotateYButton"), NodePath("Toolbar/RotateZButton")]
 piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
 piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
 palette = NodePath("PiecePalette")
+options_button = NodePath("Toolbar/OptionsButton")
 metadata/_custom_type_script = "uid://vbuogr241dq1"
 
-[node name="Toolbar" type="HBoxContainer" parent="."]
+[node name="Toolbar" type="HBoxContainer" parent="." unique_id=1122713076]
 layout_mode = 2
 
-[node name="TransformModeButton" type="Button" parent="Toolbar"]
+[node name="TransformModeButton" type="Button" parent="Toolbar" unique_id=317221809]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
+button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_hp4jr")
 
-[node name="VSeparator" type="VSeparator" parent="Toolbar"]
+[node name="VSeparator" type="VSeparator" parent="Toolbar" unique_id=1062827530]
 layout_mode = 2
 
-[node name="SelectionModeButton" type="Button" parent="Toolbar"]
+[node name="SelectModeButton" type="Button" parent="Toolbar" unique_id=544871251]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
+button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_6u3ku")
 
-[node name="EraseModeButton" type="Button" parent="Toolbar"]
+[node name="EraseModeButton" type="Button" parent="Toolbar" unique_id=48727496]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
+button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_vflvl")
 
-[node name="PaintModeButton" type="Button" parent="Toolbar"]
+[node name="PaintModeButton" type="Button" parent="Toolbar" unique_id=251442037]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
+button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_heuv1")
 
-[node name="PickModeButton" type="Button" parent="Toolbar"]
+[node name="PickModeButton" type="Button" parent="Toolbar" unique_id=1535782127]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 toggle_mode = true
+button_group = SubResource("ButtonGroup_heuv1")
 shortcut = SubResource("Shortcut_acw8w")
 
-[node name="VSeparator2" type="VSeparator" parent="Toolbar"]
+[node name="VSeparator2" type="VSeparator" parent="Toolbar" unique_id=1643324613]
 layout_mode = 2
 
-[node name="RotateXButton" type="Button" parent="Toolbar"]
+[node name="RotateXButton" type="Button" parent="Toolbar" unique_id=143911936]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 shortcut = SubResource("Shortcut_3speu")
 
-[node name="RotateYButton" type="Button" parent="Toolbar"]
+[node name="RotateYButton" type="Button" parent="Toolbar" unique_id=1523304643]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 shortcut = SubResource("Shortcut_w0utr")
 
-[node name="RotateZButton" type="Button" parent="Toolbar"]
+[node name="RotateZButton" type="Button" parent="Toolbar" unique_id=1019687719]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 shortcut = SubResource("Shortcut_1f488")
 
-[node name="HSpacer" type="Control" parent="Toolbar"]
+[node name="HSpacer" type="Control" parent="Toolbar" unique_id=731216634]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="PieceDirectory" type="TextEdit" parent="Toolbar"]
+[node name="PieceDirectory" type="TextEdit" parent="Toolbar" unique_id=979114159]
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 tooltip_text = "Piece directory"
+text = "res://examples/hermits_new_home/pieces"
 placeholder_text = "res://"
 editable = false
 scroll_fit_content_height = true
 
-[node name="PickPieceDirectory" type="Button" parent="Toolbar"]
+[node name="PickPieceDirectory" type="Button" parent="Toolbar" unique_id=1872008445]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 
-[node name="PiecePalette" type="ItemList" parent="."]
+[node name="OptionsButton" type="MenuButton" parent="Toolbar" unique_id=2084349763]
+layout_mode = 2
+theme_type_variation = &"FlatMenuButton"
+item_count = 3
+popup/item_0/checkable = 2
+popup/item_0/id = 0
+popup/item_1/checkable = 2
+popup/item_1/id = 1
+popup/item_2/checkable = 2
+popup/item_2/id = 2
+
+[node name="PiecePalette" type="ItemList" parent="." unique_id=1092692555]
 layout_mode = 2
 size_flags_vertical = 3
 max_text_lines = 2
@@ -167,7 +188,7 @@ same_column_width = true
 fixed_column_width = 80
 icon_mode = 0
 
-[node name="PieceDirectoryDialog" type="FileDialog" parent="."]
+[node name="PieceDirectoryDialog" type="FileDialog" parent="." unique_id=1027482462]
 title = "Open a Directory"
 initial_position = 1
 ok_button_text = "Select Current Folder"

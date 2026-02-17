@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://b64fsn0bjdk7x"]
+[gd_scene format=3 uid="uid://b64fsn0bjdk7x"]
 
 [ext_resource type="Script" uid="uid://c4amtyypxsups" path="res://examples/hermits_new_home/animations/simple_animation_player.gd" id="1_msw4w"]
 
-[node name="ShellFailToExit" type="Node"]
+[node name="ShellFailToExit" type="Node" unique_id=2008806802]
 script = ExtResource("1_msw4w")
 animation_name = &"player_fail_to_exit"
 metadata/_custom_type_script = "uid://dk5f002hpuqt3"

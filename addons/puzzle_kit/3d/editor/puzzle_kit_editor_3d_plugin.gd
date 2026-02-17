@@ -29,18 +29,13 @@ func _handles(object: Object) -> bool:
     return object is Board3D
 
 func _forward_3d_gui_input(viewport_camera: Camera3D, event: InputEvent) -> int:
-    if event is InputEventMouseMotion:
-        var motion_event := event as InputEventMouseMotion
-        _editor.preview_raycast(viewport_camera.project_ray_origin(motion_event.position), viewport_camera.project_ray_normal(motion_event.position))
-    if event is InputEventMouseButton:
-        var button_event := event as InputEventMouseButton
-        if button_event.pressed and button_event.button_index == MOUSE_BUTTON_RIGHT:
-            print(_editor._board.raycast_piece(viewport_camera.project_ray_origin(button_event.position), viewport_camera.project_ray_normal(button_event.position)))
-            return EditorPlugin.AFTER_GUI_INPUT_STOP
-    return EditorPlugin.AFTER_GUI_INPUT_PASS
+    return _editor.forward_spatial_input_event(viewport_camera, event)
 
 func _make_visible(visible: bool) -> void:
     if visible:
+        if not _editor.mode_buttons_group.get_pressed_button():
+            _editor.select_mode_button.button_pressed = true
+        _editor._on_tool_mode_changed()
         _editor_button.show()
         make_bottom_panel_item_visible(_editor)
         _editor.set_process(true)
