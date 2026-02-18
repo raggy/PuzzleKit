@@ -4,11 +4,11 @@ extends VBoxContainer
 
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 
-@export var transform_mode_button: Button
-@export var select_mode_button: Button
-@export var erase_mode_button: Button
 @export var paint_mode_button: Button
+@export var attach_mode_button: Button
+@export var erase_mode_button: Button
 @export var pick_mode_button: Button
+@export var select_mode_button: Button
 
 @export var rotate_x_button: Button
 @export var rotate_y_button: Button
@@ -25,6 +25,15 @@ const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 @export var palette: ItemList
 
 @export var options_button: MenuButton
+
+enum InputAction {
+    INPUT_NONE,
+    INPUT_PAINT,
+    INPUT_ATTACH,
+    INPUT_ERASE,
+    INPUT_PICK,
+    INPUT_SELECT,
+}
 
 enum Menu {
     MENU_OPTION_X_AXIS,
@@ -45,9 +54,16 @@ var mode_buttons_group: ButtonGroup
 var edit_axis: Vector3.Axis
 var draw_offset: int
 
+var input_action: InputAction = InputAction.INPUT_NONE
+
+var undo_redo: EditorUndoRedoManager
+
 var _palette_index_to_path: Dictionary[int, String] = {}
+var _draw_scene: PackedScene
 
 var _board: Board3D
+
+var _cursor: Node3D
 
 var _debug_material: StandardMaterial3D
 var _debug_mesh: ArrayMesh
@@ -71,6 +87,9 @@ func _ready() -> void:
     if is_being_edited():
         return
 
+    _cursor = Node3D.new()
+    add_child(_cursor)
+
     _debug_material = StandardMaterial3D.new()
     _debug_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     _debug_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -86,22 +105,32 @@ func _ready() -> void:
 
     _add_shortcuts_to_editor_settings()
 
-    transform_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/transform_mode")
+    paint_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/paint_mode")
+    attach_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/attach_mode")
+    erase_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/erase_mode")
+    pick_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_mode")
     select_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/select_mode")
+    rotate_x_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_x")
+    rotate_y_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_y")
+    rotate_z_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_z")
     piece_directory_pick_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_piece_directory")
 
     mode_buttons_group = ButtonGroup.new()
-    transform_mode_button.button_group = mode_buttons_group
-    select_mode_button.button_group = mode_buttons_group
-    erase_mode_button.button_group = mode_buttons_group
     paint_mode_button.button_group = mode_buttons_group
+    attach_mode_button.button_group = mode_buttons_group
+    erase_mode_button.button_group = mode_buttons_group
     pick_mode_button.button_group = mode_buttons_group
+    select_mode_button.button_group = mode_buttons_group
 
-    transform_mode_button.pressed.connect(_on_tool_mode_changed)
-    select_mode_button.pressed.connect(_on_tool_mode_changed)
-    erase_mode_button.pressed.connect(_on_tool_mode_changed)
     paint_mode_button.pressed.connect(_on_tool_mode_changed)
+    attach_mode_button.pressed.connect(_on_tool_mode_changed)
+    erase_mode_button.pressed.connect(_on_tool_mode_changed)
     pick_mode_button.pressed.connect(_on_tool_mode_changed)
+    select_mode_button.pressed.connect(_on_tool_mode_changed)
+
+    rotate_x_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_X))
+    rotate_y_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_Y))
+    rotate_z_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_Z))
 
     visibility_changed.connect(_on_visibility_changed)
 
@@ -111,8 +140,6 @@ func _ready() -> void:
     piece_directory_pick_dialog.dir_selected.connect(_on_piece_directory_pick_dialog_dir_selected)
 
     piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
-
-    palette.item_selected.connect(_on_palette_item_selected)
 
     edit_axis = Vector3.AXIS_Y
     draw_offset = 0
@@ -125,18 +152,54 @@ func _ready() -> void:
 
 func _add_shortcuts_to_editor_settings() -> void:
     # Toolbar
-    var shortcut_transform_mode := Shortcut.new()
-    shortcut_transform_mode.resource_name = "Transform"
-    var input_event_transform_mode := InputEventKey.new()
-    input_event_transform_mode.physical_keycode = KEY_T
-    shortcut_transform_mode.events.append(input_event_transform_mode)
-    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/transform_mode", shortcut_transform_mode)
+    var shortcut_paint_mode := Shortcut.new()
+    shortcut_paint_mode.resource_name = "Paint"
+    var input_event_paint_mode := InputEventKey.new()
+    input_event_paint_mode.physical_keycode = KEY_Q
+    shortcut_paint_mode.events.append(input_event_paint_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/paint_mode", shortcut_paint_mode)
+    var shortcut_attach_mode := Shortcut.new()
+    shortcut_attach_mode.resource_name = "Attach"
+    var input_event_attach_mode := InputEventKey.new()
+    input_event_attach_mode.physical_keycode = KEY_W
+    shortcut_attach_mode.events.append(input_event_attach_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/attach_mode", shortcut_attach_mode)
+    var shortcut_erase_mode := Shortcut.new()
+    shortcut_erase_mode.resource_name = "Erase"
+    var input_event_erase_mode := InputEventKey.new()
+    input_event_erase_mode.physical_keycode = KEY_E
+    shortcut_erase_mode.events.append(input_event_erase_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/erase_mode", shortcut_erase_mode)
+    var shortcut_pick_mode := Shortcut.new()
+    shortcut_pick_mode.resource_name = "Pick"
+    var input_event_pick_mode := InputEventKey.new()
+    input_event_pick_mode.physical_keycode = KEY_R
+    shortcut_pick_mode.events.append(input_event_pick_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_mode", shortcut_pick_mode)
     var shortcut_select_mode := Shortcut.new()
     shortcut_select_mode.resource_name = "Select"
     var input_event_select_mode := InputEventKey.new()
-    input_event_select_mode.physical_keycode = KEY_Q
+    input_event_select_mode.physical_keycode = KEY_V
     shortcut_select_mode.events.append(input_event_select_mode)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/select_mode", shortcut_select_mode)
+    var shortcut_cursor_rotate_x := Shortcut.new()
+    shortcut_cursor_rotate_x.resource_name = "Cursor Rotate X"
+    var input_event_cursor_rotate_x := InputEventKey.new()
+    input_event_cursor_rotate_x.physical_keycode = KEY_A
+    shortcut_cursor_rotate_x.events.append(input_event_cursor_rotate_x)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_rotate_x", shortcut_cursor_rotate_x)
+    var shortcut_cursor_rotate_y := Shortcut.new()
+    shortcut_cursor_rotate_y.resource_name = "Cursor Rotate Y"
+    var input_event_cursor_rotate_y := InputEventKey.new()
+    input_event_cursor_rotate_y.physical_keycode = KEY_S
+    shortcut_cursor_rotate_y.events.append(input_event_cursor_rotate_y)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_rotate_y", shortcut_cursor_rotate_y)
+    var shortcut_cursor_rotate_z := Shortcut.new()
+    shortcut_cursor_rotate_z.resource_name = "Cursor Rotate Z"
+    var input_event_cursor_rotate_z := InputEventKey.new()
+    input_event_cursor_rotate_z.physical_keycode = KEY_D
+    shortcut_cursor_rotate_z.events.append(input_event_cursor_rotate_z)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_rotate_z", shortcut_cursor_rotate_z)
     var shortcut_piece_directory_pick := Shortcut.new()
     shortcut_piece_directory_pick.resource_name = "Pick Piece Directory"
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_piece_directory", shortcut_piece_directory_pick)
@@ -174,11 +237,11 @@ func _notification(what: int) -> void:
 func _update_theme() -> void:
     var editor_theme := EditorInterface.get_editor_theme()
 
-    transform_mode_button.icon = editor_theme.get_icon("ToolMove", "EditorIcons")
-    select_mode_button.icon = editor_theme.get_icon("ToolSelect", "EditorIcons")
-    erase_mode_button.icon = editor_theme.get_icon("Eraser", "EditorIcons")
     paint_mode_button.icon = editor_theme.get_icon("Paint", "EditorIcons")
+    attach_mode_button.icon = editor_theme.get_icon("Pin", "EditorIcons")
+    erase_mode_button.icon = editor_theme.get_icon("Eraser", "EditorIcons")
     pick_mode_button.icon = editor_theme.get_icon("ColorPick", "EditorIcons")
+    select_mode_button.icon = editor_theme.get_icon("ToolSelect", "EditorIcons")
     rotate_x_button.icon = editor_theme.get_icon("RotateLeft", "EditorIcons")
     rotate_y_button.icon = editor_theme.get_icon("ToolRotate", "EditorIcons")
     rotate_z_button.icon = editor_theme.get_icon("RotateRight", "EditorIcons")
@@ -231,10 +294,6 @@ func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
     ProjectSettings.save()
     _update_palette()
 
-func _on_palette_item_selected(index: int) -> void:
-    if index in _palette_index_to_path:
-        print(_palette_index_to_path[index])
-
 func _update_palette() -> void:
     palette.clear()
     _palette_index_to_path.clear()
@@ -279,23 +338,32 @@ func _add_to_palette_from_dir(path: String, base_path: String) -> void:
 func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Texture2D, item_text: String) -> void:
     var item_index := palette.add_item(item_text, preview)
     _palette_index_to_path[item_index] = path
+
+func _load_selected_scene() -> PackedScene:
+    if not palette.is_anything_selected():
+        return null
+    
+    for index in palette.get_selected_items():
+        var path := _palette_index_to_path[index]
+        var scene := load(path)
+
+        if scene:
+            return scene
+        
+    return null
+
 #endregion
 
 #region Input
 func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -> int:
+    # If the mouse is currently captured, we are most likely in freelook mode.
+    # In this case, disable shortcuts to avoid conflicts with freelook navigation.
+    if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+        return EditorPlugin.AFTER_GUI_INPUT_PASS
+
     if event is InputEventKey:
         var k := event as InputEventKey
         if k.is_pressed() and not k.is_echo():
-            # Transform mode (toggle button):
-            # If we are in Transform mode we pass the events to the 3D editor,
-            # but if the Transform mode shortcut is pressed again, we go back to Selection mode.
-            if mode_buttons_group.get_pressed_button() == transform_mode_button:
-                if transform_mode_button.shortcut.has_valid_event() and transform_mode_button.shortcut.matches_event(event):
-                    select_mode_button.button_pressed = true
-                    accept_event()
-                    return EditorPlugin.AFTER_GUI_INPUT_STOP
-                return EditorPlugin.AFTER_GUI_INPUT_PASS
-            
             # Tool modes and tool actions:
             for button in viewport_shortcut_buttons:
                 if button.disabled:
@@ -309,25 +377,62 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     accept_event()
                     return EditorPlugin.AFTER_GUI_INPUT_STOP
 
-    if event is InputEventMouseMotion:
-        var motion_event := event as InputEventMouseMotion
-        # preview_raycast(viewport_camera.project_ray_origin(motion_event.position), viewport_camera.project_ray_normal(motion_event.position))
-        preview_grid_position_along_plane(viewport_camera.project_ray_origin(motion_event.position), viewport_camera.project_ray_normal(motion_event.position), edit_axis, draw_offset)
     if event is InputEventMouseButton:
-        var button_event := event as InputEventMouseButton
-        if button_event.button_index == MOUSE_BUTTON_WHEEL_UP and button_event.is_command_or_control_pressed():
-            if button_event.is_pressed():
-                draw_offset_spin_box.value += button_event.factor
+        var mb := event as InputEventMouseButton
+        # Change draw offset with Ctrl + Scroll Wheel
+        if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.is_command_or_control_pressed():
+            if mb.is_pressed():
+                draw_offset_spin_box.value += mb.factor
             return EditorPlugin.AFTER_GUI_INPUT_STOP
-        if button_event.button_index == MOUSE_BUTTON_WHEEL_DOWN and button_event.is_command_or_control_pressed():
-            if button_event.is_pressed():
-                draw_offset_spin_box.value -= button_event.factor
+        if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.is_command_or_control_pressed():
+            if mb.is_pressed():
+                draw_offset_spin_box.value -= mb.factor
             return EditorPlugin.AFTER_GUI_INPUT_STOP
-        if button_event.pressed and button_event.button_index == MOUSE_BUTTON_RIGHT:
-            var piece := _board.raycast_piece(viewport_camera.project_ray_origin(button_event.position), viewport_camera.project_ray_normal(button_event.position))
-            prints(piece, piece.owner, _get_node_root_in_ancestor(piece, _board))
+        
+        if mb.is_pressed():
+            if mb.button_index == MOUSE_BUTTON_LEFT:
+                if mode_buttons_group.get_pressed_button() == paint_mode_button:
+                    _draw_scene = _load_selected_scene()
+                    if _draw_scene:
+                        input_action = InputAction.INPUT_PAINT
+                    else:
+                        input_action = InputAction.INPUT_NONE
+                elif mode_buttons_group.get_pressed_button() == attach_mode_button:
+                    input_action = InputAction.INPUT_ATTACH
+                elif mode_buttons_group.get_pressed_button() == erase_mode_button:
+                    input_action = InputAction.INPUT_ERASE
+                elif mode_buttons_group.get_pressed_button() == pick_mode_button:
+                    input_action = InputAction.INPUT_PICK
+                elif mode_buttons_group.get_pressed_button() == select_mode_button:
+                    input_action = InputAction.INPUT_SELECT
+            else:
+                return EditorPlugin.AFTER_GUI_INPUT_PASS
+            
+            if do_input_action(viewport_camera, mb.position, true):
+                return EditorPlugin.AFTER_GUI_INPUT_STOP
+            return EditorPlugin.AFTER_GUI_INPUT_PASS
+        else:
+            if input_action == InputAction.INPUT_PAINT:
+                undo_redo.create_action("Board3D Paint")
+                # TODO Undo/redo for paint
+                undo_redo.commit_action()
+            input_action = InputAction.INPUT_NONE
+
+    if event is InputEventMouseMotion:
+        var mm := event as InputEventMouseMotion
+        # preview_raycast(viewport_camera.project_ray_origin(mm.position), viewport_camera.project_ray_normal(mm.position))
+        preview_grid_position_along_plane(viewport_camera.project_ray_origin(mm.position), viewport_camera.project_ray_normal(mm.position), edit_axis, draw_offset)
+        
+        if do_input_action(viewport_camera, mm.position, false):
             return EditorPlugin.AFTER_GUI_INPUT_STOP
+        return EditorPlugin.AFTER_GUI_INPUT_PASS
+
     return EditorPlugin.AFTER_GUI_INPUT_PASS
+
+func do_input_action(camera: Camera3D, position: Vector2, click: bool) -> bool:
+    if input_action == InputAction.INPUT_PAINT:
+        return true
+    return false
 
 func _get_node_root_in_ancestor(node: Node, ancestor: Node) -> Node:
     if not node:
@@ -352,6 +457,14 @@ func _create_plane_aabb(axis: Vector3.Axis, plane_offset: float) -> AABB:
 
     return AABB()
 
+func _create_plane(axis: Vector3.Axis, plane_offset: float) -> Plane:
+    match axis:
+        Vector3.AXIS_X: return Plane(Vector3.RIGHT, plane_offset)
+        Vector3.AXIS_Y: return Plane(Vector3.UP, plane_offset)
+        Vector3.AXIS_Z: return Plane(Vector3.BACK, plane_offset)
+
+    return Plane()
+
 func _get_grid_position_from_intersection(intersection_point: Vector3, axis: Vector3.Axis, plane_offset: float) -> Vector3:
     match axis:
         Vector3.AXIS_X: return Vector3(plane_offset, roundf(intersection_point.y), roundf(intersection_point.z))
@@ -361,6 +474,47 @@ func _get_grid_position_from_intersection(intersection_point: Vector3, axis: Vec
     return Vector3()
 
 func preview_grid_position_along_plane(from: Vector3, direction: Vector3, axis: Vector3.Axis, plane_offset: float) -> void:
+    _debug_mesh.clear_surfaces()
+
+    var plane_a := _create_plane(axis, plane_offset - 0.5)
+    var plane_b := _create_plane(axis, plane_offset + 0.5)
+
+    var intersection_a: Variant = plane_a.intersects_ray(from, direction)
+    var intersection_b: Variant = plane_b.intersects_ray(from, direction)
+    var intersection_point := Vector3()
+
+    if not intersection_a and not intersection_b:
+        # Ray didn't intersect
+        return
+    elif intersection_a and intersection_b:
+        var ia: Vector3 = intersection_a
+        var ib: Vector3 = intersection_b
+        if from.distance_squared_to(ib) > from.distance_squared_to(ia):
+            intersection_point = ib
+        else:
+            intersection_point = ia
+    elif intersection_a:
+        intersection_point = intersection_a
+    elif intersection_b:
+        intersection_point = intersection_b
+    
+    var grid_position := _get_grid_position_from_intersection(intersection_point, axis, plane_offset)
+
+    var surface_array := []
+    surface_array.resize(Mesh.ARRAY_MAX)
+
+    var verts := PackedVector3Array()
+    var indices := PackedInt32Array()
+
+    add_cube(grid_position, verts, indices)
+
+    surface_array[Mesh.ARRAY_VERTEX] = verts
+    surface_array[Mesh.ARRAY_INDEX] = indices
+
+    _debug_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, surface_array)
+    _debug_mesh.surface_set_material(0, _debug_material)
+
+func preview_grid_position_along_plane_aabb(from: Vector3, direction: Vector3, axis: Vector3.Axis, plane_offset: float) -> void:
     _debug_mesh.clear_surfaces()
 
     var aabb := _create_plane_aabb(axis, plane_offset)

@@ -13,6 +13,7 @@ func _disable_plugin() -> void:
 
 func _enter_tree() -> void:
     _editor = _editor_scene.instantiate()
+    _editor.undo_redo = get_undo_redo()
     _editor_button = add_control_to_bottom_panel(_editor, "Board3D")
     _editor_button.hide()
 
