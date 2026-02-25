@@ -59,6 +59,7 @@ var input_action: InputAction = InputAction.INPUT_NONE
 var undo_redo: EditorUndoRedoManager
 
 var _palette_index_to_path: Dictionary[int, String] = {}
+var _draw_preview: Node3D
 var _draw_scene: PackedScene
 
 var _board: Board3D
@@ -140,6 +141,8 @@ func _ready() -> void:
     piece_directory_pick_dialog.dir_selected.connect(_on_piece_directory_pick_dialog_dir_selected)
 
     piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
+    
+    palette.item_selected.connect(_on_palette_item_selected)
 
     edit_axis = Vector3.AXIS_Y
     draw_offset = 0
@@ -226,6 +229,13 @@ func _add_shortcuts_to_editor_settings() -> void:
     shortcut_edit_z_axis.events.append(input_event_edit_z_axis)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_z_axis", shortcut_edit_z_axis)
 
+func _process(_delta: float) -> void:
+    var viewport := EditorInterface.get_editor_viewport_3d()
+    var camera := viewport.get_camera_3d()
+    var mouse_position := viewport.get_mouse_position()
+
+    update_cursor_position(camera.project_ray_origin(mouse_position), camera.project_ray_normal(mouse_position))
+
 func _notification(what: int) -> void:
     if is_being_edited():
         return
@@ -270,8 +280,8 @@ func _on_settings_changed() -> void:
         _update_palette()
 
 func _on_tool_mode_changed() -> void:
-    pass
     #_show_viewports_transform_gizmo(mode_buttons_group.get_pressed_button() == transform_mode_button)
+    auto_setup_draw_preview()
 
 func _set_draw_offset(value: float) -> void:
     draw_offset = roundi(value)
@@ -283,6 +293,16 @@ func _menu_option(id: Menu) -> void:
                 var index := options_button.get_popup().get_item_index(axis_id)
                 options_button.get_popup().set_item_checked(index, axis_id == id)
                 edit_axis = (id - Menu.MENU_OPTION_X_AXIS) as Vector3.Axis
+        Menu.MENU_OPTION_CURSOR_ROTATE_X, Menu.MENU_OPTION_CURSOR_ROTATE_Y, Menu.MENU_OPTION_CURSOR_ROTATE_Z, \
+        Menu.MENU_OPTION_CURSOR_BACK_ROTATE_X, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Y, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
+            var rotation_axis := Vector3()
+            if id == Menu.MENU_OPTION_CURSOR_ROTATE_X or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_X:
+                rotation_axis.x = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_X else -1
+            elif id == Menu.MENU_OPTION_CURSOR_ROTATE_Y or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Y:
+                rotation_axis.y = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Y else -1
+            elif id == Menu.MENU_OPTION_CURSOR_ROTATE_Z or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
+                rotation_axis.z = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Z else -1
+            _cursor.rotate(rotation_axis, -PI / 2.0)
 
 #region Piece palette
 func _on_piece_directory_pick_button_pressed() -> void:
@@ -293,6 +313,10 @@ func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
     ProjectSettings.set_setting(SETTING_PIECE_DIRECTORY, dir)
     ProjectSettings.save()
     _update_palette()
+
+func _on_palette_item_selected(_index: int) -> void:
+    _draw_scene = _load_selected_scene()
+    auto_setup_draw_preview()
 
 func _update_palette() -> void:
     palette.clear()
@@ -392,11 +416,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
         if mb.is_pressed():
             if mb.button_index == MOUSE_BUTTON_LEFT:
                 if mode_buttons_group.get_pressed_button() == paint_mode_button:
-                    _draw_scene = _load_selected_scene()
-                    if _draw_scene:
-                        input_action = InputAction.INPUT_PAINT
-                    else:
-                        input_action = InputAction.INPUT_NONE
+                    input_action = InputAction.INPUT_PAINT
                 elif mode_buttons_group.get_pressed_button() == attach_mode_button:
                     input_action = InputAction.INPUT_ATTACH
                 elif mode_buttons_group.get_pressed_button() == erase_mode_button:
@@ -472,6 +492,38 @@ func _get_grid_position_from_intersection(intersection_point: Vector3, axis: Vec
         Vector3.AXIS_Z: return Vector3(roundf(intersection_point.x), roundf(intersection_point.y), plane_offset)
     
     return Vector3()
+
+func update_cursor_position(from: Vector3, direction: Vector3) -> void:
+    var axis := edit_axis
+    var plane_offset := draw_offset
+
+    var plane_a := _create_plane(axis, plane_offset - 0.5)
+    var plane_b := _create_plane(axis, plane_offset + 0.5)
+
+    var intersection_a: Variant = plane_a.intersects_ray(from, direction)
+    var intersection_b: Variant = plane_b.intersects_ray(from, direction)
+    var intersection_point := Vector3()
+
+    if not intersection_a and not intersection_b:
+        # Ray didn't intersect
+        _cursor.visible = false
+        return
+    elif intersection_a and intersection_b:
+        var ia: Vector3 = intersection_a
+        var ib: Vector3 = intersection_b
+        if from.distance_squared_to(ib) > from.distance_squared_to(ia):
+            intersection_point = ib
+        else:
+            intersection_point = ia
+    elif intersection_a:
+        intersection_point = intersection_a
+    elif intersection_b:
+        intersection_point = intersection_b
+    
+    var grid_position := _get_grid_position_from_intersection(intersection_point, axis, plane_offset)
+
+    _cursor.visible = true
+    _cursor.global_position = grid_position
 
 func preview_grid_position_along_plane(from: Vector3, direction: Vector3, axis: Vector3.Axis, plane_offset: float) -> void:
     _debug_mesh.clear_surfaces()
@@ -602,4 +654,32 @@ func add_cube(center: Vector3, verts: PackedVector3Array, indices: PackedInt32Ar
     indices.append(offset +  6)
     indices.append(offset +  3)
     indices.append(offset +  7)
+
+func clear_draw_preview() -> void:
+    if not _draw_preview:
+        return
+    
+    _draw_preview.queue_free()
+    _draw_preview = null
+
+func setup_draw_preview(scene: PackedScene) -> void:
+    clear_draw_preview()
+
+    if not scene:
+        return
+    
+    var node := scene.instantiate()
+    if not node is Node3D:
+        node.queue_free()
+        return
+    
+    _draw_preview = node
+    _cursor.add_child(_draw_preview)
+    _draw_preview.transform = Transform3D.IDENTITY
+
+func auto_setup_draw_preview() -> void:
+    if _draw_scene and mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button:
+        setup_draw_preview(_draw_scene)
+    else:
+        clear_draw_preview()
 #endregion
