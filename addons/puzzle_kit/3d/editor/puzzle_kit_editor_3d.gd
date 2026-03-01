@@ -67,7 +67,7 @@ var _board: Board3D
 var _cursor: Node3D
 
 var _debug_material: StandardMaterial3D
-var _debug_mesh: ArrayMesh
+var _debug_mesh: PiecePreviewMesh
 var _debug_mesh_instance: MeshInstance3D
 
 func _enter_tree() -> void:
@@ -99,10 +99,10 @@ func _ready() -> void:
     _debug_material.disable_fog = true
     _debug_material.albedo_color = Color.WHITE
 
-    _debug_mesh = ArrayMesh.new()
+    _debug_mesh = PiecePreviewMesh.new()
     _debug_mesh_instance = MeshInstance3D.new()
     _debug_mesh_instance.mesh = _debug_mesh
-    add_child(_debug_mesh_instance)
+    _cursor.add_child(_debug_mesh_instance)
 
     _add_shortcuts_to_editor_settings()
 
@@ -676,6 +676,7 @@ func setup_draw_preview(scene: PackedScene) -> void:
     _draw_preview = node
     _cursor.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
+    _debug_mesh.generate_from(_draw_preview)
 
 func auto_setup_draw_preview() -> void:
     if _draw_scene and mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button:
