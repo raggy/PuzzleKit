@@ -7,7 +7,7 @@ var _mesh_instance: MeshInstance3D
 var fill_material: BaseMaterial3D: set = set_fill_material
 var outline_material: BaseMaterial3D: set = set_outline_material
 
-func _enter_tree() -> void:
+func _init() -> void:
     _mesh = ArrayMesh.new()
     _mesh_instance = MeshInstance3D.new()
     _mesh_instance.mesh = _mesh
