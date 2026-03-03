@@ -84,7 +84,7 @@ func _exit_tree() -> void:
 func _ready() -> void:
     if is_being_edited():
         return
-
+    
     _cursor = Node3D.new()
     add_child(_cursor)
 
@@ -429,7 +429,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
 
     if event is InputEventMouseMotion:
         var mm := event as InputEventMouseMotion
-        
+
         if do_input_action(viewport_camera, mm.position, false):
             return EditorPlugin.AFTER_GUI_INPUT_STOP
         return EditorPlugin.AFTER_GUI_INPUT_PASS
