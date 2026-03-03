@@ -65,10 +65,7 @@ var _draw_scene: PackedScene
 var _board: Board3D
 
 var _cursor: Node3D
-
-var _debug_material: StandardMaterial3D
-var _debug_mesh: PiecePreviewMesh
-var _debug_mesh_instance: MeshInstance3D
+var _cursor_piece_outline: PieceOutline3D
 
 func _enter_tree() -> void:
     if is_being_edited():
@@ -91,18 +88,10 @@ func _ready() -> void:
     _cursor = Node3D.new()
     add_child(_cursor)
 
-    _debug_material = StandardMaterial3D.new()
-    _debug_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    _debug_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    _debug_material.vertex_color_is_srgb = true
-    # _debug_material.vertex_color_use_as_albedo = true
-    _debug_material.disable_fog = true
-    _debug_material.albedo_color = Color.WHITE
-
-    _debug_mesh = PiecePreviewMesh.new()
-    _debug_mesh_instance = MeshInstance3D.new()
-    _debug_mesh_instance.mesh = _debug_mesh
-    _cursor.add_child(_debug_mesh_instance)
+    _cursor_piece_outline = PieceOutline3D.new()
+    _cursor_piece_outline.outline_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 1))
+    _cursor_piece_outline.fill_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 0.25))
+    _cursor.add_child(_cursor_piece_outline)
 
     _add_shortcuts_to_editor_settings()
 
@@ -440,8 +429,6 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
 
     if event is InputEventMouseMotion:
         var mm := event as InputEventMouseMotion
-        # preview_raycast(viewport_camera.project_ray_origin(mm.position), viewport_camera.project_ray_normal(mm.position))
-        preview_grid_position_along_plane(viewport_camera.project_ray_origin(mm.position), viewport_camera.project_ray_normal(mm.position), edit_axis, draw_offset)
         
         if do_input_action(viewport_camera, mm.position, false):
             return EditorPlugin.AFTER_GUI_INPUT_STOP
@@ -525,136 +512,6 @@ func update_cursor_position(from: Vector3, direction: Vector3) -> void:
     _cursor.visible = true
     _cursor.global_position = grid_position
 
-func preview_grid_position_along_plane(from: Vector3, direction: Vector3, axis: Vector3.Axis, plane_offset: float) -> void:
-    _debug_mesh.clear_surfaces()
-
-    var plane_a := _create_plane(axis, plane_offset - 0.5)
-    var plane_b := _create_plane(axis, plane_offset + 0.5)
-
-    var intersection_a: Variant = plane_a.intersects_ray(from, direction)
-    var intersection_b: Variant = plane_b.intersects_ray(from, direction)
-    var intersection_point := Vector3()
-
-    if not intersection_a and not intersection_b:
-        # Ray didn't intersect
-        return
-    elif intersection_a and intersection_b:
-        var ia: Vector3 = intersection_a
-        var ib: Vector3 = intersection_b
-        if from.distance_squared_to(ib) > from.distance_squared_to(ia):
-            intersection_point = ib
-        else:
-            intersection_point = ia
-    elif intersection_a:
-        intersection_point = intersection_a
-    elif intersection_b:
-        intersection_point = intersection_b
-    
-    var grid_position := _get_grid_position_from_intersection(intersection_point, axis, plane_offset)
-
-    var surface_array := []
-    surface_array.resize(Mesh.ARRAY_MAX)
-
-    var verts := PackedVector3Array()
-    var indices := PackedInt32Array()
-
-    add_cube(grid_position, verts, indices)
-
-    surface_array[Mesh.ARRAY_VERTEX] = verts
-    surface_array[Mesh.ARRAY_INDEX] = indices
-
-    _debug_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, surface_array)
-    _debug_mesh.surface_set_material(0, _debug_material)
-
-func preview_grid_position_along_plane_aabb(from: Vector3, direction: Vector3, axis: Vector3.Axis, plane_offset: float) -> void:
-    _debug_mesh.clear_surfaces()
-
-    var aabb := _create_plane_aabb(axis, plane_offset)
-
-    var aabb_intersection: Variant = aabb.intersects_ray(from, direction)
-    if not aabb_intersection:
-        # Ray didn't intersect aabb
-        return
-    
-    var intersection_point: Vector3 = aabb_intersection
-    var grid_position := _get_grid_position_from_intersection(intersection_point, axis, plane_offset)
-
-    var surface_array := []
-    surface_array.resize(Mesh.ARRAY_MAX)
-
-    var verts := PackedVector3Array()
-    var indices := PackedInt32Array()
-
-    add_cube(grid_position, verts, indices)
-
-    surface_array[Mesh.ARRAY_VERTEX] = verts
-    surface_array[Mesh.ARRAY_INDEX] = indices
-
-    _debug_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, surface_array)
-    _debug_mesh.surface_set_material(0, _debug_material)
-
-func preview_raycast(from: Vector3, direction: Vector3) -> void:
-    _debug_mesh.clear_surfaces()
-
-    var points := _board.raycast_points(from, direction)
-
-    if points.is_empty():
-        return
-
-    var surface_array := []
-    surface_array.resize(Mesh.ARRAY_MAX)
-
-    var verts := PackedVector3Array()
-    var indices := PackedInt32Array()
-
-    for point in points:
-        add_cube(point, verts, indices)
-
-    surface_array[Mesh.ARRAY_VERTEX] = verts
-    surface_array[Mesh.ARRAY_INDEX] = indices
-
-    _debug_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, surface_array)
-    _debug_mesh.surface_set_material(0, _debug_material)
-
-func add_cube(center: Vector3, verts: PackedVector3Array, indices: PackedInt32Array) -> void:
-    var offset := verts.size()
-
-    verts.append(center + Vector3( 0.5,  0.5,  0.5)) # 0 Right, top, back
-    verts.append(center + Vector3(-0.5,  0.5,  0.5)) # 1 Left, top, back
-    verts.append(center + Vector3( 0.5, -0.5,  0.5)) # 2 Right, bottom, back
-    verts.append(center + Vector3(-0.5, -0.5,  0.5)) # 3 Left, bottom, back
-    verts.append(center + Vector3( 0.5,  0.5, -0.5)) # 4 Right, top, front
-    verts.append(center + Vector3(-0.5,  0.5, -0.5)) # 5 Left, top, front
-    verts.append(center + Vector3( 0.5, -0.5, -0.5)) # 6 Right, bottom, front
-    verts.append(center + Vector3(-0.5, -0.5, -0.5)) # 7 Left, bottom, front
-
-    indices.append(offset +  0)
-    indices.append(offset +  1)
-    indices.append(offset +  2)
-    indices.append(offset +  3)
-    indices.append(offset +  4)
-    indices.append(offset +  5)
-    indices.append(offset +  6)
-    indices.append(offset +  7)
-
-    indices.append(offset +  0)
-    indices.append(offset +  2)
-    indices.append(offset +  1)
-    indices.append(offset +  3)
-    indices.append(offset +  4)
-    indices.append(offset +  6)
-    indices.append(offset +  5)
-    indices.append(offset +  7)
-
-    indices.append(offset +  0)
-    indices.append(offset +  4)
-    indices.append(offset +  1)
-    indices.append(offset +  5)
-    indices.append(offset +  2)
-    indices.append(offset +  6)
-    indices.append(offset +  3)
-    indices.append(offset +  7)
-
 func clear_draw_preview() -> void:
     if not _draw_preview:
         return
@@ -676,7 +533,7 @@ func setup_draw_preview(scene: PackedScene) -> void:
     _draw_preview = node
     _cursor.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
-    _debug_mesh.generate_from(_draw_preview)
+    _cursor_piece_outline.generate_from(_draw_preview)
 
 func auto_setup_draw_preview() -> void:
     if _draw_scene and mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button:

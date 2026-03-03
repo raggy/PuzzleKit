@@ -1,22 +1,21 @@
-class_name PiecePreviewMesh
-extends ArrayMesh
+class_name PieceOutline3D
+extends Node3D
+
+var _mesh: ArrayMesh
+var _mesh_instance: MeshInstance3D
+
+var fill_material: BaseMaterial3D: set = set_fill_material
+var outline_material: BaseMaterial3D: set = set_outline_material
+
+func _enter_tree() -> void:
+    _mesh = ArrayMesh.new()
+    _mesh_instance = MeshInstance3D.new()
+    _mesh_instance.mesh = _mesh
+    add_child(_mesh_instance)
 
 func generate_from(node: Node3D) -> void:
-    clear_surfaces()
+    _mesh.clear_surfaces()
 
-    generate_surfaces_from(node)
-
-    var mat := StandardMaterial3D.new()
-    mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    mat.vertex_color_is_srgb = true
-    mat.vertex_color_use_as_albedo = true
-    mat.disable_fog = true
-    mat.albedo_color = Color.WHITE
-    surface_set_material(0, mat)
-    surface_set_material(1, mat)
-
-func generate_surfaces_from(node: Node3D) -> void:
     var pieces: Array[Piece3D] = []
     get_pieces_in(node, pieces)
 
@@ -82,7 +81,7 @@ func generate_surfaces_from(node: Node3D) -> void:
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5, -0.5, -0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5, -0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
-                if not c_here and c_r:
+                elif not c_here and c_r:
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5, -0.5, -0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5, -0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
@@ -96,7 +95,7 @@ func generate_surfaces_from(node: Node3D) -> void:
                     add_vert(node.to_local(Vector3(here) + Vector3(-0.5,  0.5, -0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3(-0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
-                if not c_here and c_u:
+                elif not c_here and c_u:
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5, -0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3(-0.5,  0.5, -0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
@@ -110,7 +109,7 @@ func generate_surfaces_from(node: Node3D) -> void:
                     add_vert(node.to_local(Vector3(here) + Vector3(-0.5, -0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3(-0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
-                if not c_here and c_b:
+                elif not c_here and c_b:
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3(-0.5, -0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5, -0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
@@ -118,23 +117,25 @@ func generate_surfaces_from(node: Node3D) -> void:
                     add_vert(node.to_local(Vector3(here) + Vector3( 0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
                     add_vert(node.to_local(Vector3(here) + Vector3(-0.5,  0.5,  0.5)), triangles_verts, triangles_indices, triangles_verts_to_indices)
 
-    var lines_colors := PackedColorArray()
-    for i in range(lines_verts.size()):
-        lines_colors.append(Color.GREEN)
-
     lines_surface_array[Mesh.ARRAY_VERTEX] = lines_verts
-    lines_surface_array[Mesh.ARRAY_COLOR] = lines_colors
     lines_surface_array[Mesh.ARRAY_INDEX] = lines_indices
-    add_surface_from_arrays(Mesh.PRIMITIVE_LINES, lines_surface_array)
-    
-    var triangles_colors := PackedColorArray()
-    for i in range(triangles_verts.size()):
-        triangles_colors.append(Color(0, 1, 0, 0.25))
+    _mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, lines_surface_array)
+    _mesh.surface_set_material(0, outline_material)
     
     triangles_surface_array[Mesh.ARRAY_VERTEX] = triangles_verts
-    triangles_surface_array[Mesh.ARRAY_COLOR] = triangles_colors
     triangles_surface_array[Mesh.ARRAY_INDEX] = triangles_indices
-    add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, triangles_surface_array)
+    _mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, triangles_surface_array)
+    _mesh.surface_set_material(1, fill_material)
+
+func set_fill_material(value: BaseMaterial3D) -> void:
+    if _mesh and _mesh.get_surface_count() >= 2:
+        _mesh.surface_set_material(1, value)
+    fill_material = value
+
+func set_outline_material(value: BaseMaterial3D) -> void:
+    if _mesh and _mesh.get_surface_count() >= 1:
+        _mesh.surface_set_material(0, value)
+    outline_material = value
 
 static func get_pieces_in(node: Node, pieces: Array[Piece3D], group_filter: GroupFilter = null) -> void:
     var piece := node as Piece3D
@@ -146,9 +147,9 @@ static func get_pieces_in(node: Node, pieces: Array[Piece3D], group_filter: Grou
         get_pieces_in(node.get_child(i), pieces)
 
 static func add_vert(vert: Vector3, verts: PackedVector3Array, indices: PackedInt32Array, verts_to_indices: Dictionary[Vector3, int]) -> void:
-    indices.append(get_index(vert, verts, verts_to_indices))
+    indices.append(vert_to_index(vert, verts, verts_to_indices))
 
-static func get_index(vert: Vector3, verts: PackedVector3Array, verts_to_indices: Dictionary[Vector3, int]) -> int:
+static func vert_to_index(vert: Vector3, verts: PackedVector3Array, verts_to_indices: Dictionary[Vector3, int]) -> int:
     if vert in verts_to_indices:
         return verts_to_indices[vert]
     # Add new vert
@@ -156,3 +157,11 @@ static func get_index(vert: Vector3, verts: PackedVector3Array, verts_to_indices
     verts.append(vert)
     verts_to_indices[vert] = index
     return index
+
+static func create_preview_material(color: Color) -> BaseMaterial3D:
+    var material := StandardMaterial3D.new()
+    material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    material.disable_fog = true
+    material.albedo_color = color
+    return material
