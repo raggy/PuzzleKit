@@ -225,3 +225,12 @@ func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Trans
     global_transform = new_transform
     _previous_transform = new_transform
     teleported.emit()
+
+static func find_descendant_pieces(node: Node, pieces: Array[Piece3D], group_filter: GroupFilter = null) -> void:
+    var piece := node as Piece3D
+    if piece and (not group_filter or group_filter.matches_3d(piece)):
+        # Found a matching piece
+        pieces.append(piece)
+    for i in range(node.get_child_count()):
+        # Search child
+        find_descendant_pieces(node.get_child(i), pieces)

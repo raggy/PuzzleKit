@@ -58,14 +58,25 @@ var input_action: InputAction = InputAction.INPUT_NONE
 
 var undo_redo: EditorUndoRedoManager
 
+var valid_draw_outline_material: Material
+var valid_draw_fill_material: Material
+var invalid_draw_outline_material: Material
+var invalid_draw_fill_material: Material
+
 var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
+var _draw_preview_pieces: Array[Piece3D]
 var _draw_scene: PackedScene
 
 var _board: Board3D
 
 var _cursor: Node3D
 var _cursor_piece_outline: PieceOutline3D
+var _cursor_grid_position: Vector3i
+var _cursor_grid_direction: Vector3i
+
+var _paint_fresh_nodes: Array[Node3D]
+var _paint_changes: Array[AddRemoveChange]
 
 func _enter_tree() -> void:
     if is_being_edited():
@@ -84,13 +95,18 @@ func _exit_tree() -> void:
 func _ready() -> void:
     if is_being_edited():
         return
+
+    valid_draw_outline_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 1))
+    valid_draw_fill_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 0.25))
+    invalid_draw_outline_material = PieceOutline3D.create_preview_material(Color(0.7, 0.7, 0.7, 1))
+    invalid_draw_fill_material = PieceOutline3D.create_preview_material(Color(0.7, 0.7, 0.7, 0.25))
     
     _cursor = Node3D.new()
     add_child(_cursor)
 
     _cursor_piece_outline = PieceOutline3D.new()
-    _cursor_piece_outline.outline_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 1))
-    _cursor_piece_outline.fill_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 0.25))
+    _cursor_piece_outline.outline_material = invalid_draw_outline_material
+    _cursor_piece_outline.fill_material = invalid_draw_fill_material
     _cursor.add_child(_cursor_piece_outline)
 
     _add_shortcuts_to_editor_settings()
@@ -220,10 +236,8 @@ func _add_shortcuts_to_editor_settings() -> void:
 
 func _process(_delta: float) -> void:
     var viewport := EditorInterface.get_editor_viewport_3d()
-    var camera := viewport.get_camera_3d()
-    var mouse_position := viewport.get_mouse_position()
 
-    update_cursor_position(camera.project_ray_origin(mouse_position), camera.project_ray_normal(mouse_position))
+    update_cursor_state(viewport.get_camera_3d(), viewport.get_mouse_position())
 
 func _notification(what: int) -> void:
     if is_being_edited():
@@ -422,9 +436,14 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             return EditorPlugin.AFTER_GUI_INPUT_PASS
         else:
             if input_action == InputAction.INPUT_PAINT:
-                undo_redo.create_action("Board3D Paint")
-                # TODO Undo/redo for paint
-                undo_redo.commit_action()
+                # Setup undo history
+                # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
+                undo_redo.create_action("Board3D Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                for change in _paint_changes:
+                    undo_redo.add_do_method(change, "do")
+                    undo_redo.add_undo_method(change, "undo")
+                undo_redo.commit_action(false)
+                _paint_changes.clear()
             input_action = InputAction.INPUT_NONE
 
     if event is InputEventMouseMotion:
@@ -436,8 +455,31 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
 
     return EditorPlugin.AFTER_GUI_INPUT_PASS
 
-func do_input_action(camera: Camera3D, position: Vector2, click: bool) -> bool:
+func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> bool:
     if input_action == InputAction.INPUT_PAINT:
+        if click:
+            _paint_fresh_nodes = []
+            _paint_changes = []
+        update_cursor_state(camera, mouse_position)
+        if _draw_scene and can_paint_at_cursor_position():
+            var node := _draw_scene.instantiate()
+            var node3d := node as Node3D
+            if not node3d:
+                node.queue_free()
+                return true
+            _paint_fresh_nodes.append(node3d)
+            _board.add_child(node3d, true)
+            node3d.global_transform = _cursor.global_transform
+            node3d.owner = _board.owner
+            var change := AddRemoveChange.new()
+            change.board = _board
+            change.action = AddRemoveChange.Action.ADD
+            change.scene = _draw_scene
+            change.parent_path = _board.get_path_to(node3d.get_parent())
+            change.parent_index = node3d.get_index()
+            change.name = node3d.name
+            change.global_transform = node3d.global_transform
+            _paint_changes.append(change)
         return true
     return false
 
@@ -456,7 +498,7 @@ func _get_node_root_in_ancestor(node: Node, ancestor: Node) -> Node:
     # Search from node's owner
     return _get_node_root_in_ancestor(node.owner, ancestor)
 
-func _create_plane_aabb(axis: Vector3.Axis, plane_offset: float) -> AABB:
+static func _create_plane_aabb(axis: Vector3.Axis, plane_offset: float) -> AABB:
     match axis:
         Vector3.AXIS_X: return AABB(Vector3(plane_offset - 0.5, -500000, -500000), Vector3(1.0, 1000000, 1000000))
         Vector3.AXIS_Y: return AABB(Vector3(-500000, plane_offset - 0.5, -500000), Vector3(1000000, 1.0, 1000000))
@@ -464,7 +506,7 @@ func _create_plane_aabb(axis: Vector3.Axis, plane_offset: float) -> AABB:
 
     return AABB()
 
-func _create_plane(axis: Vector3.Axis, plane_offset: float) -> Plane:
+static func _create_plane(axis: Vector3.Axis, plane_offset: float) -> Plane:
     match axis:
         Vector3.AXIS_X: return Plane(Vector3.RIGHT, plane_offset)
         Vector3.AXIS_Y: return Plane(Vector3.UP, plane_offset)
@@ -472,7 +514,7 @@ func _create_plane(axis: Vector3.Axis, plane_offset: float) -> Plane:
 
     return Plane()
 
-func _get_grid_position_from_intersection(intersection_point: Vector3, axis: Vector3.Axis, plane_offset: float) -> Vector3:
+static func _get_grid_position_from_intersection(intersection_point: Vector3, axis: Vector3.Axis, plane_offset: float) -> Vector3:
     match axis:
         Vector3.AXIS_X: return Vector3(plane_offset, roundf(intersection_point.y), roundf(intersection_point.z))
         Vector3.AXIS_Y: return Vector3(roundf(intersection_point.x), plane_offset, roundf(intersection_point.z))
@@ -480,16 +522,41 @@ func _get_grid_position_from_intersection(intersection_point: Vector3, axis: Vec
     
     return Vector3()
 
-func update_cursor_position(from: Vector3, direction: Vector3) -> void:
-    var axis := edit_axis
-    var plane_offset := draw_offset
+func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
+    if mode_buttons_group.get_pressed_button() == paint_mode_button:
+        update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        if can_paint_at_cursor_position():
+            _cursor_piece_outline.outline_material = valid_draw_outline_material
+            _cursor_piece_outline.fill_material = valid_draw_fill_material
+        else:
+            _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.fill_material = invalid_draw_fill_material
 
-    var plane_a := _create_plane(axis, plane_offset - 0.5)
-    var plane_b := _create_plane(axis, plane_offset + 0.5)
+    elif mode_buttons_group.get_pressed_button() == attach_mode_button:
+        if input_action == InputAction.INPUT_ATTACH:
+            update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        else:
+            update_cursor_state_raycast_face(camera, mouse_position, draw_offset)
+    elif mode_buttons_group.get_pressed_button() == erase_mode_button:
+        update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+    elif mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
+        update_cursor_state_raycast_piece(camera, mouse_position)
 
-    var intersection_a: Variant = plane_a.intersects_ray(from, direction)
-    var intersection_b: Variant = plane_b.intersects_ray(from, direction)
+func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axis: Vector3.Axis, offset: int) -> void:
+    var plane_a := _create_plane(axis, offset - 0.5)
+    var plane_b := _create_plane(axis, offset + 0.5)
+
+    var mouse_origin := camera.project_ray_origin(mouse_position)
+    var mouse_normal := camera.project_ray_normal(mouse_position)
+
+    var intersection_a: Variant = plane_a.intersects_ray(mouse_origin, mouse_normal)
+    var intersection_b: Variant = plane_b.intersects_ray(mouse_origin, mouse_normal)
     var intersection_point := Vector3()
+
+    match axis:
+        Vector3.AXIS_X: _cursor_grid_direction = Vector3(1, 0, 0)
+        Vector3.AXIS_Y: _cursor_grid_direction = Vector3(0, 1, 0)
+        Vector3.AXIS_Z: _cursor_grid_direction = Vector3(0, 0, 1)
 
     if not intersection_a and not intersection_b:
         # Ray didn't intersect
@@ -498,19 +565,57 @@ func update_cursor_position(from: Vector3, direction: Vector3) -> void:
     elif intersection_a and intersection_b:
         var ia: Vector3 = intersection_a
         var ib: Vector3 = intersection_b
-        if from.distance_squared_to(ib) > from.distance_squared_to(ia):
+        if mouse_origin.distance_squared_to(ib) > mouse_origin.distance_squared_to(ia):
             intersection_point = ib
+            _cursor_grid_direction *= -1
         else:
             intersection_point = ia
     elif intersection_a:
         intersection_point = intersection_a
     elif intersection_b:
         intersection_point = intersection_b
+        _cursor_grid_direction *= -1
     
-    var grid_position := _get_grid_position_from_intersection(intersection_point, axis, plane_offset)
+    var grid_position := _get_grid_position_from_intersection(intersection_point, axis, offset)
 
     _cursor.visible = true
     _cursor.global_position = grid_position
+    _cursor_grid_position = grid_position
+
+func update_cursor_state_raycast_face(camera: Camera3D, mouse_position: Vector2, offset: int) -> void:
+    pass
+    
+func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2) -> void:
+    var mouse_origin := camera.project_ray_origin(mouse_position)
+    var mouse_normal := camera.project_ray_normal(mouse_position)
+
+    var piece := _board.raycast_piece(mouse_origin, mouse_normal)
+
+    if not piece:
+        # Ray didn't intersect
+        _cursor.visible = false
+        return
+    
+    var piece_root_node := _get_node_root_in_ancestor(piece, _board)
+
+    if not piece_root_node or not piece_root_node is Node3D:
+        _cursor.visible = false
+        return
+    
+    var piece_root_node3d := piece_root_node as Node3D
+    _cursor.visible = true
+    _cursor.global_transform = piece_root_node3d.global_transform
+    _cursor_piece_outline.generate_from(piece_root_node3d)
+
+func can_paint_at_cursor_position() -> bool:
+    if not _draw_preview or _draw_preview_pieces.size() == 0:
+        return false
+    
+    for piece in _draw_preview_pieces:
+        if _board.get_piece_at(piece.grid_position):
+            return false
+    
+    return true
 
 func clear_draw_preview() -> void:
     if not _draw_preview:
@@ -518,6 +623,7 @@ func clear_draw_preview() -> void:
     
     _draw_preview.queue_free()
     _draw_preview = null
+    _draw_preview_pieces = []
 
 func setup_draw_preview(scene: PackedScene) -> void:
     clear_draw_preview()
@@ -534,6 +640,9 @@ func setup_draw_preview(scene: PackedScene) -> void:
     _cursor.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
     _cursor_piece_outline.generate_from(_draw_preview)
+    
+    _draw_preview_pieces = []
+    Piece3D.find_descendant_pieces(_draw_preview, _draw_preview_pieces)
 
 func auto_setup_draw_preview() -> void:
     if _draw_scene and mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button:
@@ -541,3 +650,76 @@ func auto_setup_draw_preview() -> void:
     else:
         clear_draw_preview()
 #endregion
+
+class AddRemoveChange:
+    enum Action {
+        INVALID,
+        ADD,
+        REMOVE,
+    }
+
+    var board: Board3D
+    var action: Action
+    var scene: PackedScene
+    var parent_path: NodePath
+    var parent_index: int
+    var name: String
+    var global_transform: Transform3D
+
+    func do() -> void:
+        match action:
+            Action.ADD: do_add()
+            Action.REMOVE: do_remove()
+
+    func do_add() -> void:
+        if not scene:
+            printerr("AddRemoveChange has no scene")
+            return
+        if not board.has_node(parent_path):
+            printerr("AddRemoveChange could not find parent at %s" % parent_path)
+            return
+        var node := scene.instantiate()
+        if not node:
+            printerr("AddRemoveChange scene would not instantiate")
+            return
+        var node3d := node as Node3D
+        if not node3d:
+            printerr("AddRemoveChange created non-Node3D")
+            node.queue_free()
+            return
+        var parent := board.get_node(parent_path)
+        parent.add_child(node3d)
+        node3d.owner = board.owner
+        node3d.name = name
+        node3d.global_transform = global_transform
+        parent.move_child(node3d, parent_index)
+
+    func do_remove() -> void:
+        pass
+
+    func undo() -> void:
+        match action:
+            Action.ADD: undo_add()
+            Action.REMOVE: undo_remove()
+
+    func undo_add() -> void:
+        if not board.has_node(parent_path):
+            printerr("AddRemoveChange could not find parent at %s" % parent_path)
+            return
+        var parent := board.get_node(parent_path)
+        if parent.get_child_count() <= parent_index:
+            printerr("AddRemoveChange parent had less than %s children" % (parent_index + 1))
+            return
+        var node := parent.get_child(parent_index)
+        if node.name != name:
+            printerr("AddRemoveChange found node with different name (expected: %s, found: %s)" % [name, node.name])
+            return
+        var node3d := node as Node3D
+        if not node3d:
+            printerr("AddRemoveChange found non-Node3D")
+            return
+        parent.remove_child(node3d)
+        node3d.queue_free()
+
+    func undo_remove() -> void:
+        pass

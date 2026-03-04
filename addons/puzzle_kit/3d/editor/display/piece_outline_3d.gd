@@ -4,8 +4,8 @@ extends Node3D
 var _mesh: ArrayMesh
 var _mesh_instance: MeshInstance3D
 
-var fill_material: BaseMaterial3D: set = set_fill_material
-var outline_material: BaseMaterial3D: set = set_outline_material
+var fill_material: Material: set = set_fill_material
+var outline_material: Material: set = set_outline_material
 
 func _init() -> void:
     _mesh = ArrayMesh.new()
@@ -17,7 +17,7 @@ func generate_from(node: Node3D) -> void:
     _mesh.clear_surfaces()
 
     var pieces: Array[Piece3D] = []
-    get_pieces_in(node, pieces)
+    Piece3D.find_descendant_pieces(node, pieces)
 
     if pieces.is_empty():
         return
@@ -127,24 +127,15 @@ func generate_from(node: Node3D) -> void:
     _mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, triangles_surface_array)
     _mesh.surface_set_material(1, fill_material)
 
-func set_fill_material(value: BaseMaterial3D) -> void:
+func set_fill_material(value: Material) -> void:
     if _mesh and _mesh.get_surface_count() >= 2:
         _mesh.surface_set_material(1, value)
     fill_material = value
 
-func set_outline_material(value: BaseMaterial3D) -> void:
+func set_outline_material(value: Material) -> void:
     if _mesh and _mesh.get_surface_count() >= 1:
         _mesh.surface_set_material(0, value)
     outline_material = value
-
-static func get_pieces_in(node: Node, pieces: Array[Piece3D], group_filter: GroupFilter = null) -> void:
-    var piece := node as Piece3D
-    if piece and (not group_filter or group_filter.matches_3d(piece)):
-        # Found a matching piece
-        pieces.append(piece)
-    for i in range(node.get_child_count()):
-        # Search child
-        get_pieces_in(node.get_child(i), pieces)
 
 static func add_vert(vert: Vector3, verts: PackedVector3Array, indices: PackedInt32Array, verts_to_indices: Dictionary[Vector3, int]) -> void:
     indices.append(vert_to_index(vert, verts, verts_to_indices))
