@@ -4,6 +4,8 @@ extends Node3D
 var _mesh: ArrayMesh
 var _mesh_instance: MeshInstance3D
 
+var _node_generated_from: WeakRef
+
 var fill_material: Material: set = set_fill_material
 var outline_material: Material: set = set_outline_material
 
@@ -14,7 +16,16 @@ func _init() -> void:
     add_child(_mesh_instance)
 
 func generate_from(node: Node3D) -> void:
-    _mesh.clear_surfaces()
+    if not node:
+        _mesh.clear_surfaces()   
+        return
+
+    if node == _node_generated_from.get_ref():
+        return
+    # Save a reference to node so we can skip redundant regenerations
+    _node_generated_from = weakref(node)
+
+    _mesh.clear_surfaces()    
 
     var pieces: Array[Piece3D] = []
     Piece3D.find_descendant_pieces(node, pieces)

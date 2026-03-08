@@ -62,6 +62,8 @@ var valid_draw_outline_material: Material
 var valid_draw_fill_material: Material
 var invalid_draw_outline_material: Material
 var invalid_draw_fill_material: Material
+var erase_draw_outline_material: Material
+var erase_draw_fill_material: Material
 
 var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
@@ -72,6 +74,7 @@ var _board: Board3D
 
 var _cursor: Node3D
 var _cursor_piece_outline: PieceOutline3D
+var _cursor_tile_outline: TileOutline3D
 var _cursor_grid_position: Vector3i
 var _cursor_grid_direction: Vector3i
 
@@ -100,6 +103,8 @@ func _ready() -> void:
     valid_draw_fill_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 0.25))
     invalid_draw_outline_material = PieceOutline3D.create_preview_material(Color(0.7, 0.7, 0.7, 1))
     invalid_draw_fill_material = PieceOutline3D.create_preview_material(Color(0.7, 0.7, 0.7, 0.25))
+    erase_draw_outline_material = PieceOutline3D.create_preview_material(Color(1, 0, 0, 1))
+    erase_draw_fill_material = PieceOutline3D.create_preview_material(Color(1, 0, 0, 0.25))
     
     _cursor = Node3D.new()
     add_child(_cursor)
@@ -108,6 +113,11 @@ func _ready() -> void:
     _cursor_piece_outline.outline_material = invalid_draw_outline_material
     _cursor_piece_outline.fill_material = invalid_draw_fill_material
     _cursor.add_child(_cursor_piece_outline)
+
+    _cursor_tile_outline = TileOutline3D.new()
+    _cursor_tile_outline.outline_material = erase_draw_outline_material
+    _cursor_tile_outline.fill_material = erase_draw_fill_material
+    _cursor.add_child(_cursor_tile_outline)
 
     _add_shortcuts_to_editor_settings()
 
@@ -398,6 +408,8 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                 if button.shortcut and button.shortcut.has_valid_event() and button.shortcut.matches_event(event):
                     if button.toggle_mode:
                         button.button_pressed = button.button_group or not button.pressed
+                        if button.button_group == mode_buttons_group:
+                            _on_tool_mode_changed()
                     else:
                         # Can't press a button without toggle mode, so just emit the signal directly.
                         button.pressed.emit()
@@ -428,6 +440,10 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     input_action = InputAction.INPUT_PICK
                 elif mode_buttons_group.get_pressed_button() == select_mode_button:
                     input_action = InputAction.INPUT_SELECT
+            elif mb.button_index == MOUSE_BUTTON_RIGHT:
+                if input_action == InputAction.INPUT_NONE:
+                    # TODO Pick
+                    pass
             else:
                 return EditorPlugin.AFTER_GUI_INPUT_PASS
             
@@ -435,16 +451,26 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                 return EditorPlugin.AFTER_GUI_INPUT_STOP
             return EditorPlugin.AFTER_GUI_INPUT_PASS
         else:
-            if input_action == InputAction.INPUT_PAINT:
-                # Setup undo history
-                # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                undo_redo.create_action("Board3D Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
-                for change in _paint_changes:
-                    undo_redo.add_do_method(change, "do")
-                    undo_redo.add_undo_method(change, "undo")
-                undo_redo.commit_action(false)
-                _paint_changes.clear()
-            input_action = InputAction.INPUT_NONE
+            if mb.button_index == MOUSE_BUTTON_LEFT:
+                if input_action == InputAction.INPUT_PAINT:
+                    # Setup undo history
+                    # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
+                    undo_redo.create_action("Board3D Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                    for change in _paint_changes:
+                        undo_redo.add_do_method(change, "do")
+                        undo_redo.add_undo_method(change, "undo")
+                    undo_redo.commit_action(false)
+                    _paint_changes.clear()
+                elif input_action == InputAction.INPUT_ERASE:
+                    # Setup undo history
+                    # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
+                    undo_redo.create_action("Board3D Erase", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                    for change in _paint_changes:
+                        undo_redo.add_do_method(change, "do")
+                        undo_redo.add_undo_method(change, "undo")
+                    undo_redo.commit_action(false)
+                    _paint_changes.clear()
+                input_action = InputAction.INPUT_NONE
 
     if event is InputEventMouseMotion:
         var mm := event as InputEventMouseMotion
@@ -480,6 +506,9 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             change.name = node3d.name
             change.global_transform = node3d.global_transform
             _paint_changes.append(change)
+        return true
+    if input_action == InputAction.INPUT_PICK:
+        update_cursor_state(camera, mouse_position)
         return true
     return false
 
@@ -524,6 +553,8 @@ static func _get_grid_position_from_intersection(intersection_point: Vector3, ax
 
 func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     if mode_buttons_group.get_pressed_button() == paint_mode_button:
+        _cursor_piece_outline.visible = true
+        _cursor_tile_outline.visible = false
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         if can_paint_at_cursor_position():
             _cursor_piece_outline.outline_material = valid_draw_outline_material
@@ -531,16 +562,29 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         else:
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
+        return
 
-    elif mode_buttons_group.get_pressed_button() == attach_mode_button:
+    if mode_buttons_group.get_pressed_button() == attach_mode_button:
+        _cursor_piece_outline.visible = true
+        _cursor_tile_outline.visible = false
         if input_action == InputAction.INPUT_ATTACH:
             update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         else:
             update_cursor_state_raycast_face(camera, mouse_position, draw_offset)
-    elif mode_buttons_group.get_pressed_button() == erase_mode_button:
+        return
+
+    if mode_buttons_group.get_pressed_button() == erase_mode_button:
+        _cursor_piece_outline.visible = false
+        _cursor_tile_outline.visible = true
+        _cursor_tile_outline.axis = edit_axis
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
-    elif mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
+        return
+
+    if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
+        _cursor_piece_outline.visible = true
+        _cursor_tile_outline.visible = false
         update_cursor_state_raycast_piece(camera, mouse_position)
+        return
 
 func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axis: Vector3.Axis, offset: int) -> void:
     var plane_a := _create_plane(axis, offset - 0.5)
@@ -568,13 +612,17 @@ func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axi
         if mouse_origin.distance_squared_to(ib) > mouse_origin.distance_squared_to(ia):
             intersection_point = ib
             _cursor_grid_direction *= -1
+            _cursor_tile_outline.flipped = true
         else:
             intersection_point = ia
+            _cursor_tile_outline.flipped = false
     elif intersection_a:
         intersection_point = intersection_a
+        _cursor_tile_outline.flipped = false
     elif intersection_b:
         intersection_point = intersection_b
         _cursor_grid_direction *= -1
+        _cursor_tile_outline.flipped = true
     
     var grid_position := _get_grid_position_from_intersection(intersection_point, axis, offset)
 
@@ -645,9 +693,11 @@ func setup_draw_preview(scene: PackedScene) -> void:
     Piece3D.find_descendant_pieces(_draw_preview, _draw_preview_pieces)
 
 func auto_setup_draw_preview() -> void:
-    if _draw_scene and mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button:
+    if _draw_scene and (mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button):
+        print("setup_draw_preview")
         setup_draw_preview(_draw_scene)
     else:
+        print("clear_draw_preview")
         clear_draw_preview()
 #endregion
 
@@ -670,6 +720,11 @@ class AddRemoveChange:
         match action:
             Action.ADD: do_add()
             Action.REMOVE: do_remove()
+
+    func undo() -> void:
+        match action:
+            Action.ADD: do_remove()
+            Action.REMOVE: do_add()
 
     func do_add() -> void:
         if not scene:
@@ -695,14 +750,6 @@ class AddRemoveChange:
         parent.move_child(node3d, parent_index)
 
     func do_remove() -> void:
-        pass
-
-    func undo() -> void:
-        match action:
-            Action.ADD: undo_add()
-            Action.REMOVE: undo_remove()
-
-    func undo_add() -> void:
         if not board.has_node(parent_path):
             printerr("AddRemoveChange could not find parent at %s" % parent_path)
             return
@@ -720,6 +767,3 @@ class AddRemoveChange:
             return
         parent.remove_child(node3d)
         node3d.queue_free()
-
-    func undo_remove() -> void:
-        pass
