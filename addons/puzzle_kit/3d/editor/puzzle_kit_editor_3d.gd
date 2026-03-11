@@ -53,6 +53,7 @@ var mode_buttons_group: ButtonGroup
 
 var edit_axis: Vector3.Axis
 var draw_offset: int
+var _accumulated_draw_offset_delta: float = 0.0
 
 var input_action: InputAction = InputAction.INPUT_NONE
 
@@ -478,6 +479,21 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
         if do_input_action(viewport_camera, mm.position, false):
             return EditorPlugin.AFTER_GUI_INPUT_STOP
         return EditorPlugin.AFTER_GUI_INPUT_PASS
+
+    if event is InputEventPanGesture:
+        var pg := event as InputEventPanGesture
+
+        # Change draw offset with Ctrl + Pan Gesture
+        if pg.is_command_or_control_pressed():
+            var delta := pg.delta.y * 0.5
+            _accumulated_draw_offset_delta += delta
+            var step := 0
+            if abs(_accumulated_draw_offset_delta) > 1.0:
+                step = signi(_accumulated_draw_offset_delta)
+                _accumulated_draw_offset_delta -= step
+            if step:
+                draw_offset_spin_box.value += step
+            return EditorPlugin.AFTER_GUI_INPUT_STOP
 
     return EditorPlugin.AFTER_GUI_INPUT_PASS
 
