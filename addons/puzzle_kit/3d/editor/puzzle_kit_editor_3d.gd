@@ -82,6 +82,8 @@ var _cursor_grid_direction: Vector3i
 var _paint_fresh_nodes: Array[Node3D]
 var _paint_changes: Array[AddRemoveChange]
 
+var _erase_root_node: WeakRef
+
 func _enter_tree() -> void:
     if is_being_edited():
         return
@@ -516,12 +518,30 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             var change := AddRemoveChange.new()
             change.board = _board
             change.action = AddRemoveChange.Action.ADD
-            change.scene = _draw_scene
+            change.scene_file_path = _draw_scene.resource_path
             change.parent_path = _board.get_path_to(node3d.get_parent())
             change.parent_index = node3d.get_index()
             change.name = node3d.name
             change.global_transform = node3d.global_transform
             _paint_changes.append(change)
+        return true
+    if input_action == InputAction.INPUT_ERASE:
+        if click:
+            _paint_changes = []
+        update_cursor_state(camera, mouse_position)
+        var erase_node: Variant = _erase_root_node.get_ref() if _erase_root_node else null
+        var node3d := erase_node as Node3D
+        if node3d:
+            var change := AddRemoveChange.new()
+            change.board = _board
+            change.action = AddRemoveChange.Action.REMOVE
+            change.scene_file_path = node3d.scene_file_path
+            change.parent_path = _board.get_path_to(node3d.get_parent())
+            change.parent_index = node3d.get_index()
+            change.name = node3d.name
+            change.global_transform = node3d.global_transform
+            _paint_changes.append(change)
+            node3d.queue_free()
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)
@@ -594,6 +614,18 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         _cursor_tile_outline.visible = true
         _cursor_tile_outline.axis = edit_axis
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        var piece_under_cursor := _board.get_piece_at(_cursor_grid_position)
+        if piece_under_cursor:
+            var piece_root_node := _get_node_root_in_ancestor(piece_under_cursor, _board)
+            if piece_root_node is Node3D:
+                var piece_root_node3d := piece_root_node as Node3D
+                _erase_root_node = weakref(piece_root_node3d)
+                _cursor.global_transform = piece_root_node3d.global_transform
+                _cursor_piece_outline.generate_from(piece_root_node3d)
+                _cursor_piece_outline.visible = true
+                _cursor_tile_outline.visible = false
+                _cursor_piece_outline.outline_material = erase_draw_outline_material
+                _cursor_piece_outline.fill_material = erase_draw_fill_material
         return
 
     if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
@@ -724,7 +756,7 @@ class AddRemoveChange:
 
     var board: Board3D
     var action: Action
-    var scene: PackedScene
+    var scene_file_path: String
     var parent_path: NodePath
     var parent_index: int
     var name: String
@@ -741,12 +773,13 @@ class AddRemoveChange:
             Action.REMOVE: do_add()
 
     func do_add() -> void:
-        if not scene:
+        if scene_file_path.is_empty():
             printerr("AddRemoveChange has no scene")
             return
         if not board.has_node(parent_path):
             printerr("AddRemoveChange could not find parent at %s" % parent_path)
             return
+        var scene := load(scene_file_path) as PackedScene
         var node := scene.instantiate()
         if not node:
             printerr("AddRemoveChange scene would not instantiate")
