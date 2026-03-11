@@ -489,7 +489,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             _accumulated_draw_offset_delta += delta
             var step := 0
             if abs(_accumulated_draw_offset_delta) > 1.0:
-                step = signi(_accumulated_draw_offset_delta)
+                step = signi(roundi(_accumulated_draw_offset_delta))
                 _accumulated_draw_offset_delta -= step
             if step:
                 draw_offset_spin_box.value += step
