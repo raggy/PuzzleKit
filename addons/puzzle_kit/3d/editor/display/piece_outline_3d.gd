@@ -20,7 +20,7 @@ func generate_from(node: Node3D) -> void:
         _mesh.clear_surfaces()   
         return
 
-    if node == _node_generated_from.get_ref():
+    if _node_generated_from and node == _node_generated_from.get_ref():
         return
     # Save a reference to node so we can skip redundant regenerations
     _node_generated_from = weakref(node)
