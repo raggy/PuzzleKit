@@ -710,10 +710,8 @@ func setup_draw_preview(scene: PackedScene) -> void:
 
 func auto_setup_draw_preview() -> void:
     if _draw_scene and (mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button):
-        print("setup_draw_preview")
         setup_draw_preview(_draw_scene)
     else:
-        print("clear_draw_preview")
         clear_draw_preview()
 #endregion
 
