@@ -295,8 +295,11 @@ func _deregister_piece(piece: Piece3D) -> void:
 
 func _update_cells() -> void:
     for piece in _active_pieces:
+        # Piece will be removed at end of frame
+        if piece.is_queued_for_deletion():
+            continue
         # Piece hasn't changed since we last looked
-        if piece.global_transform == piece._board_cached_transform:
+        if piece.get_parent() and piece.global_transform == piece._board_cached_transform:
             continue
         _update_piece_cell(piece)
 
