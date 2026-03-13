@@ -541,8 +541,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             change.name = node3d.name
             change.global_transform = node3d.global_transform
             _paint_changes.append(change)
-            node3d.get_parent().remove_child(node3d)
-            node3d.queue_free()
+            node3d.free()
+            _erase_root_node = null
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)
@@ -611,6 +611,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         return
 
     if mode_buttons_group.get_pressed_button() == erase_mode_button:
+        _erase_root_node = null
         _cursor_piece_outline.visible = false
         _cursor_tile_outline.visible = true
         _cursor_tile_outline.axis = edit_axis
