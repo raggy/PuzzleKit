@@ -541,6 +541,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             change.name = node3d.name
             change.global_transform = node3d.global_transform
             _paint_changes.append(change)
+            node3d.get_parent().remove_child(node3d)
             node3d.queue_free()
         return true
     if input_action == InputAction.INPUT_PICK:
@@ -791,10 +792,10 @@ class AddRemoveChange:
             return
         var parent := board.get_node(parent_path)
         parent.add_child(node3d)
+        parent.move_child(node3d, parent_index)
         node3d.owner = board.owner
         node3d.name = name
         node3d.global_transform = global_transform
-        parent.move_child(node3d, parent_index)
 
     func do_remove() -> void:
         if not board.has_node(parent_path):
