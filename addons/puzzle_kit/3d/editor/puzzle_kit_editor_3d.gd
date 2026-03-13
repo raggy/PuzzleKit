@@ -530,8 +530,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             _paint_changes = []
         update_cursor_state(camera, mouse_position)
         var erase_node: Variant = _erase_root_node.get_ref() if _erase_root_node else null
-        var node3d := erase_node as Node3D
-        if node3d:
+        if erase_node is Node3D:
+            var node3d: Node3D = erase_node
             var change := AddRemoveChange.new()
             change.board = _board
             change.action = AddRemoveChange.Action.REMOVE
