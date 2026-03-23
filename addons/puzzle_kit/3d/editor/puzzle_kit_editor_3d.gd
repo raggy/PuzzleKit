@@ -456,23 +456,25 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
         else:
             if mb.button_index == MOUSE_BUTTON_LEFT:
                 if input_action == InputAction.INPUT_PAINT:
-                    # Setup undo history
-                    # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                    undo_redo.create_action("Board3D Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
-                    for change in _paint_changes:
-                        undo_redo.add_do_method(change, "do")
-                        undo_redo.add_undo_method(change, "undo")
-                    undo_redo.commit_action(false)
-                    _paint_changes.clear()
+                    if not _paint_changes.is_empty():
+                        # Setup undo history
+                        # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
+                        undo_redo.create_action("Board3D Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                        for change in _paint_changes:
+                            undo_redo.add_do_method(change, "do")
+                            undo_redo.add_undo_method(change, "undo")
+                        undo_redo.commit_action(false)
+                        _paint_changes.clear()
                 elif input_action == InputAction.INPUT_ERASE:
-                    # Setup undo history
-                    # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                    undo_redo.create_action("Board3D Erase", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
-                    for change in _paint_changes:
-                        undo_redo.add_do_method(change, "do")
-                        undo_redo.add_undo_method(change, "undo")
-                    undo_redo.commit_action(false)
-                    _paint_changes.clear()
+                    if not _paint_changes.is_empty():
+                        # Setup undo history
+                        # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
+                        undo_redo.create_action("Board3D Erase", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                        for change in _paint_changes:
+                            undo_redo.add_do_method(change, "do")
+                            undo_redo.add_undo_method(change, "undo")
+                        undo_redo.commit_action(false)
+                        _paint_changes.clear()
                 input_action = InputAction.INPUT_NONE
 
     if event is InputEventMouseMotion:
