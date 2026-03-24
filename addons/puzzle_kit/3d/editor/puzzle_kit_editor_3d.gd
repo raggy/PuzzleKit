@@ -78,11 +78,10 @@ var _cursor_piece_outline: PieceOutline3D
 var _cursor_tile_outline: TileOutline3D
 var _cursor_grid_position: Vector3i
 var _cursor_grid_direction: Vector3i
+var _cursor_root_node: WeakRef
 
 var _paint_fresh_nodes: Array[Node3D]
 var _paint_changes: Array[AddRemoveChange]
-
-var _erase_root_node: WeakRef
 
 func _enter_tree() -> void:
     if is_being_edited():
@@ -522,16 +521,25 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         if click:
             _paint_changes = []
         update_cursor_state(camera, mouse_position)
-        var erase_node: Variant = _erase_root_node.get_ref() if _erase_root_node else null
+        var erase_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
         if erase_node is Node3D:
             var node3d: Node3D = erase_node
             var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.REMOVE)
             _paint_changes.append(change)
             node3d.get_parent().remove_child(node3d)
-            _erase_root_node = null
+            _cursor_root_node = null
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)
+        var pick_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
+        if pick_node is Node3D:
+            var node3d: Node3D = pick_node
+            for index: int in _palette_index_to_path.keys():
+                var path := _palette_index_to_path[index]
+                if path == node3d.scene_file_path:
+                    palette.select(index, true)
+                    _on_palette_item_selected(index)
+                    break
         return true
     return false
 
@@ -575,6 +583,8 @@ static func _get_grid_position_from_intersection(intersection_point: Vector3, ax
     return Vector3()
 
 func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
+    _cursor_root_node = null
+
     if mode_buttons_group.get_pressed_button() == paint_mode_button:
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
@@ -597,7 +607,6 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         return
 
     if mode_buttons_group.get_pressed_button() == erase_mode_button:
-        _erase_root_node = null
         _cursor_piece_outline.visible = false
         _cursor_tile_outline.visible = true
         _cursor_tile_outline.axis = edit_axis
@@ -607,7 +616,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
             var piece_root_node := _get_node_root_in_ancestor(piece_under_cursor, _board)
             if piece_root_node is Node3D:
                 var piece_root_node3d := piece_root_node as Node3D
-                _erase_root_node = weakref(piece_root_node3d)
+                _cursor_root_node = weakref(piece_root_node3d)
                 _cursor.global_transform = piece_root_node3d.global_transform
                 _cursor_piece_outline.generate_from(piece_root_node3d)
                 _cursor_piece_outline.visible = true
@@ -619,6 +628,12 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
+        if input_action == InputAction.INPUT_PICK:
+            _cursor_piece_outline.outline_material = valid_draw_outline_material
+            _cursor_piece_outline.fill_material = valid_draw_fill_material
+        else:
+            _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.fill_material = invalid_draw_fill_material
         update_cursor_state_raycast_piece(camera, mouse_position)
         return
 
@@ -690,6 +705,7 @@ func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2
     _cursor.visible = true
     _cursor.global_transform = piece_root_node3d.global_transform
     _cursor_piece_outline.generate_from(piece_root_node3d)
+    _cursor_root_node = weakref(piece_root_node3d)
 
 func can_paint_at_cursor_position() -> bool:
     if not _draw_preview or _draw_preview_pieces.size() == 0:
