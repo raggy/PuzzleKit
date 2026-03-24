@@ -461,8 +461,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
                         undo_redo.create_action("Board3D Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
                         for change in _paint_changes:
-                            undo_redo.add_do_method(change, "do")
-                            undo_redo.add_undo_method(change, "undo")
+                            change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
                 elif input_action == InputAction.INPUT_ERASE:
@@ -471,8 +470,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
                         undo_redo.create_action("Board3D Erase", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
                         for change in _paint_changes:
-                            undo_redo.add_do_method(change, "do")
-                            undo_redo.add_undo_method(change, "undo")
+                            change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
                 input_action = InputAction.INPUT_NONE
@@ -517,14 +515,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             _board.add_child(node3d, true)
             node3d.global_transform = _cursor.global_transform
             node3d.owner = _board.owner
-            var change := AddRemoveChange.new()
-            change.board = _board
-            change.action = AddRemoveChange.Action.ADD
-            change.scene_file_path = _draw_scene.resource_path
-            change.parent_path = _board.get_path_to(node3d.get_parent())
-            change.parent_index = node3d.get_index()
-            change.name = node3d.name
-            change.global_transform = node3d.global_transform
+            var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
             _paint_changes.append(change)
         return true
     if input_action == InputAction.INPUT_ERASE:
@@ -534,16 +525,9 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         var erase_node: Variant = _erase_root_node.get_ref() if _erase_root_node else null
         if erase_node is Node3D:
             var node3d: Node3D = erase_node
-            var change := AddRemoveChange.new()
-            change.board = _board
-            change.action = AddRemoveChange.Action.REMOVE
-            change.scene_file_path = node3d.scene_file_path
-            change.parent_path = _board.get_path_to(node3d.get_parent())
-            change.parent_index = node3d.get_index()
-            change.name = node3d.name
-            change.global_transform = node3d.global_transform
+            var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.REMOVE)
             _paint_changes.append(change)
-            node3d.free()
+            node3d.get_parent().remove_child(node3d)
             _erase_root_node = null
         return true
     if input_action == InputAction.INPUT_PICK:
@@ -758,63 +742,38 @@ class AddRemoveChange:
         REMOVE,
     }
 
-    var board: Board3D
     var action: Action
-    var scene_file_path: String
-    var parent_path: NodePath
-    var parent_index: int
-    var name: String
+    var node: Node3D
+    var owner: Node
+    var parent: Node
+    var index: int
     var global_transform: Transform3D
 
-    func do() -> void:
-        match action:
-            Action.ADD: do_add()
-            Action.REMOVE: do_remove()
+    static func create_from(n: Node3D, a: Action) -> AddRemoveChange:
+        var change := AddRemoveChange.new()
+        change.action = a
+        change.node = n
+        change.owner = n.owner
+        change.parent = n.get_parent()
+        change.index = n.get_index(false)
+        change.global_transform = n.global_transform
+        return change
 
-    func undo() -> void:
+    func register_with_undo_redo(undo_redo: EditorUndoRedoManager) -> void:
         match action:
-            Action.ADD: do_remove()
-            Action.REMOVE: do_add()
+            Action.ADD:
+                undo_redo.add_do_method(self, "do_add")
+                undo_redo.add_undo_method(self, "do_remove")
+            Action.REMOVE:
+                undo_redo.add_do_method(self, "do_remove")
+                undo_redo.add_undo_method(self, "do_add")
+                undo_redo.add_undo_reference(node)
 
     func do_add() -> void:
-        if scene_file_path.is_empty():
-            printerr("AddRemoveChange has no scene")
-            return
-        if not board.has_node(parent_path):
-            printerr("AddRemoveChange could not find parent at %s" % parent_path)
-            return
-        var scene := load(scene_file_path) as PackedScene
-        var node := scene.instantiate()
-        if not node:
-            printerr("AddRemoveChange scene would not instantiate")
-            return
-        var node3d := node as Node3D
-        if not node3d:
-            printerr("AddRemoveChange created non-Node3D")
-            node.queue_free()
-            return
-        var parent := board.get_node(parent_path)
-        parent.add_child(node3d)
-        parent.move_child(node3d, parent_index)
-        node3d.owner = board.owner
-        node3d.name = name
-        node3d.global_transform = global_transform
+        parent.add_child(node, true)
+        parent.move_child(node, index)
+        node.owner = owner
+        node.global_transform = global_transform
 
     func do_remove() -> void:
-        if not board.has_node(parent_path):
-            printerr("AddRemoveChange could not find parent at %s" % parent_path)
-            return
-        var parent := board.get_node(parent_path)
-        if parent.get_child_count() <= parent_index:
-            printerr("AddRemoveChange parent had less than %s children" % (parent_index + 1))
-            return
-        var node := parent.get_child(parent_index)
-        if node.name != name:
-            printerr("AddRemoveChange found node with different name (expected: %s, found: %s)" % [name, node.name])
-            return
-        var node3d := node as Node3D
-        if not node3d:
-            printerr("AddRemoveChange found non-Node3D")
-            return
-        parent.remove_child(node3d)
-        node3d.queue_free()
+        parent.remove_child(node)
