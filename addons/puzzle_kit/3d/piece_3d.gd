@@ -49,6 +49,12 @@ func _enter_tree() -> void:
     
     if not _board:
         _board = _find_board()
+    else:
+        _update_board_state()
+
+func _exit_tree() -> void:
+    if _board:
+        _board._deactivate_piece(self)
 
 func _ready() -> void:
     flags = GroupFilter.groups_to_flags(get_groups())
@@ -94,11 +100,7 @@ func set_parent_piece(value: Piece3D) -> void:
     elif value and not is_ancestor_of(value):
         _change_parent_node(current_parent_node, value)
     # Ensure our active state is up-to-date in the board in case it's changed
-    if _board:
-        if is_active_in_tree():
-            _board._activate_piece(self)
-        else:
-            _board._deactivate_piece(self)
+    _update_board_state()
 
 ## Returns true if this piece matches `group_filter`
 func matches(group_filter: GroupFilter) -> bool:
@@ -115,8 +117,10 @@ func get_first_child_piece_matching(group_filter: GroupFilter) -> Piece3D:
 func get_child_pieces_matching(group_filter: GroupFilter) -> Array[Piece3D]:
     return _child_pieces.filter(group_filter.matches_3d)
 
-## Returns true if Piece3D's `active` property is true and all its ancestor Piece3D are also `active`
+## Returns true if Piece3D's `active` property is true, all its ancestor Piece3D are also `active` and `is_inside_tree()` is true
 func is_active_in_tree() -> bool:
+    if not is_inside_tree():
+        return false
     if not parent_piece:
         return active
     return active and parent_piece.is_active_in_tree()
@@ -128,11 +132,7 @@ func set_active(value: bool) -> void:
     
     active = value
     
-    if _board:
-        if value:
-            _board._activate_piece(self)
-        else:
-            _board._deactivate_piece(self)
+    _update_board_state()
 
 func _get_grid_position() -> Vector3i:
     return round(global_position)
@@ -204,6 +204,15 @@ func _find_piece_ancestor() -> Piece3D:
         search_parent = search_parent.get_parent()
     # Reached the root without finding anything
     return null
+
+func _update_board_state() -> void:
+    if not _board:
+        return
+    
+    if is_active_in_tree():
+        _board._activate_piece(self)
+    else:
+        _board._deactivate_piece(self)
 
 func _commit_changes() -> void:
     changes_committing.emit()
