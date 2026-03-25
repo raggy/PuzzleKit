@@ -2,7 +2,13 @@
 class_name PuzzleKitEditor3D
 extends VBoxContainer
 
+# Written heavily referencing the GridMap editor plugin
+# With thanks to Godot contributors
+# https://github.com/godotengine/godot/blob/master/modules/gridmap/editor/grid_map_editor_plugin.cpp
+
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
+
+const GRID_CURSOR_SIZE := 50
 
 @export var paint_mode_button: Button
 @export var attach_mode_button: Button
@@ -65,6 +71,7 @@ var invalid_draw_outline_material: Material
 var invalid_draw_fill_material: Material
 var erase_draw_outline_material: Material
 var erase_draw_fill_material: Material
+var grid_material: Material
 
 var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
@@ -82,6 +89,9 @@ var _cursor_root_node: WeakRef
 
 var _paint_fresh_nodes: Array[Node3D]
 var _paint_changes: Array[AddRemoveChange]
+
+var _grid: Array[ArrayMesh]
+var _grid_instances: Array[MeshInstance3D]
 
 func _enter_tree() -> void:
     if is_being_edited():
@@ -107,6 +117,7 @@ func _ready() -> void:
     invalid_draw_fill_material = create_tool_material(Color(0.7, 0.7, 0.7, 0.25))
     erase_draw_outline_material = create_tool_material(Color(1, 0, 0, 1))
     erase_draw_fill_material = create_tool_material(Color(1, 0, 0, 0.25))
+    grid_material = create_tool_material(Color(0.5, 0.5, 0.5, 1))
     
     _cursor = Node3D.new()
     add_child(_cursor)
@@ -120,6 +131,19 @@ func _ready() -> void:
     _cursor_tile_outline.outline_material = erase_draw_outline_material
     _cursor_tile_outline.fill_material = erase_draw_fill_material
     _cursor.add_child(_cursor_tile_outline)
+
+    _grid = []
+    _grid_instances = []
+    for i in range(3):
+        var grid_mesh := ArrayMesh.new()
+        var grid_instance := MeshInstance3D.new()
+        grid_instance.mesh = grid_mesh
+        grid_instance.layers = 1 << 24
+        add_child(grid_instance)
+        _grid.append(grid_mesh)
+        _grid_instances.append(grid_instance)
+    _draw_grids(Vector3.ONE)
+    _hide_all_grids()
 
     _add_shortcuts_to_editor_settings()
 
@@ -318,6 +342,54 @@ func _menu_option(id: Menu) -> void:
             elif id == Menu.MENU_OPTION_CURSOR_ROTATE_Z or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
                 rotation_axis.z = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Z else -1
             _cursor.rotate(rotation_axis, -PI / 2.0)
+
+#region Grid
+func _draw_grids(cell_size: Vector3) -> void:
+    for i in range(3):
+        var grid := _grid[i]
+
+        grid.clear_surfaces()
+
+        var axis_n1 := Vector3()
+        axis_n1[(i + 1) % 3] = cell_size[(i + 1) % 3]
+        var axis_n2 := Vector3()
+        axis_n2[(i + 2) % 3] = cell_size[(i + 2) % 3]
+
+        var grid_points := PackedVector3Array()
+        var grid_colors := PackedColorArray()
+
+        for j in range(-GRID_CURSOR_SIZE, GRID_CURSOR_SIZE + 1):
+            for k in range(-GRID_CURSOR_SIZE, GRID_CURSOR_SIZE + 1):
+                var p := axis_n1 * (j - 0.5) + axis_n2 * (k - 0.5)
+                var trans := pow(maxf(0, 1.0 - (Vector2(j - 0.5, k - 0.5).length() / GRID_CURSOR_SIZE)), 2)
+
+                var pj := axis_n1 * (j + 0.5) + axis_n2 * (k - 0.5)
+                var transj := pow(maxf(0, 1.0 - (Vector2(j + 0.5, k - 0.5).length() / GRID_CURSOR_SIZE)), 2)
+
+                var pk := axis_n1 * (j - 0.5) + axis_n2 * (k + 0.5)
+                var transk := pow(maxf(0, 1.0 - (Vector2(j - 0.5, k + 0.5).length() / GRID_CURSOR_SIZE)), 2)
+
+                grid_points.push_back(p)
+                grid_points.push_back(pk)
+                grid_colors.push_back(Color(1, 1, 1, trans))
+                grid_colors.push_back(Color(1, 1, 1, transk))
+
+                grid_points.push_back(p)
+                grid_points.push_back(pj)
+                grid_colors.push_back(Color(1, 1, 1, trans))
+                grid_colors.push_back(Color(1, 1, 1, transj))
+
+        var d := Array()
+        d.resize(Mesh.ARRAY_MAX)
+        d[Mesh.ARRAY_VERTEX] = grid_points
+        d[Mesh.ARRAY_COLOR] = grid_colors
+        grid.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, d)
+        grid.surface_set_material(0, grid_material)
+
+func _hide_all_grids() -> void:
+    for i in range(3):
+        _grid_instances[i].visible = false
+#endregion
 
 #region Piece palette
 func _on_piece_directory_pick_button_pressed() -> void:
@@ -600,6 +672,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     if mode_buttons_group.get_pressed_button() == attach_mode_button:
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
+        _hide_all_grids()
         if input_action == InputAction.INPUT_ATTACH:
             update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         else:
@@ -628,6 +701,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
+        _hide_all_grids()
         if input_action == InputAction.INPUT_PICK:
             _cursor_piece_outline.outline_material = valid_draw_outline_material
             _cursor_piece_outline.fill_material = valid_draw_fill_material
@@ -678,8 +752,15 @@ func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axi
     var grid_position := _get_grid_position_from_intersection(intersection_point, axis, offset)
 
     _cursor.visible = true
-    _cursor.global_position = grid_position
+    _cursor.global_position = grid_position + _cursor_grid_direction * 0.0001
     _cursor_grid_position = grid_position
+
+    for i in range(3):
+        if i == axis:
+            _grid_instances[i].visible = true
+            _grid_instances[i].global_position = grid_position - _cursor_grid_direction * 0.5
+        else:
+            _grid_instances[i].visible = false
 
 func update_cursor_state_raycast_face(camera: Camera3D, mouse_position: Vector2, offset: int) -> void:
     pass
