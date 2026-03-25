@@ -159,11 +159,3 @@ static func vert_to_index(vert: Vector3, verts: PackedVector3Array, verts_to_ind
     verts.append(vert)
     verts_to_indices[vert] = index
     return index
-
-static func create_preview_material(color: Color) -> BaseMaterial3D:
-    var material := StandardMaterial3D.new()
-    material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    material.disable_fog = true
-    material.albedo_color = color
-    return material

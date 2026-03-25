@@ -101,12 +101,12 @@ func _ready() -> void:
     if is_being_edited():
         return
 
-    valid_draw_outline_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 1))
-    valid_draw_fill_material = PieceOutline3D.create_preview_material(Color(1, 1, 1, 0.25))
-    invalid_draw_outline_material = PieceOutline3D.create_preview_material(Color(0.7, 0.7, 0.7, 1))
-    invalid_draw_fill_material = PieceOutline3D.create_preview_material(Color(0.7, 0.7, 0.7, 0.25))
-    erase_draw_outline_material = PieceOutline3D.create_preview_material(Color(1, 0, 0, 1))
-    erase_draw_fill_material = PieceOutline3D.create_preview_material(Color(1, 0, 0, 0.25))
+    valid_draw_outline_material = create_tool_material(Color(1, 1, 1, 1))
+    valid_draw_fill_material = create_tool_material(Color(1, 1, 1, 0.25))
+    invalid_draw_outline_material = create_tool_material(Color(0.7, 0.7, 0.7, 1))
+    invalid_draw_fill_material = create_tool_material(Color(0.7, 0.7, 0.7, 0.25))
+    erase_draw_outline_material = create_tool_material(Color(1, 0, 0, 1))
+    erase_draw_fill_material = create_tool_material(Color(1, 0, 0, 0.25))
     
     _cursor = Node3D.new()
     add_child(_cursor)
@@ -750,6 +750,15 @@ func auto_setup_draw_preview() -> void:
     else:
         clear_draw_preview()
 #endregion
+
+static func create_tool_material(color: Color) -> BaseMaterial3D:
+    var m := StandardMaterial3D.new()
+    m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    m.vertex_color_use_as_albedo = true
+    m.disable_fog = true
+    m.albedo_color = color
+    return m
 
 class AddRemoveChange:
     enum Action {
