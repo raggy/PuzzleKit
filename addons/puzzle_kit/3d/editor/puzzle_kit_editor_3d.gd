@@ -86,10 +86,12 @@ var _cursor_piece_outline: PieceOutline3D
 var _cursor_tile_outline: TileOutline3D
 var _cursor_grid_position: Vector3i
 var _cursor_grid_direction: Vector3i
+var _cursor_plane_position: Vector3
 var _cursor_root_node: WeakRef
 
 var _paint_fresh_nodes: Array[Node3D]
 var _paint_changes: Array[AddRemoveChange]
+var _paint_plane_position: Vector3
 
 var _grid: Array[ArrayMesh]
 var _grid_instances: Array[MeshInstance3D]
@@ -576,11 +578,24 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
 
 func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> bool:
     if input_action == InputAction.INPUT_PAINT:
+        update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        var paint_positions: Array[Vector3i]
         if click:
             _paint_fresh_nodes = []
             _paint_changes = []
-        update_cursor_state(camera, mouse_position)
-        if _draw_scene and can_paint_at_cursor_position():
+            # Always try to draw once under cursor on click
+            paint_positions = [_cursor_grid_position]
+        else:
+            # Get positions between position we previously painted at and new position (in case of fast mouse movement)
+            paint_positions = get_cells_entered(_paint_plane_position, _cursor_plane_position)
+        _paint_plane_position = _cursor_plane_position
+        # Nothing to draw
+        if not _draw_scene:
+            return true
+        for paint_position in paint_positions:
+            _cursor.global_position = paint_position
+            if not can_paint_at_preview_position():
+                continue
             var node := _draw_scene.instantiate()
             var node3d := node as Node3D
             if not node3d:
@@ -594,16 +609,27 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             _paint_changes.append(change)
         return true
     if input_action == InputAction.INPUT_ERASE:
+        update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        var erase_positions: Array[Vector3i]
         if click:
             _paint_changes = []
-        update_cursor_state(camera, mouse_position)
-        var erase_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
-        if erase_node is Node3D:
-            var node3d: Node3D = erase_node
-            var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.REMOVE)
-            _paint_changes.append(change)
-            node3d.get_parent().remove_child(node3d)
-            _cursor_root_node = null
+            # Always try to draw once under cursor on click
+            erase_positions = [_cursor_grid_position]
+        else:
+            # Get positions between position we previously painted at and new position (in case of fast mouse movement)
+            erase_positions = get_cells_entered(_paint_plane_position, _cursor_plane_position)
+        _paint_plane_position = _cursor_plane_position
+        for erase_position in erase_positions:
+            var piece_under_cursor := _board.get_piece_at(erase_position)
+            if not piece_under_cursor:
+                # Nothing to erase here
+                continue
+            var piece_root_node := _get_node_root_in_ancestor(piece_under_cursor, _board)
+            if piece_root_node is Node3D:
+                var piece_root_node3d := piece_root_node as Node3D
+                var change := AddRemoveChange.create_from(piece_root_node3d, AddRemoveChange.Action.REMOVE)
+                _paint_changes.append(change)
+                piece_root_node3d.get_parent().remove_child(piece_root_node3d)
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)
@@ -658,6 +684,14 @@ static func _get_grid_position_from_intersection(intersection_point: Vector3, ax
     
     return Vector3()
 
+static func _get_plane_position_from_intersection(intersection_point: Vector3, axis: Vector3.Axis, plane_offset: float) -> Vector3:
+    match axis:
+        Vector3.AXIS_X: return Vector3(plane_offset, intersection_point.y, intersection_point.z)
+        Vector3.AXIS_Y: return Vector3(intersection_point.x, plane_offset, intersection_point.z)
+        Vector3.AXIS_Z: return Vector3(intersection_point.x, intersection_point.y, plane_offset)
+    
+    return Vector3()
+
 func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     _cursor_root_node = null
 
@@ -665,7 +699,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
-        if can_paint_at_cursor_position():
+        if can_paint_at_preview_position():
             _cursor_piece_outline.outline_material = valid_draw_outline_material
             _cursor_piece_outline.fill_material = valid_draw_fill_material
         else:
@@ -759,6 +793,7 @@ func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axi
     _cursor.global_position = grid_position
     _cursor_tile_outline.position = _cursor_grid_direction * 0.0001
     _cursor_grid_position = grid_position
+    _cursor_plane_position = _get_plane_position_from_intersection(intersection_point, axis, offset)
 
     for i in range(3):
         if i == axis:
@@ -793,7 +828,7 @@ func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2
     _cursor_piece_outline.generate_from(piece_root_node3d)
     _cursor_root_node = weakref(piece_root_node3d)
 
-func can_paint_at_cursor_position() -> bool:
+func can_paint_at_preview_position() -> bool:
     if not _draw_preview or _draw_preview_pieces.size() == 0:
         return false
     
@@ -836,6 +871,44 @@ func auto_setup_draw_preview() -> void:
     else:
         clear_draw_preview()
 #endregion
+
+static func get_cells_entered(from: Vector3, to: Vector3) -> Array[Vector3i]:
+    var points: Array[Vector3i] = []
+
+    var direction := (to - from).normalized()
+    var start: Vector3i = from.round()
+    var end: Vector3i = to.round()
+    var offset := end - start
+    var p := start
+    var dt := Vector3(1.0 / absf(direction.x), 1.0 / absf(direction.y), 1.0 / absf(direction.z))
+    var step := Vector3i()
+    var next_edge := Vector3()
+
+    for i in range(3):
+        if direction[i] == 0:
+            step[i] = 0
+            next_edge[i] = dt[i]
+        elif direction[i] > 0:
+            step[i] = 1
+            next_edge[i] = (p[i] + 0.5 - from[i]) * dt[i]
+        else:
+            step[i] = -1
+            next_edge[i] = (from[i] + 0.5 - p[i]) * dt[i]
+
+    for i in range(absi(offset.x) + absi(offset.y) + absi(offset.z)):
+        # Find the closest edge and move towards it
+        if next_edge.x < next_edge.y and next_edge.x < next_edge.z:
+            p.x += step.x
+            next_edge.x += dt.x
+        elif next_edge.y < next_edge.x and next_edge.y < next_edge.z:
+            p.y += step.y
+            next_edge.y += dt.y
+        else:
+            p.z += step.z
+            next_edge.z += dt.z
+
+        points.append(p)
+    return points
 
 static func create_tool_material(color: Color) -> BaseMaterial3D:
     var m := StandardMaterial3D.new()
