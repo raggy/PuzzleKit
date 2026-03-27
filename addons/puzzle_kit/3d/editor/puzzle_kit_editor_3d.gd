@@ -81,6 +81,7 @@ var _draw_scene: PackedScene
 var _board: Board3D
 
 var _cursor: Node3D
+var _cursor_piece_container: Node3D
 var _cursor_piece_outline: PieceOutline3D
 var _cursor_tile_outline: TileOutline3D
 var _cursor_grid_position: Vector3i
@@ -122,10 +123,13 @@ func _ready() -> void:
     _cursor = Node3D.new()
     add_child(_cursor)
 
+    _cursor_piece_container = Node3D.new()
+    _cursor.add_child(_cursor_piece_container)
+
     _cursor_piece_outline = PieceOutline3D.new()
     _cursor_piece_outline.outline_material = invalid_draw_outline_material
     _cursor_piece_outline.fill_material = invalid_draw_fill_material
-    _cursor.add_child(_cursor_piece_outline)
+    _cursor_piece_container.add_child(_cursor_piece_outline)
 
     _cursor_tile_outline = TileOutline3D.new()
     _cursor_tile_outline.outline_material = erase_draw_outline_material
@@ -341,7 +345,7 @@ func _menu_option(id: Menu) -> void:
                 rotation_axis.y = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Y else -1
             elif id == Menu.MENU_OPTION_CURSOR_ROTATE_Z or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
                 rotation_axis.z = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Z else -1
-            _cursor.rotate(rotation_axis, -PI / 2.0)
+            _cursor_piece_container.rotate(rotation_axis, -PI / 2.0)
 
 #region Grid
 func _draw_grids(cell_size: Vector3) -> void:
@@ -584,7 +588,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 return true
             _paint_fresh_nodes.append(node3d)
             _board.add_child(node3d, true)
-            node3d.global_transform = _cursor.global_transform
+            node3d.global_transform = _cursor_piece_container.global_transform
             node3d.owner = _board.owner
             var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
             _paint_changes.append(change)
@@ -752,7 +756,8 @@ func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axi
     var grid_position := _get_grid_position_from_intersection(intersection_point, axis, offset)
 
     _cursor.visible = true
-    _cursor.global_position = grid_position + _cursor_grid_direction * 0.0001
+    _cursor.global_position = grid_position
+    _cursor_tile_outline.position = _cursor_grid_direction * 0.0001
     _cursor_grid_position = grid_position
 
     for i in range(3):
@@ -818,7 +823,7 @@ func setup_draw_preview(scene: PackedScene) -> void:
         return
     
     _draw_preview = node
-    _cursor.add_child(_draw_preview)
+    _cursor_piece_container.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
     _cursor_piece_outline.generate_from(_draw_preview)
     
