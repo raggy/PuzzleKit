@@ -287,6 +287,9 @@ func _add_shortcuts_to_editor_settings() -> void:
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_z_axis", shortcut_edit_z_axis)
 
 func _process(_delta: float) -> void:
+    if is_being_edited():
+        return
+    
     var viewport := EditorInterface.get_editor_viewport_3d()
 
     update_cursor_state(viewport.get_camera_3d(), viewport.get_mouse_position())
