@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://vbuogr241dq1" path="res://addons/puzzle_kit/3d/editor/puzzle_kit_editor_3d.gd" id="1_heuv1"]
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette", "options_button")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette", "options_button")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -10,6 +10,7 @@ grow_horizontal = 2
 grow_vertical = 2
 pivot_offset = Vector2(496, -146)
 script = ExtResource("1_heuv1")
+transform_mode_button = NodePath("Toolbar/TransformModeButton")
 paint_mode_button = NodePath("Toolbar/PaintModeButton")
 attach_mode_button = NodePath("Toolbar/AttachModeButton")
 erase_mode_button = NodePath("Toolbar/EraseModeButton")
@@ -18,7 +19,7 @@ select_mode_button = NodePath("Toolbar/SelectModeButton")
 rotate_x_button = NodePath("Toolbar/RotateXButton")
 rotate_y_button = NodePath("Toolbar/RotateYButton")
 rotate_z_button = NodePath("Toolbar/RotateZButton")
-viewport_shortcut_buttons = [NodePath("Toolbar/PaintModeButton"), NodePath("Toolbar/AttachModeButton"), NodePath("Toolbar/EraseModeButton"), NodePath("Toolbar/PickModeButton"), NodePath("Toolbar/SelectModeButton"), NodePath("Toolbar/RotateXButton"), NodePath("Toolbar/RotateYButton"), NodePath("Toolbar/RotateZButton"), NodePath("Toolbar/PickPieceDirectory")]
+viewport_shortcut_buttons = [NodePath("Toolbar/TransformModeButton"), NodePath("Toolbar/PaintModeButton"), NodePath("Toolbar/AttachModeButton"), NodePath("Toolbar/EraseModeButton"), NodePath("Toolbar/PickModeButton"), NodePath("Toolbar/SelectModeButton"), NodePath("Toolbar/RotateXButton"), NodePath("Toolbar/RotateYButton"), NodePath("Toolbar/RotateZButton"), NodePath("Toolbar/PickPieceDirectory")]
 draw_offset_spin_box = NodePath("Toolbar/DrawOffsetSpinBox")
 piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
@@ -28,6 +29,14 @@ options_button = NodePath("Toolbar/OptionsButton")
 metadata/_custom_type_script = "uid://vbuogr241dq1"
 
 [node name="Toolbar" type="HBoxContainer" parent="." unique_id=1122713076]
+layout_mode = 2
+
+[node name="TransformModeButton" type="Button" parent="Toolbar" unique_id=28649062]
+layout_mode = 2
+theme_type_variation = &"FlatButton"
+toggle_mode = true
+
+[node name="VSeparator" type="VSeparator" parent="Toolbar" unique_id=1995492183]
 layout_mode = 2
 
 [node name="PaintModeButton" type="Button" parent="Toolbar" unique_id=251442037]

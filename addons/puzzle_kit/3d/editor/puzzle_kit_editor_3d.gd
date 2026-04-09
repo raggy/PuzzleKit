@@ -10,6 +10,7 @@ const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 
 const GRID_CURSOR_SIZE := 50
 
+@export var transform_mode_button: Button
 @export var paint_mode_button: Button
 @export var attach_mode_button: Button
 @export var erase_mode_button: Button
@@ -153,6 +154,7 @@ func _ready() -> void:
 
     _add_shortcuts_to_editor_settings()
 
+    transform_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/transform_mode")
     paint_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/paint_mode")
     attach_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/attach_mode")
     erase_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/erase_mode")
@@ -164,12 +166,14 @@ func _ready() -> void:
     piece_directory_pick_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_piece_directory")
 
     mode_buttons_group = ButtonGroup.new()
+    transform_mode_button.button_group = mode_buttons_group
     paint_mode_button.button_group = mode_buttons_group
     attach_mode_button.button_group = mode_buttons_group
     erase_mode_button.button_group = mode_buttons_group
     pick_mode_button.button_group = mode_buttons_group
     select_mode_button.button_group = mode_buttons_group
 
+    transform_mode_button.pressed.connect(_on_tool_mode_changed)
     paint_mode_button.pressed.connect(_on_tool_mode_changed)
     attach_mode_button.pressed.connect(_on_tool_mode_changed)
     erase_mode_button.pressed.connect(_on_tool_mode_changed)
@@ -202,6 +206,12 @@ func _ready() -> void:
 
 func _add_shortcuts_to_editor_settings() -> void:
     # Toolbar
+    var shortcut_transform_mode := Shortcut.new()
+    shortcut_transform_mode.resource_name = "Transform"
+    var input_event_transform_mode := InputEventKey.new()
+    input_event_transform_mode.physical_keycode = KEY_T
+    shortcut_transform_mode.events.append(input_event_transform_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/transform_mode", shortcut_transform_mode)
     var shortcut_paint_mode := Shortcut.new()
     shortcut_paint_mode.resource_name = "Paint"
     var input_event_paint_mode := InputEventKey.new()
@@ -292,6 +302,7 @@ func _notification(what: int) -> void:
 func _update_theme() -> void:
     var editor_theme := EditorInterface.get_editor_theme()
 
+    transform_mode_button.icon = editor_theme.get_icon("ToolMove", "EditorIcons")
     paint_mode_button.icon = editor_theme.get_icon("Paint", "EditorIcons")
     attach_mode_button.icon = editor_theme.get_icon("Pin", "EditorIcons")
     erase_mode_button.icon = editor_theme.get_icon("Eraser", "EditorIcons")
@@ -481,6 +492,15 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
     if event is InputEventKey:
         var k := event as InputEventKey
         if k.is_pressed() and not k.is_echo():
+            # Transform mode (toggle button):
+            # If we are in Transform mode we pass the events to the 3D editor,
+            # but if the Transform mode shortcut is pressed again, we go back to Selection mode.
+            if mode_buttons_group.get_pressed_button() == transform_mode_button:
+                if transform_mode_button.shortcut.has_valid_event() and transform_mode_button.shortcut.matches_event(event):
+                    select_mode_button.set_pressed(true)
+                    accept_event()
+                    return EditorPlugin.AFTER_GUI_INPUT_STOP
+                return EditorPlugin.AFTER_GUI_INPUT_PASS
             # Tool modes and tool actions:
             for button in viewport_shortcut_buttons:
                 if button.disabled:
