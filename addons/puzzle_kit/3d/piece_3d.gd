@@ -50,7 +50,7 @@ func _enter_tree() -> void:
     if not _board:
         _board = _find_board()
     else:
-        _update_board_state()
+        _update_board_state(false)
 
 func _exit_tree() -> void:
     if _board:
@@ -99,8 +99,6 @@ func set_parent_piece(value: Piece3D) -> void:
     # parent_piece set, parent ourselves to it if we're not already a descendant
     elif value and not is_ancestor_of(value):
         _change_parent_node(current_parent_node, value)
-    # Ensure our active state is up-to-date in the board in case it's changed
-    _update_board_state()
 
 ## Returns true if this piece matches `group_filter`
 func matches(group_filter: GroupFilter) -> bool:
@@ -132,7 +130,7 @@ func set_active(value: bool) -> void:
     
     active = value
     
-    _update_board_state()
+    _update_board_state(true)
 
 func _get_grid_position() -> Vector3i:
     return round(global_position)
@@ -205,7 +203,7 @@ func _find_piece_ancestor() -> Piece3D:
     # Reached the root without finding anything
     return null
 
-func _update_board_state() -> void:
+func _update_board_state(including_descendants: bool) -> void:
     if not _board:
         return
     
@@ -213,6 +211,10 @@ func _update_board_state() -> void:
         _board._activate_piece(self)
     else:
         _board._deactivate_piece(self)
+    
+    if including_descendants:
+        for child_piece in _child_pieces:
+            child_piece._update_board_state(true)
 
 func _commit_changes() -> void:
     changes_committing.emit()

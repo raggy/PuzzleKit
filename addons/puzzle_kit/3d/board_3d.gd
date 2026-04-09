@@ -336,10 +336,6 @@ func _activate_piece(piece: Piece3D) -> void:
     _active_pieces.append(piece)
     # Add piece to cell
     _update_piece_cell(piece)
-    # Activate piece's child pieces
-    for child_piece in piece._child_pieces:
-        if child_piece.active:
-            _activate_piece(child_piece)
 
 func _deactivate_piece(piece: Piece3D) -> void:
     if not piece._board_cached_active:
@@ -353,10 +349,6 @@ func _deactivate_piece(piece: Piece3D) -> void:
         cell.pieces.erase(piece)
         _cells_by_piece.erase(piece)
         _aabb_needs_recalculating = true
-    # Deactivate piece's child pieces
-    for child_piece in piece._child_pieces:
-        if child_piece.active:
-            _deactivate_piece(child_piece)
 #endregion
 
 #region AABB
