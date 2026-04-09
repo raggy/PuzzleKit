@@ -556,7 +556,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     if not _paint_changes.is_empty():
                         # Setup undo history
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                        undo_redo.create_action("Board3D Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                        undo_redo.create_action("PuzzleKit Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
                         for change in _paint_changes:
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
@@ -565,7 +565,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     if not _paint_changes.is_empty():
                         # Setup undo history
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                        undo_redo.create_action("Board3D Erase", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                        undo_redo.create_action("PuzzleKit Erase", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
                         for change in _paint_changes:
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
