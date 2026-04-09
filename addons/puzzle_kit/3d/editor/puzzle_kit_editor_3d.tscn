@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://vbuogr241dq1" path="res://addons/puzzle_kit/3d/editor/puzzle_kit_editor_3d.gd" id="1_heuv1"]
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette", "options_button")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "palette", "options_button", "info_no_board")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -26,6 +26,7 @@ piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
 piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
 palette = NodePath("PiecePalette")
 options_button = NodePath("Toolbar/OptionsButton")
+info_no_board = NodePath("Info_NoBoard")
 metadata/_custom_type_script = "uid://vbuogr241dq1"
 
 [node name="Toolbar" type="HBoxContainer" parent="." unique_id=1122713076]
@@ -114,6 +115,14 @@ max_columns = 0
 same_column_width = true
 fixed_column_width = 80
 icon_mode = 0
+
+[node name="Info_NoBoard" type="Label" parent="." unique_id=26708001]
+visible = false
+layout_mode = 2
+size_flags_vertical = 6
+text = "Select a Board3D (or descendant node) or open a scene with a Board3D root node to edit"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="PieceDirectoryDialog" type="FileDialog" parent="." unique_id=1027482462]
 title = "Open a Directory"

@@ -33,6 +33,8 @@ const GRID_CURSOR_SIZE := 50
 
 @export var options_button: MenuButton
 
+@export var info_no_board: Control
+
 enum InputAction {
     INPUT_NONE,
     INPUT_PAINT,
@@ -104,12 +106,14 @@ func _enter_tree() -> void:
     _update_theme()
 
     ProjectSettings.settings_changed.connect(_on_settings_changed)
+    EditorInterface.get_selection().selection_changed.connect(_on_editor_selection_changed)
 
 func _exit_tree() -> void:
     if is_being_edited():
         return
 
     ProjectSettings.settings_changed.disconnect(_on_settings_changed)
+    EditorInterface.get_selection().selection_changed.disconnect(_on_editor_selection_changed)
 
 func _ready() -> void:
     if is_being_edited():
@@ -203,6 +207,8 @@ func _ready() -> void:
     options_button.get_popup().add_radio_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/edit_z_axis"), Menu.MENU_OPTION_Z_AXIS)
     options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_Y_AXIS), true);
     options_button.get_popup().id_pressed.connect(_menu_option)
+
+    _on_editor_selection_changed()
 
 func _add_shortcuts_to_editor_settings() -> void:
     # Toolbar
@@ -323,6 +329,38 @@ func is_being_edited() -> bool:
 func edit(board: Board3D) -> void:
     _board = board
 
+    if _board:
+        if not mode_buttons_group.get_pressed_button():
+            select_mode_button.button_pressed = true
+        _on_tool_mode_changed()
+        set_process(true)
+        _set_interactable(true)
+        palette.visible = true
+        info_no_board.visible = false
+    else:
+        set_process(false)
+        _set_interactable(false)
+        transform_mode_button.disabled = true
+        palette.visible = false
+        info_no_board.visible = true
+        _cursor_piece_outline.visible = false
+        _cursor_tile_outline.visible = false
+        _hide_all_grids()
+
+func _set_interactable(interactable: bool) -> void:
+    transform_mode_button.disabled = not interactable
+    paint_mode_button.disabled = not interactable
+    attach_mode_button.disabled = not interactable
+    erase_mode_button.disabled = not interactable
+    pick_mode_button.disabled = not interactable
+    select_mode_button.disabled = not interactable
+    rotate_x_button.disabled = not interactable
+    rotate_y_button.disabled = not interactable
+    rotate_z_button.disabled = not interactable
+    draw_offset_spin_box.editable = interactable
+    piece_directory_pick_button.disabled = not interactable
+    options_button.disabled = not interactable
+
 func _on_visibility_changed() -> void:
     if is_being_edited():
         return
@@ -338,9 +376,58 @@ func _on_settings_changed() -> void:
     if is_visible_in_tree():
         _update_palette()
 
+func _on_editor_selection_changed() -> void:
+    edit(_get_board_to_edit_from_selection())
+
+func _get_board_to_edit_from_selection() -> Board3D:
+    var editor_selection := EditorInterface.get_selection()
+    var selected_nodes := editor_selection.get_selected_nodes()
+
+    if selected_nodes.is_empty():
+        var edited_scene_root := EditorInterface.get_edited_scene_root()
+        # Allow editing where scene root is a Board3D
+        return edited_scene_root if edited_scene_root is Board3D else null
+    
+    var board: Board3D = null
+    
+    for selected_node in selected_nodes:
+        var selected_node_board: Board3D = selected_node if selected_node is Board3D else _find_nearest_ancestor_board(selected_node)
+        # This selected node is not a descendant of a board
+        if not selected_node_board:
+            return null
+        if board == null:
+            # This is the first board we've found, save it to return later
+            board = selected_node_board
+        elif selected_node_board.is_ancestor_of(board):
+            # This is an ancestor of previously-found board, use this instead
+            board = selected_node_board
+        elif board != selected_node_board and not board.is_ancestor_of(selected_node_board):
+            # Multiple boards selected that aren't nested, invalid
+            return null
+
+    return board
+
+static func _find_nearest_ancestor_board(node: Node) -> Board3D:
+    if not node.is_inside_tree():
+        return null
+    var search_parent := node.get_parent()
+    # Search our parent and parent of parent, etc
+    while search_parent:
+        # Found a board
+        if search_parent is Board3D:
+            return search_parent
+        # Update which node we're looking at for next iteration
+        search_parent = search_parent.get_parent()
+    # Reached the root without finding anything
+    return null
+
 func _on_tool_mode_changed() -> void:
     #_show_viewports_transform_gizmo(mode_buttons_group.get_pressed_button() == transform_mode_button)
     auto_setup_draw_preview()
+    # Hide by default
+    _cursor_piece_outline.visible = false
+    _cursor_tile_outline.visible = false
+    _hide_all_grids()
 
 func _set_draw_offset(value: float) -> void:
     draw_offset = roundi(value)
