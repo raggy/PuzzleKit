@@ -80,6 +80,7 @@ var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
 var _draw_preview_pieces: Array[Piece3D]
 var _draw_scene: PackedScene
+var _preview_blank: ImageTexture
 
 var _board: Board3D
 
@@ -155,6 +156,10 @@ func _ready() -> void:
         _grid_instances.append(grid_instance)
     _draw_grids(Vector3.ONE)
     _hide_all_grids()
+
+    var preview_blank_image := Image.create_empty(64, 64, false, Image.FORMAT_RGBA8)
+    preview_blank_image.fill(Color(0, 0, 0, 0))
+    _preview_blank = ImageTexture.create_from_image(preview_blank_image)
 
     _add_shortcuts_to_editor_settings()
 
@@ -516,6 +521,8 @@ func _update_palette() -> void:
     palette.clear()
     _palette_index_to_path.clear()
 
+    _add_palette_item("", null, null, "[None]")
+
     var piece_palette_base_directory: String = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
     if piece_palette_base_directory.is_empty():
         # Default to all resources
@@ -554,6 +561,8 @@ func _add_to_palette_from_dir(path: String, base_path: String) -> void:
         _add_to_palette_from_dir(path.path_join(dir_name), base_path)
 
 func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Texture2D, item_text: String) -> void:
+    if not preview:
+        preview = _preview_blank
     var item_index := palette.add_item(item_text, preview)
     _palette_index_to_path[item_index] = path
 
