@@ -109,6 +109,7 @@ theme_type_variation = &"FlatMenuButton"
 layout_mode = 2
 size_flags_vertical = 3
 max_text_lines = 2
+auto_height = true
 max_columns = 0
 same_column_width = true
 fixed_column_width = 80
