@@ -577,6 +577,10 @@ func _load_selected_scene() -> PackedScene:
     
     for index in palette.get_selected_items():
         var path := _palette_index_to_path[index]
+
+        if path == "":
+            return null
+
         var scene := load(path)
 
         if scene:
