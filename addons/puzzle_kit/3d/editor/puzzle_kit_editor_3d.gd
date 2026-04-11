@@ -59,6 +59,7 @@ enum Menu {
 var options_axis_ids: Array[Menu] = [Menu.MENU_OPTION_X_AXIS, Menu.MENU_OPTION_Y_AXIS, Menu.MENU_OPTION_Z_AXIS]
 
 var mode_buttons_group: ButtonGroup
+var last_selected_mode_button: BaseButton
 
 var edit_axis: Vector3.Axis
 var draw_offset: int
@@ -181,6 +182,8 @@ func _ready() -> void:
     erase_mode_button.button_group = mode_buttons_group
     pick_mode_button.button_group = mode_buttons_group
     select_mode_button.button_group = mode_buttons_group
+
+    last_selected_mode_button = select_mode_button
 
     transform_mode_button.pressed.connect(_on_tool_mode_changed)
     paint_mode_button.pressed.connect(_on_tool_mode_changed)
@@ -336,7 +339,7 @@ func edit(board: Board3D) -> void:
 
     if _board:
         if not mode_buttons_group.get_pressed_button():
-            select_mode_button.button_pressed = true
+            transform_mode_button.button_pressed = true
         _on_tool_mode_changed()
         set_process(true)
         _set_interactable(true)
@@ -428,6 +431,8 @@ static func _find_nearest_ancestor_board(node: Node) -> Board3D:
 
 func _on_tool_mode_changed() -> void:
     #_show_viewports_transform_gizmo(mode_buttons_group.get_pressed_button() == transform_mode_button)
+    if mode_buttons_group.get_pressed_button() != transform_mode_button:
+        last_selected_mode_button = mode_buttons_group.get_pressed_button()
     auto_setup_draw_preview()
     # Hide by default
     _cursor_piece_outline.visible = false
@@ -593,10 +598,10 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
         if k.is_pressed() and not k.is_echo():
             # Transform mode (toggle button):
             # If we are in Transform mode we pass the events to the 3D editor,
-            # but if the Transform mode shortcut is pressed again, we go back to Selection mode.
+            # but if the Transform mode shortcut is pressed again, we go back to the last-selected mode button
             if mode_buttons_group.get_pressed_button() == transform_mode_button:
                 if transform_mode_button.shortcut.has_valid_event() and transform_mode_button.shortcut.matches_event(event):
-                    select_mode_button.set_pressed(true)
+                    last_selected_mode_button.set_pressed(true)
                     accept_event()
                     return EditorPlugin.AFTER_GUI_INPUT_STOP
                 return EditorPlugin.AFTER_GUI_INPUT_PASS
