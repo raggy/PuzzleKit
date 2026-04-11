@@ -852,7 +852,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
             if piece_root_node is Node3D:
                 var piece_root_node3d := piece_root_node as Node3D
                 _cursor_root_node = weakref(piece_root_node3d)
-                _cursor.global_transform = piece_root_node3d.global_transform
+                _cursor_piece_container.global_transform = piece_root_node3d.global_transform
                 _cursor_piece_outline.generate_from(piece_root_node3d)
                 _cursor_piece_outline.visible = true
                 _cursor_tile_outline.visible = false
