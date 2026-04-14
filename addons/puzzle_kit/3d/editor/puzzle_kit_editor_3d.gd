@@ -10,6 +10,11 @@ const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 
 const GRID_CURSOR_SIZE := 50
 
+const GIZMO_BASE_LAYER := 27
+const GIZMO_EDIT_LAYER := 26
+const GIZMO_GRID_LAYER := 25
+const MISC_TOOL_LAYER := 24
+
 @export var transform_mode_button: Button
 @export var paint_mode_button: Button
 @export var attach_mode_button: Button
@@ -117,6 +122,11 @@ func _exit_tree() -> void:
     ProjectSettings.settings_changed.disconnect(_on_settings_changed)
     EditorInterface.get_selection().selection_changed.disconnect(_on_editor_selection_changed)
 
+    # Make sure we leave editor viewport camera culling masks as we found them
+    _set_editor_layer_visible(GIZMO_BASE_LAYER, true)
+    _set_editor_layer_visible(GIZMO_EDIT_LAYER, true)
+    _set_editor_layer_visible(GIZMO_GRID_LAYER, true)
+
 func _ready() -> void:
     if is_being_edited():
         return
@@ -151,7 +161,7 @@ func _ready() -> void:
         var grid_mesh := ArrayMesh.new()
         var grid_instance := MeshInstance3D.new()
         grid_instance.mesh = grid_mesh
-        grid_instance.layers = 1 << 24
+        grid_instance.layers = 1 << MISC_TOOL_LAYER
         add_child(grid_instance)
         _grid.append(grid_mesh)
         _grid_instances.append(grid_instance)
@@ -430,7 +440,6 @@ static func _find_nearest_ancestor_board(node: Node) -> Board3D:
     return null
 
 func _on_tool_mode_changed() -> void:
-    #_show_viewports_transform_gizmo(mode_buttons_group.get_pressed_button() == transform_mode_button)
     if mode_buttons_group.get_pressed_button() != transform_mode_button:
         last_selected_mode_button = mode_buttons_group.get_pressed_button()
     auto_setup_draw_preview()
@@ -438,6 +447,10 @@ func _on_tool_mode_changed() -> void:
     _cursor_piece_outline.visible = false
     _cursor_tile_outline.visible = false
     _hide_all_grids()
+    # Hide some editor stuff when we don't need it
+    _set_editor_layer_visible(GIZMO_BASE_LAYER, mode_buttons_group.get_pressed_button() == transform_mode_button)
+    _set_editor_layer_visible(GIZMO_EDIT_LAYER, mode_buttons_group.get_pressed_button() == transform_mode_button)
+    _set_editor_layer_visible(GIZMO_GRID_LAYER, mode_buttons_group.get_pressed_button() == transform_mode_button || mode_buttons_group.get_pressed_button() == pick_mode_button || mode_buttons_group.get_pressed_button() == select_mode_button)
 
 func _set_draw_offset(value: float) -> void:
     draw_offset = roundi(value)
@@ -459,6 +472,18 @@ func _menu_option(id: Menu) -> void:
             elif id == Menu.MENU_OPTION_CURSOR_ROTATE_Z or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
                 rotation_axis.z = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Z else -1
             _cursor_piece_container.rotate(rotation_axis, -PI / 2.0)
+
+func _set_editor_layer_visible(layer: int, value: bool) -> void:
+    for i in range(4):
+        var viewport_camera := EditorInterface.get_editor_viewport_3d(i).get_camera_3d()
+        var viewport_layer := layer
+        if layer == GIZMO_BASE_LAYER:
+            viewport_layer = layer + i
+        if value:
+            viewport_camera.cull_mask |= (1 << viewport_layer)
+        else:
+            viewport_camera.cull_mask &= ~(1 << viewport_layer)
+
 
 #region Grid
 func _draw_grids(cell_size: Vector3) -> void:
@@ -606,6 +631,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             if mode_buttons_group.get_pressed_button() == transform_mode_button:
                 if transform_mode_button.shortcut.has_valid_event() and transform_mode_button.shortcut.matches_event(event):
                     last_selected_mode_button.set_pressed(true)
+                    _on_tool_mode_changed()
                     accept_event()
                     return EditorPlugin.AFTER_GUI_INPUT_STOP
                 return EditorPlugin.AFTER_GUI_INPUT_PASS
