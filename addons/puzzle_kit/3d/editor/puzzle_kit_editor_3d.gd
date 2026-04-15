@@ -15,6 +15,17 @@ const GIZMO_EDIT_LAYER := 26
 const GIZMO_GRID_LAYER := 25
 const MISC_TOOL_LAYER := 24
 
+const CUBE_CORNERS: Array[Vector3] = [
+    Vector3(-0.5, -0.5, -0.5),
+    Vector3( 0.5, -0.5, -0.5),
+    Vector3(-0.5,  0.5, -0.5),
+    Vector3( 0.5,  0.5, -0.5),
+    Vector3(-0.5, -0.5,  0.5),
+    Vector3( 0.5, -0.5,  0.5),
+    Vector3(-0.5,  0.5,  0.5),
+    Vector3( 0.5,  0.5,  0.5),
+]
+
 @export var transform_mode_button: Button
 @export var paint_mode_button: Button
 @export var attach_mode_button: Button
@@ -106,6 +117,11 @@ var _paint_plane_position: Vector3
 var _box_selection_preview_by_viewport: Dictionary[Viewport, BoxSelectionPreview]
 var _selection_movement_threshold_passed: bool
 var _selection_original_mouse_position: Vector2
+var _selection_root_nodes: Array[Node3D] = []
+var _selection_root_node_bounding_boxes: Dictionary[Node3D, Rect2] = {}
+var _selection_bounding_boxes_cached_camera_global_transform: Transform3D
+var _selection_bounding_boxes_cached_camera_size: float
+var _selection_debug: Control
 
 var _grid: Array[ArrayMesh]
 var _grid_instances: Array[MeshInstance3D]
@@ -724,6 +740,11 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                 elif input_action == InputAction.INPUT_SELECT:
                     var box_selection_preview := _box_selection_preview_by_viewport[viewport_camera.get_viewport()]
                     box_selection_preview.clear()
+                    _selection_root_nodes.clear()
+                    _selection_root_node_bounding_boxes.clear()
+                    if _selection_debug:
+                        _selection_debug.get_parent().remove_child(_selection_debug)
+                        _selection_debug.queue_free()
                     if not _selection_movement_threshold_passed:
                         # Select what's under cursor (or the board if nothing there)
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
@@ -842,21 +863,77 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         return true
     if input_action == InputAction.INPUT_SELECT:
         var box_selection_preview := _box_selection_preview_by_viewport[camera.get_viewport()]
+        var editor_selection := EditorInterface.get_selection()
         if click:
             _selection_movement_threshold_passed = false
             _selection_original_mouse_position = mouse_position
             # Get a list of all selectable nodes
+            _selection_root_nodes.clear()
+            for piece in _board.get_pieces():
+                var piece_root_node := _get_node_root_in_ancestor(piece, _board)
+                if piece_root_node in _selection_root_nodes:
+                    # Already found
+                    continue
+                _selection_root_nodes.append(piece_root_node)
             # Calculate screen-space bounding boxes for selectable nodes
-            pass
+            _selection_debug = Control.new()
+            _selection_debug.draw.connect(_draw_selection_debug)
+            camera.get_viewport().add_child(_selection_debug)
+            _update_box_selection_bounding_boxes(camera, true)
         # Start box-selecting when mouse has moved enough from starting position
-        _selection_movement_threshold_passed = _selection_original_mouse_position.distance_to(mouse_position) > 8 * EditorInterface.get_editor_theme().get_constant("scale", "Editor")
+        if not _selection_movement_threshold_passed:
+            _selection_movement_threshold_passed = _selection_original_mouse_position.distance_to(mouse_position) > 8 * EditorInterface.get_editor_theme().get_constant("scale", "Editor")
         if _selection_movement_threshold_passed:
             # Draw box selection
             box_selection_preview.rect = Rect2(_selection_original_mouse_position, mouse_position - _selection_original_mouse_position).abs()
+            # Box selection
+            _update_box_selection_bounding_boxes(camera)
+            editor_selection.clear()
+            for node: Node3D in _selection_root_node_bounding_boxes.keys():
+                var node_bounding_box := _selection_root_node_bounding_boxes[node]
+                if box_selection_preview.rect.encloses(node_bounding_box):
+                    editor_selection.add_node(node)
+            # Ensure board is selected if nothing else is
+            if editor_selection.get_selected_nodes().is_empty():
+                editor_selection.add_node(_board)
         return true
     return false
 
-func _get_node_root_in_ancestor(node: Node, ancestor: Node) -> Node:
+func _update_box_selection_bounding_boxes(camera: Camera3D, force: bool = false) -> void:
+    if not force and camera.global_transform == _selection_bounding_boxes_cached_camera_global_transform and camera.size == _selection_bounding_boxes_cached_camera_size:
+        return
+
+    # Cache values to skip recalculating if camera hasn't changed
+    _selection_bounding_boxes_cached_camera_global_transform = camera.global_transform
+    _selection_bounding_boxes_cached_camera_size = camera.size
+
+    _selection_root_node_bounding_boxes.clear()
+    for node in _selection_root_nodes:
+        var node_pieces: Array[Piece3D] = []
+        Piece3D.find_descendant_pieces(node, node_pieces)
+        var node_bounding_box := Rect2()
+        var first_corner := true
+        # Calculate root node bounding box from unprojecting its corners to screen space
+        for piece in node_pieces:
+            var piece_position: Vector3 = piece.grid_position
+            for corner in CUBE_CORNERS:
+                var corner_position := piece_position + corner
+                var corner_screen_position := camera.unproject_position(corner_position)
+                if first_corner:
+                    node_bounding_box = Rect2(corner_screen_position, Vector2())
+                    first_corner = false
+                else:
+                    node_bounding_box = node_bounding_box.expand(corner_screen_position)
+        _selection_root_node_bounding_boxes[node] = node_bounding_box
+    
+    _selection_debug.queue_redraw()
+
+func _draw_selection_debug() -> void:
+    for node: Node3D in _selection_root_node_bounding_boxes.keys():
+        var node_bounding_box := _selection_root_node_bounding_boxes[node]
+        _selection_debug.draw_rect(node_bounding_box, Color.BLUE, false)
+
+static func _get_node_root_in_ancestor(node: Node, ancestor: Node) -> Node:
     if not node:
         return null
 
