@@ -724,6 +724,29 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                 elif input_action == InputAction.INPUT_SELECT:
                     var box_selection_preview := _box_selection_preview_by_viewport[viewport_camera.get_viewport()]
                     box_selection_preview.clear()
+                    if not _selection_movement_threshold_passed:
+                        # Select what's under cursor (or the board if nothing there)
+                        update_cursor_state_raycast_piece(viewport_camera, mb.position)
+                        var new_selection: Node = null
+                        var select_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
+                        if select_node is Node3D:
+                            new_selection = select_node
+                        var editor_selection := EditorInterface.get_selection()
+                        if mb.ctrl_pressed:
+                            # Toggle selection of node if ctrl is held
+                            if new_selection in editor_selection.get_selected_nodes():
+                                editor_selection.remove_node(new_selection)
+                                if editor_selection.get_selected_nodes().is_empty():
+                                    # Select board if nothing else selected
+                                    editor_selection.add_node(_board)
+                            elif new_selection:
+                                editor_selection.add_node(new_selection)
+                                if _board in editor_selection.get_selected_nodes():
+                                    # Remove board from selection if we selected something else
+                                    editor_selection.remove_node(_board)
+                        else:
+                            editor_selection.clear()
+                            editor_selection.add_node(new_selection if new_selection else _board)
                 input_action = InputAction.INPUT_NONE
 
     if event is InputEventMouseMotion:
