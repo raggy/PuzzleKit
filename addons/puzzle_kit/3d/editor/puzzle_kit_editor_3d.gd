@@ -103,6 +103,10 @@ var _paint_fresh_nodes: Array[Node3D]
 var _paint_changes: Array[AddRemoveChange]
 var _paint_plane_position: Vector3
 
+var _box_selection_preview_by_viewport: Dictionary[Viewport, BoxSelectionPreview]
+var _selection_movement_threshold_passed: bool
+var _selection_original_mouse_position: Vector2
+
 var _grid: Array[ArrayMesh]
 var _grid_instances: Array[MeshInstance3D]
 
@@ -114,6 +118,13 @@ func _enter_tree() -> void:
 
     ProjectSettings.settings_changed.connect(_on_settings_changed)
     EditorInterface.get_selection().selection_changed.connect(_on_editor_selection_changed)
+    
+    _box_selection_preview_by_viewport = {}
+    for i in range(4):
+        var viewport := EditorInterface.get_editor_viewport_3d(i)
+        var box_selection_preview := BoxSelectionPreview.new()
+        viewport.add_child(box_selection_preview)
+        _box_selection_preview_by_viewport[viewport] = box_selection_preview
 
 func _exit_tree() -> void:
     if is_being_edited():
@@ -126,6 +137,12 @@ func _exit_tree() -> void:
     _set_editor_layer_visible(GIZMO_BASE_LAYER, true)
     _set_editor_layer_visible(GIZMO_EDIT_LAYER, true)
     _set_editor_layer_visible(GIZMO_GRID_LAYER, true)
+
+    for viewport: Viewport in _box_selection_preview_by_viewport.keys():
+        var box_selection_preview := _box_selection_preview_by_viewport[viewport]
+        viewport.remove_child(box_selection_preview)
+        box_selection_preview.queue_free()
+    _box_selection_preview_by_viewport.clear()
 
 func _ready() -> void:
     if is_being_edited():
@@ -704,6 +721,9 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
+                elif input_action == InputAction.INPUT_SELECT:
+                    var box_selection_preview := _box_selection_preview_by_viewport[viewport_camera.get_viewport()]
+                    box_selection_preview.clear()
                 input_action = InputAction.INPUT_NONE
 
     if event is InputEventMouseMotion:
@@ -796,6 +816,20 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     palette.select(index, true)
                     _on_palette_item_selected(index)
                     break
+        return true
+    if input_action == InputAction.INPUT_SELECT:
+        var box_selection_preview := _box_selection_preview_by_viewport[camera.get_viewport()]
+        if click:
+            _selection_movement_threshold_passed = false
+            _selection_original_mouse_position = mouse_position
+            # Get a list of all selectable nodes
+            # Calculate screen-space bounding boxes for selectable nodes
+            pass
+        # Start box-selecting when mouse has moved enough from starting position
+        _selection_movement_threshold_passed = _selection_original_mouse_position.distance_to(mouse_position) > 8 * EditorInterface.get_editor_theme().get_constant("scale", "Editor")
+        if _selection_movement_threshold_passed:
+            # Draw box selection
+            box_selection_preview.rect = Rect2(_selection_original_mouse_position, mouse_position - _selection_original_mouse_position).abs()
         return true
     return false
 
