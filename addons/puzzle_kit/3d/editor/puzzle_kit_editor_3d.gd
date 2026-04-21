@@ -72,6 +72,12 @@ enum Menu {
     MENU_OPTION_CURSOR_BACK_ROTATE_Z,
 }
 
+enum SelectionMode {
+    SELECTION_MODE_REPLACE,
+    SELECTION_MODE_ADD,
+    SELECTION_MODE_REMOVE,
+}
+
 var options_axis_ids: Array[Menu] = [Menu.MENU_OPTION_X_AXIS, Menu.MENU_OPTION_Y_AXIS, Menu.MENU_OPTION_Z_AXIS]
 
 var mode_buttons_group: ButtonGroup
@@ -115,6 +121,7 @@ var _paint_changes: Array[AddRemoveChange]
 var _paint_plane_position: Vector3
 
 var _box_selection_preview_by_viewport: Dictionary[Viewport, BoxSelectionPreview]
+var _selection_mode: SelectionMode
 var _selection_movement_threshold_passed: bool
 var _selection_original_mouse_position: Vector2
 var _selection_root_nodes: Array[Node3D] = []
@@ -122,6 +129,8 @@ var _selection_root_node_bounding_boxes: Dictionary[Node3D, Rect2] = {}
 var _selection_bounding_boxes_cached_camera_global_transform: Transform3D
 var _selection_bounding_boxes_cached_camera_size: float
 var _selection_debug: Control
+var _selection_piece_outlines: Dictionary[Node3D, PieceOutline3D] = {}
+var _initial_selection: Array[Node] = []
 
 var _grid: Array[ArrayMesh]
 var _grid_instances: Array[MeshInstance3D]
@@ -134,6 +143,8 @@ func _enter_tree() -> void:
 
     ProjectSettings.settings_changed.connect(_on_settings_changed)
     EditorInterface.get_selection().selection_changed.connect(_on_editor_selection_changed)
+    undo_redo.history_changed.connect(_update_selection_outlines)
+    undo_redo.version_changed.connect(_update_selection_outlines)
     
     _box_selection_preview_by_viewport = {}
     for i in range(4):
@@ -148,6 +159,8 @@ func _exit_tree() -> void:
 
     ProjectSettings.settings_changed.disconnect(_on_settings_changed)
     EditorInterface.get_selection().selection_changed.disconnect(_on_editor_selection_changed)
+    undo_redo.history_changed.disconnect(_update_selection_outlines)
+    undo_redo.version_changed.disconnect(_update_selection_outlines)
 
     # Make sure we leave editor viewport camera culling masks as we found them
     _set_editor_layer_visible(GIZMO_BASE_LAYER, true)
@@ -429,6 +442,7 @@ func _on_settings_changed() -> void:
 
 func _on_editor_selection_changed() -> void:
     edit(_get_board_to_edit_from_selection())
+    _update_selection_outlines()
 
 func _get_board_to_edit_from_selection() -> Board3D:
     var editor_selection := EditorInterface.get_selection()
@@ -517,6 +531,48 @@ func _set_editor_layer_visible(layer: int, value: bool) -> void:
         else:
             viewport_camera.cull_mask &= ~(1 << viewport_layer)
 
+func _update_selection_outlines() -> void:
+    if not _board:
+        # Clear all outlines
+        pass
+    
+    var selected_root_nodes: Array[Node3D] = []
+    
+    for node in EditorInterface.get_selection().get_selected_nodes():
+        var root_node := _get_node_root_in_ancestor(node, _board) as Node3D
+
+        if not root_node:
+            continue
+
+        if root_node in selected_root_nodes:
+            # Already processed this root node
+            continue
+        
+        if root_node == _board:
+            continue
+        
+        selected_root_nodes.append(root_node)
+        
+        if root_node in _selection_piece_outlines:
+            var piece_outline := _selection_piece_outlines[root_node]
+            piece_outline.global_transform = root_node.global_transform
+        else:
+            var piece_outline := PieceOutline3D.new()
+            piece_outline.generate_from(root_node)
+            piece_outline.global_transform = root_node.global_transform
+            piece_outline.fill_material = valid_draw_fill_material
+            piece_outline.outline_material = valid_draw_outline_material
+            add_child(piece_outline)
+            _selection_piece_outlines[root_node] = piece_outline
+    
+    # Remove piece outlines that are no longer selected
+    for root_node: Node3D in _selection_piece_outlines.keys().duplicate():
+        if root_node in selected_root_nodes:
+            continue
+        
+        var piece_outline := _selection_piece_outlines[root_node]
+        piece_outline.free()
+        _selection_piece_outlines.erase(root_node)
 
 #region Grid
 func _draw_grids(cell_size: Vector3) -> void:
@@ -707,6 +763,12 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     input_action = InputAction.INPUT_PICK
                 elif mode_buttons_group.get_pressed_button() == select_mode_button:
                     input_action = InputAction.INPUT_SELECT
+                    if mb.is_command_or_control_pressed():
+                        _selection_mode = SelectionMode.SELECTION_MODE_REMOVE
+                    elif mb.shift_pressed:
+                        _selection_mode = SelectionMode.SELECTION_MODE_ADD
+                    else:
+                        _selection_mode = SelectionMode.SELECTION_MODE_REPLACE
             elif mb.button_index == MOUSE_BUTTON_RIGHT:
                 if input_action == InputAction.INPUT_NONE:
                     # TODO Pick
@@ -742,6 +804,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     box_selection_preview.clear()
                     _selection_root_nodes.clear()
                     _selection_root_node_bounding_boxes.clear()
+                    _initial_selection.clear()
                     if _selection_debug:
                         _selection_debug.get_parent().remove_child(_selection_debug)
                         _selection_debug.queue_free()
@@ -753,21 +816,24 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         if select_node is Node3D:
                             new_selection = select_node
                         var editor_selection := EditorInterface.get_selection()
-                        if mb.ctrl_pressed:
-                            # Toggle selection of node if ctrl is held
+                        if _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
                             if new_selection in editor_selection.get_selected_nodes():
                                 editor_selection.remove_node(new_selection)
-                                if editor_selection.get_selected_nodes().is_empty():
-                                    # Select board if nothing else selected
-                                    editor_selection.add_node(_board)
-                            elif new_selection:
+                        elif _selection_mode == SelectionMode.SELECTION_MODE_ADD:
+                            if new_selection:
                                 editor_selection.add_node(new_selection)
-                                if _board in editor_selection.get_selected_nodes():
-                                    # Remove board from selection if we selected something else
-                                    editor_selection.remove_node(_board)
-                        else:
+                        else: # _selection_mode == SelectionMode.SELECTION_MODE_REPLACE
                             editor_selection.clear()
-                            editor_selection.add_node(new_selection if new_selection else _board)
+                            if new_selection:
+                                editor_selection.add_node(new_selection)
+                        # Handle auto-selection of board
+                        if editor_selection.get_selected_nodes().is_empty():
+                            # Select board if nothing else selected
+                            editor_selection.add_node(_board)
+                        elif editor_selection.get_selected_nodes().size() > 1:
+                            # Remove board from selection if we have something else selected
+                            editor_selection.remove_node(_board)
+
                 input_action = InputAction.INPUT_NONE
 
     if event is InputEventMouseMotion:
@@ -875,8 +941,11 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     # Already found
                     continue
                 _selection_root_nodes.append(piece_root_node)
+            # Save initial selection
+            _initial_selection = editor_selection.get_selected_nodes()
             # Calculate screen-space bounding boxes for selectable nodes
             _selection_debug = Control.new()
+            _selection_debug.visible = false
             _selection_debug.draw.connect(_draw_selection_debug)
             camera.get_viewport().add_child(_selection_debug)
             _update_box_selection_bounding_boxes(camera, true)
@@ -889,13 +958,25 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             # Box selection
             _update_box_selection_bounding_boxes(camera)
             editor_selection.clear()
+            # Reset to initial selection if we're not just replacing
+            if _selection_mode == SelectionMode.SELECTION_MODE_ADD or _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
+                for node in _initial_selection:
+                    editor_selection.add_node(node)
+            # Find nodes contained in the selection box and modify their selection state
             for node: Node3D in _selection_root_node_bounding_boxes.keys():
                 var node_bounding_box := _selection_root_node_bounding_boxes[node]
                 if box_selection_preview.rect.encloses(node_bounding_box):
-                    editor_selection.add_node(node)
-            # Ensure board is selected if nothing else is
+                    if _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
+                        editor_selection.remove_node(node)
+                    else:
+                        editor_selection.add_node(node)
+            # Handle auto-selection of board
             if editor_selection.get_selected_nodes().is_empty():
+                # Select board if nothing else selected
                 editor_selection.add_node(_board)
+            elif editor_selection.get_selected_nodes().size() > 1:
+                # Remove board from selection if we have something else selected
+                editor_selection.remove_node(_board)
         return true
     return false
 
@@ -1024,7 +1105,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                 _cursor_piece_outline.fill_material = erase_draw_fill_material
         return
 
-    if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
+    if mode_buttons_group.get_pressed_button() == pick_mode_button:
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
         _hide_all_grids()
@@ -1035,6 +1116,18 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
         update_cursor_state_raycast_piece(camera, mouse_position)
+        return
+
+    if mode_buttons_group.get_pressed_button() == select_mode_button:
+        _cursor_tile_outline.visible = false
+        _hide_all_grids()
+        if input_action == InputAction.INPUT_SELECT and _selection_movement_threshold_passed:
+            _cursor_piece_outline.visible = false
+        else:
+            _cursor_piece_outline.visible = true
+            _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.fill_material = invalid_draw_fill_material
+            update_cursor_state_raycast_piece(camera, mouse_position)
         return
 
 func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axis: Vector3.Axis, offset: int) -> void:
