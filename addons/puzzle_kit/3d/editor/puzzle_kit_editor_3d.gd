@@ -957,19 +957,25 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             box_selection_preview.rect = Rect2(_selection_original_mouse_position, mouse_position - _selection_original_mouse_position).abs()
             # Box selection
             _update_box_selection_bounding_boxes(camera)
-            editor_selection.clear()
+            var new_selection: Array[Node] = []
             # Reset to initial selection if we're not just replacing
             if _selection_mode == SelectionMode.SELECTION_MODE_ADD or _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
-                for node in _initial_selection:
-                    editor_selection.add_node(node)
+                new_selection = _initial_selection.duplicate()
             # Find nodes contained in the selection box and modify their selection state
             for node: Node3D in _selection_root_node_bounding_boxes.keys():
                 var node_bounding_box := _selection_root_node_bounding_boxes[node]
                 if box_selection_preview.rect.encloses(node_bounding_box):
                     if _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
-                        editor_selection.remove_node(node)
-                    else:
-                        editor_selection.add_node(node)
+                        new_selection.erase(node)
+                    elif not node in new_selection:
+                        new_selection.append(node)
+            var current_editor_selection := editor_selection.get_selected_nodes()
+            # Deselect nodes that should no longer be selected
+            for node: Node in current_editor_selection.filter(func(x: Node) -> bool: return not x in new_selection):
+                editor_selection.remove_node(node)
+            # Select nodes that should now be selected
+            for node: Node in new_selection.filter(func(x: Node) -> bool: return not x in current_editor_selection):
+                editor_selection.add_node(node)
             # Handle auto-selection of board
             if editor_selection.get_selected_nodes().is_empty():
                 # Select board if nothing else selected
