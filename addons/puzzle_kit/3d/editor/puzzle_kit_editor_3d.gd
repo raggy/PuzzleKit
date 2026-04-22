@@ -136,7 +136,7 @@ var _grid: Array[ArrayMesh]
 var _grid_instances: Array[MeshInstance3D]
 
 func _enter_tree() -> void:
-    if is_being_edited():
+    if is_part_of_edited_scene():
         return
     
     _update_theme()
@@ -154,7 +154,7 @@ func _enter_tree() -> void:
         _box_selection_preview_by_viewport[viewport] = box_selection_preview
 
 func _exit_tree() -> void:
-    if is_being_edited():
+    if is_part_of_edited_scene():
         return
 
     ProjectSettings.settings_changed.disconnect(_on_settings_changed)
@@ -174,7 +174,7 @@ func _exit_tree() -> void:
     _box_selection_preview_by_viewport.clear()
 
 func _ready() -> void:
-    if is_being_edited():
+    if is_part_of_edited_scene():
         return
 
     valid_draw_outline_material = create_tool_material(Color(1, 1, 1, 1))
@@ -357,7 +357,7 @@ func _add_shortcuts_to_editor_settings() -> void:
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_z_axis", shortcut_edit_z_axis)
 
 func _process(_delta: float) -> void:
-    if is_being_edited():
+    if is_part_of_edited_scene():
         return
     
     var viewport := EditorInterface.get_editor_viewport_3d()
@@ -365,7 +365,7 @@ func _process(_delta: float) -> void:
     update_cursor_state(viewport.get_camera_3d(), viewport.get_mouse_position())
 
 func _notification(what: int) -> void:
-    if is_being_edited():
+    if is_part_of_edited_scene():
         return
     
     match what:
@@ -386,9 +386,6 @@ func _update_theme() -> void:
     rotate_z_button.icon = editor_theme.get_icon("RotateRight", "EditorIcons")
     piece_directory_pick_button.icon = editor_theme.get_icon("Folder", "EditorIcons")
     options_button.icon = editor_theme.get_icon("Tools", "EditorIcons")
-
-func is_being_edited() -> bool:
-    return get_parent() is SubViewport
 
 func edit(board: Board3D) -> void:
     _board = board
@@ -426,14 +423,14 @@ func _set_interactable(interactable: bool) -> void:
     options_button.disabled = not interactable
 
 func _on_visibility_changed() -> void:
-    if is_being_edited():
+    if is_part_of_edited_scene():
         return
 
     if is_visible_in_tree():
         _update_palette()
 
 func _on_settings_changed() -> void:
-    if is_being_edited():
+    if is_part_of_edited_scene():
         return
 
     piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
