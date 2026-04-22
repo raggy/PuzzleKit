@@ -534,7 +534,12 @@ func _set_editor_layer_visible(layer: int, value: bool) -> void:
 func _update_selection_outlines() -> void:
     if not _board:
         # Clear all outlines
-        pass
+        for root_node in _selection_piece_outlines:
+            var piece_outline := _selection_piece_outlines[root_node]
+            piece_outline.free()
+            _selection_piece_outlines.erase(root_node)
+        _selection_piece_outlines.clear()
+        return
     
     var selected_root_nodes: Array[Node3D] = []
     
