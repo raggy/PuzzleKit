@@ -20,6 +20,12 @@ const DIRECTIONS_UP: Array[Vector3i] = [Vector3i.UP]
 const DIRECTIONS_FORWARD: Array[Vector3i] = [Vector3i.FORWARD]
 const DIRECTIONS_BACK: Array[Vector3i] = [Vector3i.BACK]
 
+## The closest ancestor `Board3D` in the scene tree
+var parent_board: Board3D: set = _set_parent_board
+## Array of the closest descendant `Board3D` in the scene tree.
+## Editing this manually will probably break things!
+var _child_boards: Array[Board3D] = []
+
 var _pieces: Array[Piece3D] = []
 var _active_pieces: Array[Piece3D] = []
 var _inactive_pieces: Array[Piece3D] = []
@@ -29,6 +35,12 @@ var _cells_by_piece: Dictionary[Piece3D, Cell] = {}
 
 var _aabb: AABB
 var _aabb_needs_recalculating: bool = false
+
+func _enter_tree() -> void:
+    parent_board = _find_board_ancestor()
+
+func _exit_tree() -> void:
+    parent_board = null
 
 func _process(_delta: float) -> void:
     if _aabb_needs_recalculating:
@@ -266,6 +278,47 @@ func revert_changes() -> void:
     
     for piece in _pieces:
         piece._revert_changes()
+#endregion
+
+#region Board nesting
+## Fetches closest descendant `Board3D` at `index`
+func get_child_piece(index: int) -> Board3D:
+    return _child_boards[index]
+
+## Returns the number of closest-descendant `Board3D` in the scene tree
+func get_child_piece_count() -> int:
+    return _child_boards.size()
+
+## Returns a new Array of the closest descendant `Board3D` in the scene tree
+func get_child_pieces() -> Array[Board3D]:
+    return _child_boards.duplicate()
+
+## Returns the closest ancestor `Board3D` in the scene tree
+func get_parent_board() -> Board3D:
+    return parent_board
+
+func _set_parent_board(value: Board3D) -> void:
+    if parent_board == value:
+        return
+    if parent_board:
+        parent_board._child_boards.erase(self)
+    parent_board = value
+    if value:
+        value._child_boards.append(self)
+
+func _find_board_ancestor() -> Board3D:
+    if not is_inside_tree():
+        return null
+    var search_parent := get_parent()
+    # Search our parent and parent of parent, etc
+    while search_parent:
+        # Found a piece
+        if search_parent is Board3D:
+            return search_parent
+        # Update which node we're looking at for next iteration
+        search_parent = search_parent.get_parent()
+    # Reached the root without finding anything
+    return null
 #endregion
 
 #region Internal

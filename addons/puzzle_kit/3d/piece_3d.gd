@@ -34,6 +34,7 @@ var visual: PieceVisual3D
 
 var _board: Board3D: set = _set_board
 
+var _has_init_previous: bool = false
 var _previous_active: bool
 var _previous_parent_piece: Piece3D
 var _previous_transform: Transform3D
@@ -45,6 +46,13 @@ var _piece_state_cached_top_level: bool
 @warning_ignore_restore("unused_private_class_variable")
 
 func _enter_tree() -> void:
+    if not _has_init_previous:
+        _has_init_previous = true
+        # _previous_active should be true if we exist during the initial scene
+        _previous_active = not get_parent().is_node_ready()
+        _previous_parent_piece = parent_piece
+        _previous_transform = global_transform
+
     parent_piece = _find_piece_ancestor()
     
     if not _board:
@@ -158,10 +166,6 @@ func _set_board(value: Board3D) -> void:
     _board = value
     if value:
         value._register_piece(self)
-        # _previous_active should be true if we exist during the initial scene
-        _previous_active = not value.is_node_ready()
-        _previous_parent_piece = parent_piece
-        _previous_transform = global_transform
 
 func _change_parent_node(current_parent_node: Node, new_parent_node: Node) -> void:
     if current_parent_node == new_parent_node:
