@@ -41,7 +41,6 @@ var _previous_transform: Transform3D
 
 @warning_ignore_start("unused_private_class_variable")
 var _board_cached_active: bool
-var _board_cached_transform: Transform3D
 var _piece_state_cached_top_level: bool
 @warning_ignore_restore("unused_private_class_variable")
 
@@ -66,9 +65,12 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
     flags = GroupFilter.groups_to_flags(get_groups())
+    set_notify_transform(true)
 
 func _notification(what: int) -> void:
     match what:
+        NOTIFICATION_TRANSFORM_CHANGED:
+            if _board and _board_cached_active: _board._update_piece_cell(self)
         NOTIFICATION_PREDELETE:
             parent_piece = null
             _board = null

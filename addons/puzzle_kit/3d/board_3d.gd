@@ -351,14 +351,10 @@ func _update_cells() -> void:
         # Piece not currently active
         if piece.is_queued_for_deletion() or not piece.is_inside_tree():
             continue
-        # Piece hasn't changed since we last looked
-        if piece.global_transform == piece._board_cached_transform:
-            continue
-        _update_piece_cell(piece)
+        # Force piece to flush NOTIFICATION_TRANSFORM_CHANGED
+        piece.force_update_transform()
 
 func _update_piece_cell(piece: Piece3D) -> void:
-    # Note the state when we set the piece in cell
-    piece._board_cached_transform = piece.global_transform
     # Update which cell the piece sits in
     var previous_cell := _cells_by_piece[piece] if _cells_by_piece.has(piece) else null
     var new_cell := _get_or_create_cell(piece.grid_position) if piece.active else null
