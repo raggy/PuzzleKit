@@ -53,15 +53,11 @@ func _enter_tree() -> void:
         _previous_transform = global_transform
 
     parent_piece = _find_piece_ancestor()
-    
-    if not _board:
-        _board = _find_board()
-    else:
-        _update_board_state(false)
+    _board = _find_board()
 
 func _exit_tree() -> void:
-    if _board:
-        _board._deactivate_piece(self)
+    parent_piece = null
+    _board = null
 
 func _ready() -> void:
     flags = GroupFilter.groups_to_flags(get_groups())
