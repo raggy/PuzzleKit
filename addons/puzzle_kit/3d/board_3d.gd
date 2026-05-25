@@ -323,15 +323,21 @@ func _find_board_ancestor() -> Board3D:
 
 #region Internal
 func _register_piece(piece: Piece3D) -> void:
+    piece._board_cached_active = piece.is_active_in_tree()
     _pieces.append(piece)
-    if piece.is_active_in_tree():
-        piece._board_cached_active = true
+    if piece._board_cached_active:
         _active_pieces.append(piece)
+        # Add piece to cell
+        var cell := _get_or_create_cell(piece.grid_position)
+        cell.pieces.append(piece)
+        _cells_by_piece[piece] = cell
+        _expand_aabb(piece.grid_position)
     else:
-        piece._board_cached_active = false
         _inactive_pieces.append(piece)
-    _update_piece_cell(piece)
     piece_added.emit(piece)
+    # Register on parent board
+    if parent_board:
+        parent_board._register_piece(piece)
 
 func _deregister_piece(piece: Piece3D) -> void:
     _pieces.erase(piece)
@@ -345,6 +351,9 @@ func _deregister_piece(piece: Piece3D) -> void:
         cell.pieces.erase(piece)
         _cells_by_piece.erase(piece)
     piece_removed.emit(piece)
+    # Deregister from parent board
+    if parent_board:
+        parent_board._deregister_piece(piece)
 
 func _update_cells() -> void:
     for piece in _active_pieces:
@@ -357,7 +366,7 @@ func _update_cells() -> void:
 func _update_piece_cell(piece: Piece3D) -> void:
     # Update which cell the piece sits in
     var previous_cell := _cells_by_piece[piece] if _cells_by_piece.has(piece) else null
-    var new_cell := _get_or_create_cell(piece.grid_position) if piece.active else null
+    var new_cell := _get_or_create_cell(piece.grid_position) if piece.is_active_in_tree() else null
     # Piece didn't change cells
     if previous_cell == new_cell:
         return
@@ -371,6 +380,9 @@ func _update_piece_cell(piece: Piece3D) -> void:
         new_cell.pieces.append(piece)
         _cells_by_piece[piece] = new_cell
         _expand_aabb(piece.grid_position)
+    # Update cell on parent board
+    if parent_board:
+        parent_board._update_piece_cell(piece)
 
 func _get_or_create_cell(grid_position: Vector3i) -> Cell:
     if not _cells_by_position.has(grid_position):
@@ -380,16 +392,21 @@ func _get_or_create_cell(grid_position: Vector3i) -> Cell:
 func _activate_piece(piece: Piece3D) -> void:
     if piece._board_cached_active:
         return
-    piece._board_cached_active = true
     _inactive_pieces.erase(piece)
     _active_pieces.append(piece)
     # Add piece to cell
-    _update_piece_cell(piece)
+    var cell := _get_or_create_cell(piece.grid_position)
+    cell.pieces.append(piece)
+    _cells_by_piece[piece] = cell
+    _expand_aabb(piece.grid_position)
+    if parent_board:
+        parent_board._activate_piece(piece)
+    # Change _board_cached_active after we update parent board so it doesn't fail initial check
+    piece._board_cached_active = true
 
 func _deactivate_piece(piece: Piece3D) -> void:
     if not piece._board_cached_active:
         return
-    piece._board_cached_active = false
     _active_pieces.erase(piece)
     _inactive_pieces.append(piece)
     # Remove piece from cell
@@ -398,6 +415,10 @@ func _deactivate_piece(piece: Piece3D) -> void:
         cell.pieces.erase(piece)
         _cells_by_piece.erase(piece)
         _aabb_needs_recalculating = true
+    if parent_board:
+        parent_board._deactivate_piece(piece)
+    # Change _board_cached_active after we update parent board so it doesn't fail initial check
+    piece._board_cached_active = false
 #endregion
 
 #region AABB
