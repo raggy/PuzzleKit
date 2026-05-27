@@ -1,7 +1,7 @@
 class_name PuzzleKitContextMenu3DPlugin
 extends EditorContextMenuPlugin
 
-var editor: PuzzleKitEditor3D
+signal board_edit_requested(board: Board3D)
 
 func _popup_menu(paths: PackedStringArray) -> void:
     if paths.size() != 1:
@@ -20,7 +20,4 @@ func edit_board(args: Array) -> void:
         return
 
     var board: Board3D = args[0]
-    if board.scene_file_path.is_empty() or EditorInterface.get_edited_scene_root().is_editable_instance(board):
-        editor.edit(board)
-    else:
-        EditorInterface.open_scene_from_path(board.scene_file_path)
+    board_edit_requested.emit(board)
