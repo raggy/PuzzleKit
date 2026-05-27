@@ -19,7 +19,7 @@ var grid_up: Vector3i: get = _get_grid_up
 var grid_forward: Vector3i: get = _get_grid_forward
 
 ## The closest ancestor `Piece3D` in the scene tree
-var parent_piece: Piece3D: set = set_parent_piece
+var parent_piece: Piece3D: get = get_parent_piece, set = set_parent_piece
 ## Array of the closest descendant `Piece3D` in the scene tree.
 ## Editing this manually will probably break things!
 var _child_pieces: Array[Piece3D] = []
@@ -33,6 +33,7 @@ var history: PieceHistory3D
 var visual: PieceVisual3D
 
 var _board: Board3D: set = _set_board
+var _parent_piece: Piece3D
 
 var _has_init_previous: bool = false
 var _previous_active: bool
@@ -45,6 +46,8 @@ var _piece_state_cached_top_level: bool
 @warning_ignore_restore("unused_private_class_variable")
 
 func _enter_tree() -> void:
+    _set_parent_piece_no_scene_tree_changes(_find_piece_ancestor())
+
     if not _has_init_previous:
         _has_init_previous = true
         # _previous_active should be true if we exist during the initial scene
@@ -52,11 +55,10 @@ func _enter_tree() -> void:
         _previous_parent_piece = parent_piece
         _previous_transform = global_transform
 
-    parent_piece = _find_piece_ancestor()
     _board = _find_board()
 
 func _exit_tree() -> void:
-    parent_piece = null
+    _set_parent_piece_no_scene_tree_changes(null)
     _board = null
 
 func _ready() -> void:
@@ -85,18 +87,14 @@ func get_child_pieces() -> Array[Piece3D]:
 
 ## Returns the closest ancestor `Piece3D` in the scene tree
 func get_parent_piece() -> Piece3D:
-    return parent_piece
+    return _parent_piece
 
 ## Reparents this piece to `value`, if not already a descendant. Preserves `global_transform`.
 ## Alternatively, you may use Godot's `add_child` and `remove_child` functions and `parent_piece` will be updated automatically
 func set_parent_piece(value: Piece3D) -> void:
-    if parent_piece == value:
+    if _parent_piece == value:
         return
-    if parent_piece:
-        parent_piece._child_pieces.erase(self)
-    parent_piece = value
-    if value:
-        value._child_pieces.append(self)
+    _set_parent_piece_no_scene_tree_changes(value)
     # Update node parent_piece in scene tree
     var current_parent_node := get_parent()
     # No parent_piece set, parent ourselves to the board (if we have one)
@@ -217,6 +215,13 @@ func _update_board_state(including_descendants: bool) -> void:
     if including_descendants:
         for child_piece in _child_pieces:
             child_piece._update_board_state(true)
+
+func _set_parent_piece_no_scene_tree_changes(value: Piece3D) -> void:
+    if _parent_piece:
+        _parent_piece._child_pieces.erase(self)
+    _parent_piece = value
+    if value:
+        value._child_pieces.append(self)
 
 func _commit_changes() -> void:
     changes_committing.emit()
