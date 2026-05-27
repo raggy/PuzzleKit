@@ -16,6 +16,11 @@ func edit_board(args: Array) -> void:
     if args.size() != 1:
         return
     
-    if args[0] is Board3D:
-        var board: Board3D = args[0]
+    if not args[0] is Board3D:
+        return
+
+    var board: Board3D = args[0]
+    if board.scene_file_path.is_empty() or EditorInterface.get_edited_scene_root().is_editable_instance(board):
         editor.edit(board)
+    else:
+        EditorInterface.open_scene_from_path(board.scene_file_path)
