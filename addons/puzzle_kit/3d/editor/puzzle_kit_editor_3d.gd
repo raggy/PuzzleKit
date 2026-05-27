@@ -453,6 +453,10 @@ func _get_board_to_edit_from_scene() -> Board3D:
 
     if not edited_scene_root:
         return null
+    
+    # Keep editing same board if edited_scene_root hasn't changed
+    if _board and (_board == edited_scene_root or edited_scene_root.is_ancestor_of(_board)):
+        return _board
 
     # Allow editing where scene root is a Board3D
     if edited_scene_root is Board3D:
