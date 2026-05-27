@@ -45,6 +45,8 @@ const CUBE_CORNERS: Array[Vector3] = [
 @export var piece_directory_pick_button: Button
 @export var piece_directory_pick_dialog: FileDialog
 
+@export var path_to_board: Container
+
 @export var palette: ItemList
 
 @export var options_button: MenuButton
@@ -407,6 +409,8 @@ func edit(board: Board3D) -> void:
         _cursor_piece_outline.visible = false
         _cursor_tile_outline.visible = false
         _hide_all_grids()
+    
+    _update_path_to_board()
 
 func _set_interactable(interactable: bool) -> void:
     transform_mode_button.disabled = not interactable
@@ -443,6 +447,10 @@ func _on_editor_selection_changed() -> void:
 
 func _get_board_to_edit_from_scene() -> Board3D:
     var edited_scene_root := EditorInterface.get_edited_scene_root()
+
+    if not edited_scene_root:
+        return null
+
     # Allow editing where scene root is a Board3D
     if edited_scene_root is Board3D:
         return edited_scene_root
@@ -463,6 +471,34 @@ func _get_board_to_edit_from_scene() -> Board3D:
         nodes = children
 
     return null
+
+func _update_path_to_board() -> void:
+    for i in range(path_to_board.get_child_count()):
+        path_to_board.get_child(0).free()
+    
+    if _board:
+        var edited_scene_root := EditorInterface.get_edited_scene_root()
+        var root_button := Button.new()
+        root_button.text = edited_scene_root.name
+        root_button.disabled = not edited_scene_root is Board3D
+        path_to_board.add_child(root_button)
+        var node_buttons: Array[Button] = [root_button]
+        var board_node_path := edited_scene_root.get_path_to(_board)
+        var node_count := board_node_path.get_name_count()
+        root_button.z_index = node_count
+        for i in range(node_count):
+            var node_name := board_node_path.get_name(i)
+            if node_name == ".":
+                continue
+            var node_path := board_node_path.slice(0, i + 1)
+            prints(node_name, node_path)
+            var node := edited_scene_root.get_node(node_path)
+            var node_button := Button.new()
+            node_button.text = node_name
+            node_button.disabled = not node is Board3D
+            node_button.z_index = node_count - i - 1
+            path_to_board.add_child(node_button)
+            node_buttons.append(node_button)
 
 static func _find_nearest_ancestor_board(node: Node) -> Board3D:
     if not node.is_inside_tree():
