@@ -438,36 +438,31 @@ func _on_settings_changed() -> void:
         _update_palette()
 
 func _on_editor_selection_changed() -> void:
-    edit(_get_board_to_edit_from_selection())
+    edit(_get_board_to_edit_from_scene())
     _update_selection_outlines()
 
-func _get_board_to_edit_from_selection() -> Board3D:
-    var editor_selection := EditorInterface.get_selection()
-    var selected_nodes := editor_selection.get_selected_nodes()
-
-    if selected_nodes.is_empty():
-        var edited_scene_root := EditorInterface.get_edited_scene_root()
-        # Allow editing where scene root is a Board3D
-        return edited_scene_root if edited_scene_root is Board3D else null
+func _get_board_to_edit_from_scene() -> Board3D:
+    var edited_scene_root := EditorInterface.get_edited_scene_root()
+    # Allow editing where scene root is a Board3D
+    if edited_scene_root is Board3D:
+        return edited_scene_root
     
-    var board: Board3D = null
+    var nodes := edited_scene_root.get_children()
     
-    for selected_node in selected_nodes:
-        var selected_node_board: Board3D = selected_node if selected_node is Board3D else _find_nearest_ancestor_board(selected_node)
-        # This selected node is not a descendant of a board
-        if not selected_node_board:
-            return null
-        if board == null:
-            # This is the first board we've found, save it to return later
-            board = selected_node_board
-        elif selected_node_board.is_ancestor_of(board):
-            # This is an ancestor of previously-found board, use this instead
-            board = selected_node_board
-        elif board != selected_node_board and not board.is_ancestor_of(selected_node_board):
-            # Multiple boards selected that aren't nested, invalid
-            return null
+    # Search through nodes, first Board3D found, at most shallow depth possible
+    while not nodes.is_empty():
+        for node in nodes:
+            if node is Board3D:
+                # Found a Board3D
+                return node
+        
+        var children: Array[Node] = []
+        for node in nodes:
+            children.append_array(node.get_children())
+        # Search next depth
+        nodes = children
 
-    return board
+    return null
 
 static func _find_nearest_ancestor_board(node: Node) -> Board3D:
     if not node.is_inside_tree():
@@ -811,7 +806,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         _selection_debug.get_parent().remove_child(_selection_debug)
                         _selection_debug.queue_free()
                     if not _selection_movement_threshold_passed:
-                        # Select what's under cursor (or the board if nothing there)
+                        # Select what's under cursor
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
                         var new_selection: Node = null
                         var select_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
@@ -828,13 +823,6 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                             editor_selection.clear()
                             if new_selection:
                                 editor_selection.add_node(new_selection)
-                        # Handle auto-selection of board
-                        if editor_selection.get_selected_nodes().is_empty():
-                            # Select board if nothing else selected
-                            editor_selection.add_node(_board)
-                        elif editor_selection.get_selected_nodes().size() > 1:
-                            # Remove board from selection if we have something else selected
-                            editor_selection.remove_node(_board)
 
                 input_action = InputAction.INPUT_NONE
 
@@ -978,13 +966,6 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             # Select nodes that should now be selected
             for node: Node in new_selection.filter(func(x: Node) -> bool: return not x in current_editor_selection):
                 editor_selection.add_node(node)
-            # Handle auto-selection of board
-            if editor_selection.get_selected_nodes().is_empty():
-                # Select board if nothing else selected
-                editor_selection.add_node(_board)
-            elif editor_selection.get_selected_nodes().size() > 1:
-                # Remove board from selection if we have something else selected
-                editor_selection.remove_node(_board)
         return true
     return false
 
