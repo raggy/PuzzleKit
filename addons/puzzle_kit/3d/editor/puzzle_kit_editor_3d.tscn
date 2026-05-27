@@ -116,18 +116,14 @@ layout_mode = 2
 layout_mode = 2
 theme = ExtResource("2_6u3ku")
 
-[node name="Button" type="Button" parent="ScrollContainer/PathToBoard" unique_id=1478811894]
+[node name="ExampleButtonA" type="Button" parent="ScrollContainer/PathToBoard" unique_id=1478811894]
 z_index = 2
 layout_mode = 2
 disabled = true
-text = "HermitsNewHome"
+text = "Scene Root Name"
 
-[node name="Button2" type="Button" parent="ScrollContainer/PathToBoard" unique_id=411146722]
+[node name="ExampleButtonB" type="Button" parent="ScrollContainer/PathToBoard" unique_id=411146722]
 z_index = 1
-layout_mode = 2
-text = "Board3D"
-
-[node name="Button3" type="Button" parent="ScrollContainer/PathToBoard" unique_id=305255658]
 layout_mode = 2
 text = "Board3D"
 

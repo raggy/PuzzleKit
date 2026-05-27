@@ -390,6 +390,9 @@ func _update_theme() -> void:
     options_button.icon = editor_theme.get_icon("Tools", "EditorIcons")
 
 func edit(board: Board3D) -> void:
+    if _board == board:
+        return
+
     _board = board
 
     if _board:
@@ -473,32 +476,35 @@ func _get_board_to_edit_from_scene() -> Board3D:
     return null
 
 func _update_path_to_board() -> void:
-    for i in range(path_to_board.get_child_count()):
-        path_to_board.get_child(0).free()
+    # Clear existing buttons
+    for node in path_to_board.get_children():
+        node.queue_free()
     
     if _board:
         var edited_scene_root := EditorInterface.get_edited_scene_root()
+        var board_node_path := edited_scene_root.get_path_to(_board)
+        var node_count := board_node_path.get_name_count()
+        # Add a button for the root node
         var root_button := Button.new()
         root_button.text = edited_scene_root.name
         root_button.disabled = not edited_scene_root is Board3D
-        path_to_board.add_child(root_button)
-        var node_buttons: Array[Button] = [root_button]
-        var board_node_path := edited_scene_root.get_path_to(_board)
-        var node_count := board_node_path.get_name_count()
         root_button.z_index = node_count
+        root_button.pressed.connect(edit.bind(edited_scene_root as Board3D))
+        path_to_board.add_child(root_button)
+        # Add buttons for each descendent node in the path to the board
         for i in range(node_count):
             var node_name := board_node_path.get_name(i)
+            # If node name is "." then this is the scene root and we already have a button for it
             if node_name == ".":
                 continue
             var node_path := board_node_path.slice(0, i + 1)
-            prints(node_name, node_path)
             var node := edited_scene_root.get_node(node_path)
             var node_button := Button.new()
             node_button.text = node_name
             node_button.disabled = not node is Board3D
             node_button.z_index = node_count - i - 1
+            node_button.pressed.connect(edit.bind(node as Board3D))
             path_to_board.add_child(node_button)
-            node_buttons.append(node_button)
 
 static func _find_nearest_ancestor_board(node: Node) -> Board3D:
     if not node.is_inside_tree():
