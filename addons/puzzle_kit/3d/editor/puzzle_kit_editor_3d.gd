@@ -37,6 +37,9 @@ const CUBE_CORNERS: Array[Vector3] = [
 @export var rotate_y_button: Button
 @export var rotate_z_button: Button
 
+@export var group_button: Button
+@export var ungroup_button: Button
+
 @export var viewport_shortcut_buttons: Array[BaseButton]
 
 @export var draw_offset_spin_box: SpinBox
@@ -72,6 +75,8 @@ enum Menu {
     MENU_OPTION_CURSOR_BACK_ROTATE_X,
     MENU_OPTION_CURSOR_BACK_ROTATE_Y,
     MENU_OPTION_CURSOR_BACK_ROTATE_Z,
+    MENU_OPTION_GROUP,
+    MENU_OPTION_UNGROUP,
 }
 
 enum SelectionMode {
@@ -231,6 +236,8 @@ func _ready() -> void:
     rotate_x_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_x")
     rotate_y_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_y")
     rotate_z_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_z")
+    group_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/group")
+    ungroup_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/ungroup")
     piece_directory_pick_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_piece_directory")
 
     mode_buttons_group = ButtonGroup.new()
@@ -253,6 +260,9 @@ func _ready() -> void:
     rotate_x_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_X))
     rotate_y_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_Y))
     rotate_z_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_Z))
+    
+    group_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_GROUP))
+    ungroup_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_UNGROUP))
 
     visibility_changed.connect(_on_visibility_changed)
 
@@ -332,6 +342,21 @@ func _add_shortcuts_to_editor_settings() -> void:
     input_event_cursor_rotate_z.physical_keycode = KEY_D
     shortcut_cursor_rotate_z.events.append(input_event_cursor_rotate_z)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_rotate_z", shortcut_cursor_rotate_z)
+    var shortcut_group := Shortcut.new()
+    shortcut_group.resource_name = "Group"
+    var input_event_group := InputEventKey.new()
+    input_event_group.physical_keycode = KEY_G
+    input_event_group.ctrl_pressed = true
+    shortcut_group.events.append(input_event_group)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/group", shortcut_group)
+    var shortcut_ungroup := Shortcut.new()
+    shortcut_ungroup.resource_name = "Ungroup"
+    var input_event_ungroup := InputEventKey.new()
+    input_event_ungroup.physical_keycode = KEY_G
+    input_event_ungroup.ctrl_pressed = true
+    input_event_ungroup.shift_pressed = true
+    shortcut_ungroup.events.append(input_event_ungroup)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/ungroup", shortcut_ungroup)
     var shortcut_piece_directory_pick := Shortcut.new()
     shortcut_piece_directory_pick.resource_name = "Pick Piece Directory"
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_piece_directory", shortcut_piece_directory_pick)
@@ -386,6 +411,8 @@ func _update_theme() -> void:
     rotate_x_button.icon = editor_theme.get_icon("RotateLeft", "EditorIcons")
     rotate_y_button.icon = editor_theme.get_icon("ToolRotate", "EditorIcons")
     rotate_z_button.icon = editor_theme.get_icon("RotateRight", "EditorIcons")
+    group_button.icon = editor_theme.get_icon("Group", "EditorIcons")
+    ungroup_button.icon = editor_theme.get_icon("Ungroup", "EditorIcons")
     piece_directory_pick_button.icon = editor_theme.get_icon("Folder", "EditorIcons")
     options_button.icon = editor_theme.get_icon("Tools", "EditorIcons")
 
@@ -447,6 +474,7 @@ func _on_settings_changed() -> void:
 func _on_editor_selection_changed() -> void:
     edit(_get_board_to_edit_from_scene())
     _update_selection_outlines()
+    _auto_enable_group_buttons()
 
 func _get_board_to_edit_from_scene() -> Board3D:
     var edited_scene_root := EditorInterface.get_edited_scene_root()
@@ -557,6 +585,10 @@ func _menu_option(id: Menu) -> void:
             elif id == Menu.MENU_OPTION_CURSOR_ROTATE_Z or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
                 rotation_axis.z = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Z else -1
             _cursor_piece_container.rotate(rotation_axis, -PI / 2.0)
+        Menu.MENU_OPTION_GROUP:
+            _group_selection()
+        Menu.MENU_OPTION_UNGROUP:
+            _ungroup_selection()
 
 func _set_editor_layer_visible(layer: int, value: bool) -> void:
     for i in range(4):
@@ -1319,6 +1351,157 @@ func auto_setup_draw_preview() -> void:
         setup_draw_preview(_draw_scene)
     else:
         clear_draw_preview()
+#endregion
+
+#region Grouping
+func _auto_enable_group_buttons() -> void:
+    group_button.disabled = not _can_group_selection()
+    ungroup_button.disabled = not _can_ungroup_selection()
+
+func _can_group_selection() -> bool:
+    var editor_selection := EditorInterface.get_selection()
+    var editor_selected_nodes := editor_selection.get_selected_nodes()
+
+    if editor_selected_nodes.size() < 2:
+        # Not enough selected to group
+        return false
+    
+    var common_node_parent: Node = null
+    for node in editor_selected_nodes:
+        if not common_node_parent:
+            common_node_parent = node.get_parent()
+        
+        if node.get_parent() != common_node_parent:
+            # Selected nodes must share their parent
+            return false
+
+    return true
+
+func _can_ungroup_selection() -> bool:
+    var editor_selection := EditorInterface.get_selection()
+    var editor_selected_nodes := editor_selection.get_selected_nodes()
+
+    if editor_selected_nodes.is_empty():
+        # No selection to ungroup
+        return false
+
+    for node in editor_selected_nodes:
+        if not node is Board3D:
+            # Non-board selected
+            return false
+        
+        if not node.scene_file_path.is_empty():
+            # Selected board has its own scene
+            return false
+        
+        var selected_board := node as Board3D
+
+        if not selected_board.parent_board:
+            # Selected board has no parent board
+            return false
+
+    return true
+
+func _group_selection() -> void:
+    if not _can_group_selection():
+        return
+
+    # Setup undo history
+    undo_redo.create_action("PuzzleKit Group", UndoRedo.MERGE_DISABLE, _board.owner, false, true)
+
+    var editor_selection := EditorInterface.get_selection()
+    var editor_selected_nodes := editor_selection.get_selected_nodes()
+    editor_selected_nodes.sort_custom(func(a: Node, b: Node) -> bool: return a.get_index() < b.get_index())
+
+    var first_node := editor_selected_nodes[0]
+    var parent_node := first_node.get_parent()
+    var created_board := Board3D.new()
+    created_board.name = "Board3D"
+
+    # Add created board to the selected nodes' parent
+    undo_redo.add_do_method(parent_node, "add_child", created_board, true)
+    undo_redo.add_do_method(parent_node, "move_child", created_board, first_node.get_index())
+    undo_redo.add_do_property(created_board, "owner", parent_node.owner)
+    
+    for node in editor_selected_nodes:
+        # Move the selected nodes into the board
+        undo_redo.add_do_method(parent_node, "remove_child", node)
+        undo_redo.add_do_method(created_board, "add_child", node, true)
+        _add_do_set_owner_node_and_children(node)
+        undo_redo.add_undo_method(created_board, "remove_child", node)
+        undo_redo.add_undo_method(parent_node, "add_child", node)
+        undo_redo.add_undo_method(parent_node, "move_child", node, node.get_index() + 1)
+        _add_undo_set_owner_node_and_children(node)
+        undo_redo.add_undo_property(node, "name", node.name)
+
+    # When undoing, remove the created board
+    undo_redo.add_undo_method(parent_node, "remove_child", created_board)
+    # Commit undo history (and call the do methods)
+    undo_redo.commit_action(true)
+
+func _add_do_set_owner_node_and_children(node: Node) -> void:
+    undo_redo.add_do_property(node, "owner", node.owner)
+    for i in range(node.get_child_count()):
+        _add_do_set_owner_node_and_children(node.get_child(i))
+
+func _add_undo_set_owner_node_and_children(node: Node) -> void:
+    undo_redo.add_undo_property(node, "owner", node.owner)
+    for i in range(node.get_child_count()):
+        _add_undo_set_owner_node_and_children(node.get_child(i))
+
+func _ungroup_selection() -> void:
+    if not _can_ungroup_selection():
+        return
+
+    # Setup undo history
+    undo_redo.create_action("PuzzleKit Ungroup", UndoRedo.MERGE_DISABLE, _board.owner, false, true)
+    
+    var editor_selection := EditorInterface.get_selection()
+    var editor_selected_nodes := editor_selection.get_selected_nodes()
+
+    for node in editor_selected_nodes:
+        if not node is Board3D:
+            # Non-board selected
+            continue
+        
+        if not node.scene_file_path.is_empty():
+            # Selected board has its own scene
+            continue
+        
+        var selected_board := node as Board3D
+
+        if not selected_board.parent_board:
+            # Selected board has no parent board
+            continue
+        
+        var selected_board_node_children := selected_board.get_children()
+        var selected_board_node_parent := selected_board.get_parent()
+        var parent_board := selected_board.parent_board
+        var previous_sibling: Node = selected_board
+
+        # When undoing, need to add board back to scene first
+        undo_redo.add_undo_method(selected_board_node_parent, "add_child", selected_board)
+        undo_redo.add_undo_method(selected_board_node_parent, "move_child", selected_board, selected_board.get_index())
+        undo_redo.add_undo_property(selected_board, "owner", selected_board.owner)
+
+        for child in selected_board_node_children:
+            # Move the selected board's children into the parent board
+            undo_redo.add_do_method(selected_board, "remove_child", child)
+            undo_redo.add_do_method(previous_sibling, "add_sibling", child, true)
+            undo_redo.add_do_property(child, "owner", child.owner)
+            undo_redo.add_undo_method(parent_board, "remove_child", child)
+            undo_redo.add_undo_method(selected_board, "add_child", child)
+            undo_redo.add_undo_property(child, "owner", child.owner)
+            undo_redo.add_undo_property(child, "name", child.name)
+            previous_sibling = child
+
+        # Remove the selected board from its parent
+        undo_redo.add_do_method(selected_board_node_parent, "remove_child", selected_board)
+        undo_redo.add_undo_reference(selected_board)
+
+    # Commit undo history (and call the do methods)
+    undo_redo.commit_action(true)
+
 #endregion
 
 static func get_cells_entered(from: Vector3, to: Vector3) -> Array[Vector3i]:
