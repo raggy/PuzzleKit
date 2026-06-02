@@ -944,7 +944,10 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             if not piece_under_cursor:
                 # Nothing to erase here
                 continue
-            var piece_root_node := _get_node_root_in_ancestor(piece_under_cursor, _board)
+            var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
+            if piece_root_node is Board3D:
+                # Don't erase whole boards
+                continue
             if piece_root_node is Node3D:
                 var piece_root_node3d := piece_root_node as Node3D
                 var change := AddRemoveChange.create_from(piece_root_node3d, AddRemoveChange.Action.REMOVE)
@@ -972,7 +975,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             # Get a list of all selectable nodes
             _selection_root_nodes.clear()
             for piece in _board.get_pieces():
-                var piece_root_node := _get_node_root_in_ancestor(piece, _board)
+                var piece_root_node := _get_piece_root_in_board(piece)
                 if piece_root_node in _selection_root_nodes:
                     # Already found
                     continue
@@ -1049,6 +1052,25 @@ func _draw_selection_debug() -> void:
         var node_bounding_box := _selection_root_node_bounding_boxes[node]
         _selection_debug.draw_rect(node_bounding_box, Color.BLUE, false)
 
+func _get_piece_root_in_board(piece: Piece3D) -> Node:
+    if not _board:
+        return null
+
+    if not piece:
+        return null
+    
+    if piece._board != _board:
+        var search_board := piece._board
+
+        # Walk back through piece board's ancestry to find a direct child board of the one we're editing (or null if it's not a child)
+        while search_board and search_board.parent_board != _board:
+            search_board = search_board.parent_board
+        
+        return search_board
+    
+    # Piece is from the board we're editing
+    return _get_node_root_in_ancestor(piece, _board)
+
 static func _get_node_root_in_ancestor(node: Node, ancestor: Node) -> Node:
     if not node:
         return null
@@ -1100,6 +1122,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     _cursor_root_node = null
 
     if mode_buttons_group.get_pressed_button() == paint_mode_button:
+        _cursor_piece_container.position = Vector3.ZERO
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
@@ -1128,8 +1151,16 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         var piece_under_cursor := _board.get_piece_at(_cursor_grid_position)
         if piece_under_cursor:
-            var piece_root_node := _get_node_root_in_ancestor(piece_under_cursor, _board)
-            if piece_root_node is Node3D:
+            var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
+            if piece_root_node is Board3D:
+                var piece_root_board3d := piece_root_node as Node3D
+                _cursor_piece_container.global_transform = piece_root_board3d.global_transform
+                _cursor_piece_outline.generate_from(piece_root_board3d)
+                _cursor_piece_outline.visible = true
+                _cursor_tile_outline.visible = false
+                _cursor_piece_outline.outline_material = invalid_draw_outline_material
+                _cursor_piece_outline.fill_material = invalid_draw_fill_material
+            elif piece_root_node is Node3D:
                 var piece_root_node3d := piece_root_node as Node3D
                 _cursor_root_node = weakref(piece_root_node3d)
                 _cursor_piece_container.global_transform = piece_root_node3d.global_transform
@@ -1141,6 +1172,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         return
 
     if mode_buttons_group.get_pressed_button() == pick_mode_button:
+        _cursor_piece_container.transform = Transform3D.IDENTITY
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
         _hide_all_grids()
@@ -1159,6 +1191,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         if input_action == InputAction.INPUT_SELECT and _selection_movement_threshold_passed:
             _cursor_piece_outline.visible = false
         else:
+            _cursor_piece_container.transform = Transform3D.IDENTITY
             _cursor_piece_outline.visible = true
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
@@ -1232,7 +1265,7 @@ func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2
         _cursor.visible = false
         return
     
-    var piece_root_node := _get_node_root_in_ancestor(piece, _board)
+    var piece_root_node := _get_piece_root_in_board(piece)
 
     if not piece_root_node or not piece_root_node is Node3D:
         _cursor.visible = false
