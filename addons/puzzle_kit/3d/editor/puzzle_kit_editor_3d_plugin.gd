@@ -17,6 +17,7 @@ func _enter_tree() -> void:
     set_input_event_forwarding_always_enabled()
 
     _editor = _editor_scene.instantiate()
+    _editor.board_edit_requested.connect(_edit_board)
     _editor.undo_redo = get_undo_redo()
     _editor_button = add_control_to_bottom_panel(_editor, "PuzzleKit")
 
@@ -25,6 +26,7 @@ func _enter_tree() -> void:
     add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCENE_TREE, _context_menu)
 
 func _exit_tree() -> void:
+    _editor.board_edit_requested.disconnect(_edit_board)
     remove_control_from_bottom_panel(_editor)
     _editor.queue_free()
     _editor = null

@@ -6,6 +6,8 @@ extends VBoxContainer
 # With thanks to Godot contributors
 # https://github.com/godotengine/godot/blob/master/modules/gridmap/editor/grid_map_editor_plugin.cpp
 
+signal board_edit_requested(board: Board3D)
+
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 
 const GRID_CURSOR_SIZE := 50
@@ -137,6 +139,7 @@ var _selection_bounding_boxes_cached_camera_global_transform: Transform3D
 var _selection_bounding_boxes_cached_camera_size: float
 var _selection_debug: Control
 var _selection_piece_outlines: Dictionary[Node3D, PieceOutline3D] = {}
+var _selection_first_click_time: int = 0
 var _initial_selection: Array[Node] = []
 
 var _grid: Array[ArrayMesh]
@@ -707,15 +710,42 @@ func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
     ProjectSettings.save()
     _update_palette()
 
-func _on_palette_item_selected(_index: int) -> void:
-    _draw_scene = _load_selected_scene()
+func _on_palette_item_selected(index: int) -> void:
+    _setup_draw_scene_from_palette_index(index)
+    # Automatically change tool when palette item is manually selected
+    if _draw_scene:
+        paint_mode_button.set_pressed(true)
+    else:
+        erase_mode_button.set_pressed(true)
+    _on_tool_mode_changed()
+
+func _set_palette_selected_index(index: int) -> void:
+    palette.select(index, true)
+    _setup_draw_scene_from_palette_index(index)
+
+func _setup_draw_scene_from_palette_index(index: int) -> void:
+    _draw_scene = _get_palette_scene_at_index(index)
     auto_setup_draw_preview()
+
+func _get_palette_scene_at_index(index: int) -> PackedScene:
+    if not index in _palette_index_to_path:
+        return null
+
+    var path := _palette_index_to_path[index]
+
+    if path == "":
+        return null
+
+    var scene := load(path)
+
+    if scene:
+        return scene
+    
+    return null
 
 func _update_palette() -> void:
     palette.clear()
     _palette_index_to_path.clear()
-
-    _add_palette_item("", null, null, "[None]")
 
     var piece_palette_base_directory: String = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
     if piece_palette_base_directory.is_empty():
@@ -759,23 +789,6 @@ func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Tex
         preview = _preview_blank
     var item_index := palette.add_item(item_text, preview)
     _palette_index_to_path[item_index] = path
-
-func _load_selected_scene() -> PackedScene:
-    if not palette.is_anything_selected():
-        return null
-    
-    for index in palette.get_selected_items():
-        var path := _palette_index_to_path[index]
-
-        if path == "":
-            return null
-
-        var scene := load(path)
-
-        if scene:
-            return scene
-        
-    return null
 
 #endregion
 
@@ -886,6 +899,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     if not _selection_movement_threshold_passed:
                         # Select what's under cursor
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
+                        var is_double_click := Time.get_ticks_msec() - _selection_first_click_time <= 300
                         var new_selection: Node = null
                         var select_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
                         if select_node is Node3D:
@@ -897,10 +911,18 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         elif _selection_mode == SelectionMode.SELECTION_MODE_ADD:
                             if new_selection:
                                 editor_selection.add_node(new_selection)
+                        elif is_double_click and new_selection is Board3D and new_selection in editor_selection.get_selected_nodes():
+                            # Edit double-clicked Board3D
+                            board_edit_requested.emit(new_selection as Board3D)
+                        elif is_double_click and not new_selection and editor_selection.get_selected_nodes().is_empty():
+                            # Back out to current Board3D's parent
+                            if _board.parent_board:
+                                board_edit_requested.emit(_board.parent_board)
                         else: # _selection_mode == SelectionMode.SELECTION_MODE_REPLACE
                             editor_selection.clear()
                             if new_selection:
                                 editor_selection.add_node(new_selection)
+                            _selection_first_click_time = Time.get_ticks_msec()
 
                 input_action = InputAction.INPUT_NONE
 
@@ -994,8 +1016,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             for index: int in _palette_index_to_path.keys():
                 var path := _palette_index_to_path[index]
                 if path == node3d.scene_file_path:
-                    palette.select(index, true)
-                    _on_palette_item_selected(index)
+                    _set_palette_selected_index(index)
                     break
         return true
     if input_action == InputAction.INPUT_SELECT:
