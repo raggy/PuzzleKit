@@ -1132,7 +1132,7 @@ static func _get_node_root_in_ancestor(node: Node, ancestor: Node) -> Node:
         # Node is temporary
         return null
     
-    if node.owner == ancestor.owner:
+    if node.owner == ancestor.owner or node.owner == ancestor:
         # Found node owned by ancestor's scene
         return node
     
