@@ -97,6 +97,7 @@ var draw_offset: int
 var _accumulated_draw_offset_delta: float = 0.0
 
 var input_action: InputAction = InputAction.INPUT_NONE
+var input_mouse_button: MouseButton = MOUSE_BUTTON_NONE
 
 var undo_redo: EditorUndoRedoManager
 
@@ -840,6 +841,9 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             return EditorPlugin.AFTER_GUI_INPUT_STOP
         
         if mb.is_pressed():
+            if input_action != InputAction.INPUT_NONE:
+                # Already performing an input
+                return EditorPlugin.AFTER_GUI_INPUT_PASS
             if mb.button_index == MOUSE_BUTTON_LEFT:
                 if mode_buttons_group.get_pressed_button() == paint_mode_button:
                     input_action = InputAction.INPUT_PAINT
@@ -858,17 +862,18 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     else:
                         _selection_mode = SelectionMode.SELECTION_MODE_REPLACE
             elif mb.button_index == MOUSE_BUTTON_RIGHT:
-                if input_action == InputAction.INPUT_NONE:
-                    # TODO Pick
-                    pass
+                input_action = InputAction.INPUT_PICK
             else:
                 return EditorPlugin.AFTER_GUI_INPUT_PASS
+            
+            if input_action != InputAction.INPUT_NONE:
+                input_mouse_button = mb.button_index
             
             if do_input_action(viewport_camera, mb.position, true):
                 return EditorPlugin.AFTER_GUI_INPUT_STOP
             return EditorPlugin.AFTER_GUI_INPUT_PASS
         else:
-            if mb.button_index == MOUSE_BUTTON_LEFT:
+            if mb.button_index == input_mouse_button:
                 if input_action == InputAction.INPUT_PAINT:
                     if not _paint_changes.is_empty():
                         # Setup undo history
@@ -925,6 +930,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                             _selection_first_click_time = Time.get_ticks_msec()
 
                 input_action = InputAction.INPUT_NONE
+                input_mouse_button = MOUSE_BUTTON_NONE
 
     if event is InputEventMouseMotion:
         var mm := event as InputEventMouseMotion
@@ -1010,6 +1016,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)
+        var found_palette_item := false
         var pick_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
         if pick_node is Node3D:
             var node3d: Node3D = pick_node
@@ -1017,7 +1024,15 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 var path := _palette_index_to_path[index]
                 if path == node3d.scene_file_path:
                     _set_palette_selected_index(index)
+                    found_palette_item = true
                     break
+        if input_mouse_button == MOUSE_BUTTON_RIGHT:
+            if found_palette_item:
+                paint_mode_button.set_pressed(true)
+                _on_tool_mode_changed()
+            elif not pick_node:
+                erase_mode_button.set_pressed(true)
+                _on_tool_mode_changed()
         return true
     if input_action == InputAction.INPUT_SELECT:
         var box_selection_preview := _box_selection_preview_by_viewport[camera.get_viewport()]
@@ -1174,6 +1189,20 @@ static func _get_plane_position_from_intersection(intersection_point: Vector3, a
 func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     _cursor_root_node = null
 
+    if input_action == InputAction.INPUT_PICK or mode_buttons_group.get_pressed_button() == pick_mode_button:
+        _cursor_piece_container.transform = Transform3D.IDENTITY
+        _cursor_piece_outline.visible = true
+        _cursor_tile_outline.visible = false
+        _hide_all_grids()
+        if input_action == InputAction.INPUT_PICK:
+            _cursor_piece_outline.outline_material = valid_draw_outline_material
+            _cursor_piece_outline.fill_material = valid_draw_fill_material
+        else:
+            _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.fill_material = invalid_draw_fill_material
+        update_cursor_state_raycast_piece(camera, mouse_position)
+        return
+
     if mode_buttons_group.get_pressed_button() == paint_mode_button:
         _cursor_piece_container.position = Vector3.ZERO
         _cursor_piece_outline.visible = true
@@ -1222,20 +1251,6 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                 _cursor_tile_outline.visible = false
                 _cursor_piece_outline.outline_material = erase_draw_outline_material
                 _cursor_piece_outline.fill_material = erase_draw_fill_material
-        return
-
-    if mode_buttons_group.get_pressed_button() == pick_mode_button:
-        _cursor_piece_container.transform = Transform3D.IDENTITY
-        _cursor_piece_outline.visible = true
-        _cursor_tile_outline.visible = false
-        _hide_all_grids()
-        if input_action == InputAction.INPUT_PICK:
-            _cursor_piece_outline.outline_material = valid_draw_outline_material
-            _cursor_piece_outline.fill_material = valid_draw_fill_material
-        else:
-            _cursor_piece_outline.outline_material = invalid_draw_outline_material
-            _cursor_piece_outline.fill_material = invalid_draw_fill_material
-        update_cursor_state_raycast_piece(camera, mouse_position)
         return
 
     if mode_buttons_group.get_pressed_button() == select_mode_button:
