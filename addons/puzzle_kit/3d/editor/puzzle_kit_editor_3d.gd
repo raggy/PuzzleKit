@@ -989,7 +989,10 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             _paint_fresh_nodes.append(node3d)
             _board.add_child(node3d, true)
             node3d.global_transform = _cursor_piece_container.global_transform
-            node3d.owner = _board.owner
+            if _board == EditorInterface.get_edited_scene_root():
+                node3d.owner = _board
+            else:
+                node3d.owner = _board.owner
             var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
             _paint_changes.append(change)
         return true
