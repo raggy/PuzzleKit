@@ -402,6 +402,11 @@ func _notification(what: int) -> void:
     match what:
         NOTIFICATION_THEME_CHANGED:
             _update_theme()
+        NOTIFICATION_APPLICATION_FOCUS_OUT:
+            if input_action != InputAction.INPUT_NONE:
+                var release_event := InputEventMouseButton.new()
+                release_event.button_index = input_mouse_button
+                forward_spatial_input_event(null, release_event)
 
 func _update_theme() -> void:
     var editor_theme := EditorInterface.get_editor_theme()
