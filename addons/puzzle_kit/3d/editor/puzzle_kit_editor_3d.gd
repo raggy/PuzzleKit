@@ -403,10 +403,7 @@ func _notification(what: int) -> void:
         NOTIFICATION_THEME_CHANGED:
             _update_theme()
         NOTIFICATION_APPLICATION_FOCUS_OUT:
-            if input_action != InputAction.INPUT_NONE:
-                var release_event := InputEventMouseButton.new()
-                release_event.button_index = input_mouse_button
-                forward_spatial_input_event(null, release_event)
+            emulate_release_input()
 
 func _update_theme() -> void:
     var editor_theme := EditorInterface.get_editor_theme()
@@ -428,6 +425,11 @@ func _update_theme() -> void:
 func edit(board: Board3D) -> void:
     if _board == board:
         return
+    
+    if _board:
+        emulate_release_input()
+        transform_mode_button.button_pressed = true
+        _on_tool_mode_changed()
 
     _board = board
 
@@ -800,6 +802,10 @@ func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Tex
 
 #region Input
 func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -> int:
+    # Don't do anything if we don't have an active board to edit
+    if not _board:
+        return EditorPlugin.AFTER_GUI_INPUT_PASS
+
     # If the mouse is currently captured, we are most likely in freelook mode.
     # In this case, disable shortcuts to avoid conflicts with freelook navigation.
     if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
@@ -1093,6 +1099,13 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 editor_selection.add_node(node)
         return true
     return false
+
+func emulate_release_input() -> void:
+    if input_action == InputAction.INPUT_NONE:
+        return
+    var release_event := InputEventMouseButton.new()
+    release_event.button_index = input_mouse_button
+    forward_spatial_input_event(null, release_event)
 
 func _update_box_selection_bounding_boxes(camera: Camera3D, force: bool = false) -> void:
     if not force and camera.global_transform == _selection_bounding_boxes_cached_camera_global_transform and camera.size == _selection_bounding_boxes_cached_camera_size:
