@@ -52,7 +52,7 @@ func reset() -> void:
     undo_step.stop_before = true
     _undo_steps.append(undo_step)
 
-    for piece in _board._pieces:
+    for piece in _board._pieces.duplicate():
         # We don't track this piece
         if not piece.history:
             continue
