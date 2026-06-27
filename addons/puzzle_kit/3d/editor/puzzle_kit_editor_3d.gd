@@ -550,7 +550,7 @@ func _get_board_to_edit_from_scene() -> Board3D:
     # Search through nodes, first Board3D found, at most shallow depth possible
     while not nodes.is_empty():
         for node in nodes:
-            if node is Board3D:
+            if node is Board3D and (node.scene_file_path.is_empty() or edited_scene_root.is_editable_instance(node)):
                 # Found a Board3D
                 return node
         
