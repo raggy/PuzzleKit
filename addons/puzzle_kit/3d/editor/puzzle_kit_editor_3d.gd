@@ -1284,7 +1284,33 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         else:
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
-        update_cursor_state_raycast_piece(camera, mouse_position)
+        # Using pick mode tool
+        if mode_buttons_group.get_pressed_button() == pick_mode_button:
+            update_cursor_state_raycast_piece(camera, mouse_position)
+        # Right-click quick-pick
+        else:
+            update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+            var piece_under_cursor := _board.get_piece_at(_cursor_grid_position)
+            if piece_under_cursor:
+                var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
+                if piece_root_node is Board3D:
+                    var piece_root_board3d := piece_root_node as Node3D
+                    _cursor_piece_container.global_transform = piece_root_board3d.global_transform
+                    _cursor_piece_outline.generate_from(piece_root_board3d)
+                    _cursor_piece_outline.outline_material = invalid_draw_outline_material
+                    _cursor_piece_outline.fill_material = invalid_draw_fill_material
+                elif piece_root_node is Node3D:
+                    var piece_root_node3d := piece_root_node as Node3D
+                    _cursor_root_node = weakref(piece_root_node3d)
+                    _cursor_piece_container.global_transform = piece_root_node3d.global_transform
+                    _cursor_piece_outline.generate_from(piece_root_node3d)
+                    _cursor_piece_outline.outline_material = valid_draw_outline_material
+                    _cursor_piece_outline.fill_material = valid_draw_fill_material
+            else:
+                _cursor_piece_outline.visible = false
+                _cursor_tile_outline.visible = true
+                _cursor_tile_outline.outline_material = invalid_draw_outline_material
+                _cursor_tile_outline.fill_material = invalid_draw_fill_material
         return
 
     if mode_buttons_group.get_pressed_button() == paint_mode_button:
