@@ -9,6 +9,9 @@ extends VBoxContainer
 signal board_edit_requested(board: Board3D)
 
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
+const SETTING_PAINT_OVERWRITES := "puzzle_kit/editor/paint_overwrites"
+const SETTING_PICK_COPIES_ROTATION := "puzzle_kit/editor/pick_copies_rotation"
+const SETTING_PICK_COPIES_OFFSET := "puzzle_kit/editor/pick_copies_offset"
 
 const GRID_CURSOR_SIZE := 50
 
@@ -52,6 +55,13 @@ const CUBE_CORNERS: Array[Vector3] = [
 
 @export var path_to_board: Container
 
+@export var paint_mode_options: Control
+@export var paint_mode_option_overwrite: CheckBox
+
+@export var pick_mode_options: Control
+@export var pick_mode_option_copy_piece_rotation: CheckBox
+@export var pick_mode_option_copy_piece_offset: CheckBox
+
 @export var palette: ItemList
 
 @export var options_button: MenuButton
@@ -71,6 +81,9 @@ enum Menu {
     MENU_OPTION_X_AXIS,
     MENU_OPTION_Y_AXIS,
     MENU_OPTION_Z_AXIS,
+    MENU_OPTION_PAINT_OVERWRITE,
+    MENU_OPTION_PICK_COPY_ROTATION,
+    MENU_OPTION_PICK_COPY_OFFSET,
     MENU_OPTION_CURSOR_ROTATE_X,
     MENU_OPTION_CURSOR_ROTATE_Y,
     MENU_OPTION_CURSOR_ROTATE_Z,
@@ -126,9 +139,12 @@ var _cursor_grid_direction: Vector3i
 var _cursor_plane_position: Vector3
 var _cursor_root_node: WeakRef
 
-var _paint_fresh_nodes: Array[Node3D]
+var _paint_overwrite: bool
 var _paint_changes: Array[AddRemoveChange]
 var _paint_plane_position: Vector3
+
+var _pick_copy_rotation: bool
+var _pick_copy_offset: bool
 
 var _box_selection_preview_by_viewport: Dictionary[Viewport, BoxSelectionPreview]
 var _selection_mode: SelectionMode
@@ -274,8 +290,6 @@ func _ready() -> void:
 
     piece_directory_pick_button.pressed.connect(_on_piece_directory_pick_button_pressed)
     piece_directory_pick_dialog.dir_selected.connect(_on_piece_directory_pick_dialog_dir_selected)
-
-    piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
     
     palette.item_selected.connect(_on_palette_item_selected)
 
@@ -286,8 +300,14 @@ func _ready() -> void:
     options_button.get_popup().add_radio_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/edit_y_axis"), Menu.MENU_OPTION_Y_AXIS)
     options_button.get_popup().add_radio_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/edit_z_axis"), Menu.MENU_OPTION_Z_AXIS)
     options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_Y_AXIS), true);
+    options_button.get_popup().add_separator("Paint")
+    options_button.get_popup().add_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/paint_overwrites"), Menu.MENU_OPTION_PAINT_OVERWRITE)
+    options_button.get_popup().add_separator("Pick")
+    options_button.get_popup().add_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_copies_rotation"), Menu.MENU_OPTION_PICK_COPY_ROTATION)
+    options_button.get_popup().add_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_copies_offset"), Menu.MENU_OPTION_PICK_COPY_OFFSET)
     options_button.get_popup().id_pressed.connect(_menu_option)
 
+    _load_project_settings()
     _on_editor_selection_changed()
 
 func _add_shortcuts_to_editor_settings() -> void:
@@ -386,6 +406,21 @@ func _add_shortcuts_to_editor_settings() -> void:
     input_event_edit_z_axis.shift_pressed = true
     shortcut_edit_z_axis.events.append(input_event_edit_z_axis)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/edit_z_axis", shortcut_edit_z_axis)
+    var shortcut_paint_overwrite := Shortcut.new()
+    shortcut_paint_overwrite.resource_name = "Overwrite"
+    # var input_event_paint_overwrite := InputEventKey.new()
+    # shortcut_paint_overwrite.events.append(input_event_paint_overwrite)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/paint_overwrites", shortcut_paint_overwrite)
+    var shortcut_pick_copy_rotation := Shortcut.new()
+    shortcut_pick_copy_rotation.resource_name = "Copy Rotation"
+    # var input_event_pick_copy_rotation := InputEventKey.new()
+    # shortcut_pick_copy_rotation.events.append(input_event_pick_copy_rotation)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_copies_rotation", shortcut_pick_copy_rotation)
+    var shortcut_pick_copy_offset := Shortcut.new()
+    shortcut_pick_copy_offset.resource_name = "Copy Offset"
+    # var input_event_pick_copy_offset := InputEventKey.new()
+    # shortcut_pick_copy_offset.events.append(input_event_pick_copy_offset)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_copies_offset", shortcut_pick_copy_offset)
 
 func _process(_delta: float) -> void:
     if is_part_of_edited_scene():
@@ -478,9 +513,18 @@ func _on_settings_changed() -> void:
     if is_part_of_edited_scene():
         return
 
-    piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
+    _load_project_settings()
     if is_visible_in_tree():
         _update_palette()
+
+func _load_project_settings() -> void:
+    piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
+    _paint_overwrite = ProjectSettings.get_setting(SETTING_PAINT_OVERWRITES, false)
+    options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_PAINT_OVERWRITE), _paint_overwrite)
+    _pick_copy_rotation = ProjectSettings.get_setting(SETTING_PICK_COPIES_ROTATION, false)
+    options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_PICK_COPY_ROTATION), _pick_copy_rotation)
+    _pick_copy_offset = ProjectSettings.get_setting(SETTING_PICK_COPIES_OFFSET, false)
+    options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_PICK_COPY_OFFSET), _pick_copy_offset)
 
 func _on_editor_selection_changed() -> void:
     edit(_get_board_to_edit_from_scene())
@@ -586,6 +630,21 @@ func _menu_option(id: Menu) -> void:
                 var index := options_button.get_popup().get_item_index(axis_id)
                 options_button.get_popup().set_item_checked(index, axis_id == id)
                 edit_axis = (id - Menu.MENU_OPTION_X_AXIS) as Vector3.Axis
+        Menu.MENU_OPTION_PAINT_OVERWRITE:
+            _paint_overwrite = not _paint_overwrite
+            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _paint_overwrite)
+            ProjectSettings.set_setting(SETTING_PAINT_OVERWRITES, _paint_overwrite)
+            ProjectSettings.save()
+        Menu.MENU_OPTION_PICK_COPY_ROTATION:
+            _pick_copy_rotation = not _pick_copy_rotation
+            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _pick_copy_rotation)
+            ProjectSettings.set_setting(SETTING_PICK_COPIES_ROTATION, _pick_copy_rotation)
+            ProjectSettings.save()
+        Menu.MENU_OPTION_PICK_COPY_OFFSET:
+            _pick_copy_offset = not _pick_copy_offset
+            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _pick_copy_offset)
+            ProjectSettings.set_setting(SETTING_PICK_COPIES_OFFSET, _pick_copy_offset)
+            ProjectSettings.save()
         Menu.MENU_OPTION_CURSOR_ROTATE_X, Menu.MENU_OPTION_CURSOR_ROTATE_Y, Menu.MENU_OPTION_CURSOR_ROTATE_Z, \
         Menu.MENU_OPTION_CURSOR_BACK_ROTATE_X, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Y, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
             var rotation_axis := Vector3()
@@ -972,7 +1031,6 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         var paint_positions: Array[Vector3i]
         if click:
-            _paint_fresh_nodes = []
             _paint_changes = []
             # Always try to draw once under cursor on click
             paint_positions = [_cursor_grid_position]
@@ -985,6 +1043,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             return true
         for paint_position in paint_positions:
             _cursor.global_position = paint_position
+            if _paint_overwrite and not erase_pieces_overlapping_preview():
+                    continue
             if not can_paint_at_preview_position():
                 continue
             var node := _draw_scene.instantiate()
@@ -992,7 +1052,6 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             if not node3d:
                 node.queue_free()
                 return true
-            _paint_fresh_nodes.append(node3d)
             _board.add_child(node3d, true)
             node3d.global_transform = _cursor_piece_container.global_transform
             if _board == EditorInterface.get_edited_scene_root():
@@ -1040,6 +1099,10 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     _set_palette_selected_index(index)
                     found_palette_item = true
                     break
+            if _pick_copy_rotation:
+                _cursor_piece_container.global_rotation = node3d.global_rotation
+            if _pick_copy_offset:
+                draw_offset_spin_box.value = round(node3d.global_position[edit_axis])
         if input_mouse_button == MOUSE_BUTTON_RIGHT:
             if found_palette_item:
                 paint_mode_button.set_pressed(true)
@@ -1373,6 +1436,43 @@ func can_paint_at_preview_position() -> bool:
     for piece in _draw_preview_pieces:
         if _board.get_piece_at(piece.grid_position):
             return false
+    
+    return true
+
+func erase_pieces_overlapping_preview() -> bool:
+    if not _draw_preview or _draw_preview_pieces.size() == 0:
+        return false
+
+    var nodes_to_erase: Array[Node3D] = []
+    for piece in _draw_preview_pieces:
+        for piece_overlapping in _board.get_pieces_at(piece.grid_position):
+            if piece_overlapping._board != _board:
+                # There's a piece we can't erase (from a nested board)
+                return false
+            var piece_root_node := _get_piece_root_in_board(piece_overlapping)
+            if piece_root_node is Board3D:
+                # Don't erase whole boards
+                return false
+            if not piece_root_node is Node3D:
+                # Don't know how to erase this
+                return false
+            if not piece_root_node.scene_file_path.is_empty() and piece_root_node.scene_file_path == _draw_scene.resource_path:
+                # Don't overwrite piece with same piece
+                return false
+            var piece_root_node3d: Node3D = piece_root_node
+            if nodes_to_erase.has(piece_root_node3d):
+                continue
+            nodes_to_erase.append(piece_root_node3d)
+    
+    if nodes_to_erase.size() == 1:
+        var node_to_erase := nodes_to_erase[0]
+        if not node_to_erase.scene_file_path.is_empty() and node_to_erase.scene_file_path == _draw_scene.resource_path:
+            return false
+    
+    for node in nodes_to_erase:
+        var change := AddRemoveChange.create_from(node, AddRemoveChange.Action.REMOVE)
+        _paint_changes.append(change)
+        node.get_parent().remove_child(node)
     
     return true
 
