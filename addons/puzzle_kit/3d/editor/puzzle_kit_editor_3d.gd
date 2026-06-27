@@ -458,7 +458,7 @@ func _update_theme() -> void:
     options_button.icon = editor_theme.get_icon("Tools", "EditorIcons")
 
 func edit(board: Board3D) -> void:
-    if _board == board:
+    if board and _board == board:
         return
     
     if _board:
