@@ -1047,7 +1047,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     continue
             if not can_paint_at_preview_position():
                 continue
-            var node := _draw_scene.instantiate()
+            var node := _draw_scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
             var node3d := node as Node3D
             if not node3d:
                 node.queue_free()
