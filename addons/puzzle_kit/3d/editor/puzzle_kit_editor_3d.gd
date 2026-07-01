@@ -900,17 +900,23 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
 
     if event is InputEventMouseButton:
         var mb := event as InputEventMouseButton
+
         # Change draw offset with Ctrl + Scroll Wheel
-        if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.is_command_or_control_pressed():
-            if mb.is_pressed():
-                draw_offset_spin_box.value += mb.factor
-            return EditorPlugin.AFTER_GUI_INPUT_STOP
-        if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.is_command_or_control_pressed():
-            if mb.is_pressed():
-                draw_offset_spin_box.value -= mb.factor
-            return EditorPlugin.AFTER_GUI_INPUT_STOP
+        if mode_buttons_group.get_pressed_button() != transform_mode_button:
+            if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.is_command_or_control_pressed():
+                if mb.is_pressed():
+                    draw_offset_spin_box.value += mb.factor
+                return EditorPlugin.AFTER_GUI_INPUT_STOP
+            if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.is_command_or_control_pressed():
+                if mb.is_pressed():
+                    draw_offset_spin_box.value -= mb.factor
+                return EditorPlugin.AFTER_GUI_INPUT_STOP
         
         if mb.is_pressed():
+            # Ignore input in transform mode
+            if mode_buttons_group.get_pressed_button() == transform_mode_button:
+                return EditorPlugin.AFTER_GUI_INPUT_PASS
+
             if input_action != InputAction.INPUT_NONE:
                 # Already performing an input
                 return EditorPlugin.AFTER_GUI_INPUT_PASS
@@ -1010,8 +1016,11 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
         return EditorPlugin.AFTER_GUI_INPUT_PASS
 
     if event is InputEventPanGesture:
-        var pg := event as InputEventPanGesture
+        # Ignore input in transform mode
+        if mode_buttons_group.get_pressed_button() == transform_mode_button:
+            return EditorPlugin.AFTER_GUI_INPUT_PASS
 
+        var pg := event as InputEventPanGesture
         # Change draw offset with Ctrl + Pan Gesture
         if pg.is_command_or_control_pressed():
             var delta := pg.delta.y * 0.5
