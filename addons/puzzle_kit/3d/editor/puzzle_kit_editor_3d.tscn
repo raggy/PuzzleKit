@@ -15,7 +15,7 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "paint_mode_options", "paint_mode_option_overwrite", "pick_mode_options", "pick_mode_option_copy_piece_rotation", "pick_mode_option_copy_piece_offset", "palette", "options_button", "info_no_board")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "options_button", "info_no_board")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -40,12 +40,7 @@ piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
 piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
 path_to_board = NodePath("ScrollContainer/PathToBoard")
-paint_mode_options = NodePath("")
-paint_mode_option_overwrite = NodePath("")
-pick_mode_options = NodePath("")
-pick_mode_option_copy_piece_rotation = NodePath("")
-pick_mode_option_copy_piece_offset = NodePath("")
-palette = NodePath("PiecePalette")
+palette = NodePath("ScrollContainer2/PiecePalette")
 options_button = NodePath("Toolbar/OptionsButton")
 info_no_board = NodePath("Info_NoBoard")
 metadata/_custom_type_script = "uid://vbuogr241dq1"
@@ -158,8 +153,15 @@ z_index = 1
 layout_mode = 2
 text = "Board3D"
 
-[node name="PiecePalette" type="ItemList" parent="." unique_id=1092692555]
+[node name="ScrollContainer2" type="ScrollContainer" parent="." unique_id=1319309317]
+custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="PiecePalette" type="ItemList" parent="ScrollContainer2" unique_id=1092692555]
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_6u3ku")
 max_text_lines = 2
