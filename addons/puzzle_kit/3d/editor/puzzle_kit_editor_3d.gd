@@ -537,6 +537,7 @@ func _on_settings_changed() -> void:
         _update_palette()
     
     if ProjectSettings.check_changed_settings_in_group("global_group"):
+        ProjectSettings.save()
         _update_groups_list()
 
 func _load_project_settings() -> void:
