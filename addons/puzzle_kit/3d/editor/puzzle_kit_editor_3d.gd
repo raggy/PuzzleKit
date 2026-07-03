@@ -56,16 +56,10 @@ const CUBE_CORNERS: Array[Vector3] = [
 
 @export var path_to_board: Container
 
-@export var paint_mode_options: Control
-@export var paint_mode_option_overwrite: CheckBox
-
-@export var pick_mode_options: Control
-@export var pick_mode_option_copy_piece_rotation: CheckBox
-@export var pick_mode_option_copy_piece_offset: CheckBox
-
 @export var palette: ItemList
 
 @export var group_name_filter: LineEdit
+@export var groups_clear_button: Button
 @export var groups_container: Container
 var group_checkboxes: Array[CheckBox] = []
 
@@ -302,8 +296,8 @@ func _ready() -> void:
     
     palette.item_selected.connect(_on_palette_item_selected)
 
-    group_name_filter.right_icon = EditorInterface.get_editor_theme().get_icon("Search", "EditorIcons")
     group_name_filter.text_changed.connect(_on_group_name_filter_text_changed)
+    groups_clear_button.pressed.connect(_on_clear_groups_pressed)
     _update_groups_list()
 
     edit_axis = Vector3.AXIS_Y
@@ -475,6 +469,8 @@ func _update_theme() -> void:
     ungroup_button.icon = editor_theme.get_icon("Ungroup", "EditorIcons")
     piece_directory_pick_button.icon = editor_theme.get_icon("Folder", "EditorIcons")
     options_button.icon = editor_theme.get_icon("Tools", "EditorIcons")
+    group_name_filter.right_icon = editor_theme.get_icon("Search", "EditorIcons")
+    groups_clear_button.icon = editor_theme.get_icon("Clear", "EditorIcons")
 
 func edit(board: Board3D) -> void:
     if board and _board == board:
@@ -940,6 +936,11 @@ func _on_group_checkbox_pressed() -> void:
 func _update_filtered_groups(filter: String) -> void:
     for group_checkbox in group_checkboxes:
         group_checkbox.visible = group_checkbox.button_pressed or filter.is_empty() or group_checkbox.text.contains(filter)
+
+func _on_clear_groups_pressed() -> void:
+    for group_checkbox in group_checkboxes:
+        group_checkbox.button_pressed = false
+    _update_filtered_groups(group_name_filter.text)
 #endregion
 
 #region Input

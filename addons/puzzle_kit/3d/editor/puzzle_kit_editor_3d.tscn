@@ -16,7 +16,7 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_container", "options_button", "container_board", "info_no_board")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_clear_button", "groups_container", "options_button", "container_board", "info_no_board")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -43,6 +43,7 @@ piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
 path_to_board = NodePath("ScrollContainer/PathToBoard")
 palette = NodePath("HBoxContainer_Board/ScrollContainer/PiecePalette")
 group_name_filter = NodePath("HBoxContainer_Board/VBoxContainer/GroupNameFilter")
+groups_clear_button = NodePath("HBoxContainer_Board/VBoxContainer/HBoxContainer/ClearGroupsButton")
 groups_container = NodePath("HBoxContainer_Board/VBoxContainer/ScrollContainer/GroupsContainer")
 options_button = NodePath("Toolbar/OptionsButton")
 container_board = NodePath("HBoxContainer_Board")
@@ -189,9 +190,17 @@ size_flags_vertical = 3
 layout_mode = 2
 placeholder_text = "Filter Groups"
 
-[node name="Label" type="Label" parent="HBoxContainer_Board/VBoxContainer" unique_id=148233138]
+[node name="HBoxContainer" type="HBoxContainer" parent="HBoxContainer_Board/VBoxContainer" unique_id=408837585]
 layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer_Board/VBoxContainer/HBoxContainer" unique_id=148233138]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Add to Groups"
+
+[node name="ClearGroupsButton" type="Button" parent="HBoxContainer_Board/VBoxContainer/HBoxContainer" unique_id=123642385]
+layout_mode = 2
+theme_type_variation = &"FlatButton"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="HBoxContainer_Board/VBoxContainer" unique_id=293713554]
 layout_mode = 2
