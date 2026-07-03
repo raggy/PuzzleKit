@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://vbuogr241dq1" path="res://addons/puzzle_kit/3d/editor/puzzle_kit_editor_3d.gd" id="1_heuv1"]
 [ext_resource type="Theme" uid="uid://ivxe8dvpx2ic" path="res://addons/puzzle_kit/3d/editor/themes/node_path_button_theme.tres" id="2_6u3ku"]
+[ext_resource type="Theme" uid="uid://cwk4r50hc4woj" path="res://addons/puzzle_kit/3d/editor/themes/add_to_group_theme.tres" id="3_hp4jr"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6u3ku"]
 content_margin_left = 4.0
@@ -15,7 +16,7 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "options_button", "info_no_board")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_container", "options_button", "container_board", "info_no_board")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -40,8 +41,11 @@ piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
 piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
 path_to_board = NodePath("ScrollContainer/PathToBoard")
-palette = NodePath("ScrollContainer2/PiecePalette")
+palette = NodePath("HBoxContainer_Board/ScrollContainer/PiecePalette")
+group_name_filter = NodePath("HBoxContainer_Board/VBoxContainer/GroupNameFilter")
+groups_container = NodePath("HBoxContainer_Board/VBoxContainer/ScrollContainer/GroupsContainer")
 options_button = NodePath("Toolbar/OptionsButton")
+container_board = NodePath("HBoxContainer_Board")
 info_no_board = NodePath("Info_NoBoard")
 metadata/_custom_type_script = "uid://vbuogr241dq1"
 
@@ -153,13 +157,18 @@ z_index = 1
 layout_mode = 2
 text = "Board3D"
 
-[node name="ScrollContainer2" type="ScrollContainer" parent="." unique_id=1319309317]
+[node name="HBoxContainer_Board" type="HBoxContainer" parent="." unique_id=116559197]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ScrollContainer" type="ScrollContainer" parent="HBoxContainer_Board" unique_id=1319309317]
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="PiecePalette" type="ItemList" parent="ScrollContainer2" unique_id=1092692555]
+[node name="PiecePalette" type="ItemList" parent="HBoxContainer_Board/ScrollContainer" unique_id=1092692555]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -170,6 +179,29 @@ max_columns = 0
 same_column_width = true
 fixed_column_width = 80
 icon_mode = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HBoxContainer_Board" unique_id=2133804596]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GroupNameFilter" type="LineEdit" parent="HBoxContainer_Board/VBoxContainer" unique_id=1491252953]
+layout_mode = 2
+placeholder_text = "Filter Groups"
+
+[node name="Label" type="Label" parent="HBoxContainer_Board/VBoxContainer" unique_id=148233138]
+layout_mode = 2
+text = "Add to Groups"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="HBoxContainer_Board/VBoxContainer" unique_id=293713554]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GroupsContainer" type="VBoxContainer" parent="HBoxContainer_Board/VBoxContainer/ScrollContainer" unique_id=1999736316]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("3_hp4jr")
 
 [node name="Info_NoBoard" type="Label" parent="." unique_id=26708001]
 visible = false

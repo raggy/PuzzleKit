@@ -99,6 +99,7 @@ editor/piece_directory="res://examples/hermits_new_home/pieces"
 editor/paint_overwrites=false
 editor/pick_copies_rotation=false
 editor/pick_copies_offset=false
+editor/pick_copies_groups=false
 
 [rendering]
 

@@ -12,6 +12,7 @@ const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 const SETTING_PAINT_OVERWRITES := "puzzle_kit/editor/paint_overwrites"
 const SETTING_PICK_COPIES_ROTATION := "puzzle_kit/editor/pick_copies_rotation"
 const SETTING_PICK_COPIES_OFFSET := "puzzle_kit/editor/pick_copies_offset"
+const SETTING_PICK_COPIES_GROUPS := "puzzle_kit/editor/pick_copies_groups"
 
 const GRID_CURSOR_SIZE := 50
 
@@ -64,8 +65,13 @@ const CUBE_CORNERS: Array[Vector3] = [
 
 @export var palette: ItemList
 
+@export var group_name_filter: LineEdit
+@export var groups_container: Container
+var group_checkboxes: Array[CheckBox] = []
+
 @export var options_button: MenuButton
 
+@export var container_board: Container
 @export var info_no_board: Control
 
 enum InputAction {
@@ -84,6 +90,7 @@ enum Menu {
     MENU_OPTION_PAINT_OVERWRITE,
     MENU_OPTION_PICK_COPY_ROTATION,
     MENU_OPTION_PICK_COPY_OFFSET,
+    MENU_OPTION_PICK_COPY_GROUPS,
     MENU_OPTION_CURSOR_ROTATE_X,
     MENU_OPTION_CURSOR_ROTATE_Y,
     MENU_OPTION_CURSOR_ROTATE_Z,
@@ -137,6 +144,7 @@ var _cursor_tile_outline: TileOutline3D
 var _cursor_grid_position: Vector3i
 var _cursor_grid_direction: Vector3i
 var _cursor_plane_position: Vector3
+var _cursor_piece: WeakRef
 var _cursor_root_node: WeakRef
 
 var _paint_overwrite: bool
@@ -145,6 +153,7 @@ var _paint_plane_position: Vector3
 
 var _pick_copy_rotation: bool
 var _pick_copy_offset: bool
+var _pick_copy_groups: bool
 
 var _box_selection_preview_by_viewport: Dictionary[Viewport, BoxSelectionPreview]
 var _selection_mode: SelectionMode
@@ -293,6 +302,10 @@ func _ready() -> void:
     
     palette.item_selected.connect(_on_palette_item_selected)
 
+    group_name_filter.right_icon = EditorInterface.get_editor_theme().get_icon("Search", "EditorIcons")
+    group_name_filter.text_changed.connect(_on_group_name_filter_text_changed)
+    _update_groups_list()
+
     edit_axis = Vector3.AXIS_Y
     draw_offset = 0
 
@@ -305,6 +318,7 @@ func _ready() -> void:
     options_button.get_popup().add_separator("Pick")
     options_button.get_popup().add_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_copies_rotation"), Menu.MENU_OPTION_PICK_COPY_ROTATION)
     options_button.get_popup().add_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_copies_offset"), Menu.MENU_OPTION_PICK_COPY_OFFSET)
+    options_button.get_popup().add_check_shortcut(EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_copies_groups"), Menu.MENU_OPTION_PICK_COPY_GROUPS)
     options_button.get_popup().id_pressed.connect(_menu_option)
 
     _load_project_settings()
@@ -421,6 +435,11 @@ func _add_shortcuts_to_editor_settings() -> void:
     # var input_event_pick_copy_offset := InputEventKey.new()
     # shortcut_pick_copy_offset.events.append(input_event_pick_copy_offset)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_copies_offset", shortcut_pick_copy_offset)
+    var shortcut_pick_copy_groups := Shortcut.new()
+    shortcut_pick_copy_groups.resource_name = "Copy Groups"
+    # var input_event_pick_copy_groups := InputEventKey.new()
+    # shortcut_pick_copy_groups.events.append(input_event_pick_copy_groups)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/pick_copies_groups", shortcut_pick_copy_groups)
 
 func _process(_delta: float) -> void:
     if is_part_of_edited_scene():
@@ -474,13 +493,13 @@ func edit(board: Board3D) -> void:
         _on_tool_mode_changed()
         set_process(true)
         _set_interactable(true)
-        palette.visible = true
+        container_board.visible = true
         info_no_board.visible = false
     else:
         set_process(false)
         _set_interactable(false)
         transform_mode_button.disabled = true
-        palette.visible = false
+        container_board.visible = false
         info_no_board.visible = true
         _cursor_piece_outline.visible = false
         _cursor_tile_outline.visible = false
@@ -516,6 +535,9 @@ func _on_settings_changed() -> void:
     _load_project_settings()
     if is_visible_in_tree():
         _update_palette()
+    
+    if ProjectSettings.check_changed_settings_in_group("global_group"):
+        _update_groups_list()
 
 func _load_project_settings() -> void:
     piece_directory_input.text = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
@@ -525,6 +547,8 @@ func _load_project_settings() -> void:
     options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_PICK_COPY_ROTATION), _pick_copy_rotation)
     _pick_copy_offset = ProjectSettings.get_setting(SETTING_PICK_COPIES_OFFSET, false)
     options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_PICK_COPY_OFFSET), _pick_copy_offset)
+    _pick_copy_groups = ProjectSettings.get_setting(SETTING_PICK_COPIES_GROUPS, false)
+    options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(Menu.MENU_OPTION_PICK_COPY_GROUPS), _pick_copy_groups)
 
 func _on_editor_selection_changed() -> void:
     edit(_get_board_to_edit_from_scene())
@@ -644,6 +668,11 @@ func _menu_option(id: Menu) -> void:
             _pick_copy_offset = not _pick_copy_offset
             options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _pick_copy_offset)
             ProjectSettings.set_setting(SETTING_PICK_COPIES_OFFSET, _pick_copy_offset)
+            ProjectSettings.save()
+        Menu.MENU_OPTION_PICK_COPY_GROUPS:
+            _pick_copy_groups = not _pick_copy_groups
+            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _pick_copy_groups)
+            ProjectSettings.set_setting(SETTING_PICK_COPIES_GROUPS, _pick_copy_groups)
             ProjectSettings.save()
         Menu.MENU_OPTION_CURSOR_ROTATE_X, Menu.MENU_OPTION_CURSOR_ROTATE_Y, Menu.MENU_OPTION_CURSOR_ROTATE_Z, \
         Menu.MENU_OPTION_CURSOR_BACK_ROTATE_X, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Y, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
@@ -859,6 +888,59 @@ func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Tex
 
 #endregion
 
+#region Add to Groups
+func _on_group_name_filter_text_changed(filter: String) -> void:
+    _update_filtered_groups(filter)
+
+func _update_groups_list() -> void:
+    var global_groups := _load_global_groups_from_config_file()
+    var global_groups_to_add := global_groups.duplicate()
+
+    # Remove checkboxes for deleted groups
+    for group_checkbox: CheckBox in group_checkboxes.duplicate():
+        if group_checkbox.text in global_groups:
+            # CheckBox still valid
+            global_groups_to_add.erase(group_checkbox.text)
+            continue
+        group_checkbox.pressed.disconnect(_on_group_checkbox_pressed)
+        groups_container.remove_child(group_checkbox)
+        group_checkboxes.erase(group_checkbox)
+        group_checkbox.queue_free()
+    
+    # Add new checkboxes for created groups
+    for group_name in global_groups_to_add:
+        var group_checkbox := CheckBox.new()
+        group_checkbox.text = group_name
+        group_checkbox.pressed.connect(_on_group_checkbox_pressed)
+        groups_container.add_child(group_checkbox)
+        group_checkboxes.append(group_checkbox)
+    
+    global_groups.sort()
+    # Reorder
+    for group_checkbox in group_checkboxes:
+        groups_container.move_child(group_checkbox, global_groups.find(group_checkbox.text))
+
+    _update_filtered_groups(group_name_filter.text)
+
+func _load_global_groups_from_config_file() -> PackedStringArray:
+    var project_config := ConfigFile.new()
+
+    if project_config.load("res://project.godot") != OK:
+        return []
+
+    if not project_config.has_section("global_group"):
+        return []
+
+    return project_config.get_section_keys("global_group")
+
+func _on_group_checkbox_pressed() -> void:
+    _update_filtered_groups(group_name_filter.text)
+
+func _update_filtered_groups(filter: String) -> void:
+    for group_checkbox in group_checkboxes:
+        group_checkbox.visible = group_checkbox.button_pressed or filter.is_empty() or group_checkbox.text.contains(filter)
+#endregion
+
 #region Input
 func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -> int:
     # Don't do anything if we don't have an active board to edit
@@ -1067,6 +1149,11 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 node3d.owner = _board
             else:
                 node3d.owner = _board.owner
+            # Add to custom groups
+            for group_checkbox in group_checkboxes:
+                if not group_checkbox.button_pressed or node3d.is_in_group(group_checkbox.text):
+                    continue
+                node3d.add_to_group(group_checkbox.text, true)
             var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
             _paint_changes.append(change)
         return true
@@ -1112,6 +1199,10 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 _cursor_piece_container.global_rotation = node3d.global_rotation
             if _pick_copy_offset:
                 draw_offset_spin_box.value = round(node3d.global_position[edit_axis])
+            if _pick_copy_groups:
+                for group_checkbox in group_checkboxes:
+                    group_checkbox.button_pressed = node3d.is_in_group(group_checkbox.text)
+                _update_filtered_groups(group_name_filter.text)
         if input_mouse_button == MOUSE_BUTTON_RIGHT:
             if found_palette_item:
                 paint_mode_button.set_pressed(true)
@@ -1119,6 +1210,10 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             elif not pick_node:
                 erase_mode_button.set_pressed(true)
                 _on_tool_mode_changed()
+                if _pick_copy_groups:
+                    for group_checkbox in group_checkboxes:
+                        group_checkbox.button_pressed = false
+                    _update_filtered_groups(group_name_filter.text)
         return true
     if input_action == InputAction.INPUT_SELECT:
         var box_selection_preview := _box_selection_preview_by_viewport[camera.get_viewport()]
@@ -1280,6 +1375,7 @@ static func _get_plane_position_from_intersection(intersection_point: Vector3, a
     return Vector3()
 
 func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
+    _cursor_piece = null
     _cursor_root_node = null
 
     if input_action == InputAction.INPUT_PICK or mode_buttons_group.get_pressed_button() == pick_mode_button:
@@ -1310,6 +1406,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                     _cursor_piece_outline.fill_material = invalid_draw_fill_material
                 elif piece_root_node is Node3D:
                     var piece_root_node3d := piece_root_node as Node3D
+                    _cursor_piece = weakref(piece_under_cursor)
                     _cursor_root_node = weakref(piece_root_node3d)
                     _cursor_piece_container.global_transform = piece_root_node3d.global_transform
                     _cursor_piece_outline.generate_from(piece_root_node3d)
@@ -1363,6 +1460,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                 _cursor_piece_outline.fill_material = invalid_draw_fill_material
             elif piece_root_node is Node3D:
                 var piece_root_node3d := piece_root_node as Node3D
+                _cursor_piece = weakref(piece_under_cursor)
                 _cursor_root_node = weakref(piece_root_node3d)
                 _cursor_piece_container.global_transform = piece_root_node3d.global_transform
                 _cursor_piece_outline.generate_from(piece_root_node3d)
@@ -1462,6 +1560,7 @@ func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2
     _cursor.visible = true
     _cursor.global_transform = piece_root_node3d.global_transform
     _cursor_piece_outline.generate_from(piece_root_node3d)
+    _cursor_piece = weakref(piece)
     _cursor_root_node = weakref(piece_root_node3d)
 
 func can_paint_at_preview_position() -> bool:
@@ -1491,7 +1590,7 @@ func erase_pieces_overlapping_preview() -> bool:
             if not piece_root_node is Node3D:
                 # Don't know how to erase this
                 return false
-            if not piece_root_node.scene_file_path.is_empty() and piece_root_node.scene_file_path == _draw_scene.resource_path:
+            if not piece_root_node.scene_file_path.is_empty() and piece_root_node.scene_file_path == _draw_scene.resource_path and is_node_in_all_groups_to_add(piece_root_node):
                 # Don't overwrite piece with same piece
                 return false
             var piece_root_node3d: Node3D = piece_root_node
@@ -1499,16 +1598,19 @@ func erase_pieces_overlapping_preview() -> bool:
                 continue
             nodes_to_erase.append(piece_root_node3d)
     
-    if nodes_to_erase.size() == 1:
-        var node_to_erase := nodes_to_erase[0]
-        if not node_to_erase.scene_file_path.is_empty() and node_to_erase.scene_file_path == _draw_scene.resource_path:
-            return false
-    
     for node in nodes_to_erase:
         var change := AddRemoveChange.create_from(node, AddRemoveChange.Action.REMOVE)
         _paint_changes.append(change)
         node.get_parent().remove_child(node)
     
+    return true
+
+func is_node_in_all_groups_to_add(node: Node) -> bool:
+    for group_checkbox in group_checkboxes:
+        if not group_checkbox.button_pressed:
+            continue
+        if not node.is_in_group(group_checkbox.text):
+            return false
     return true
 
 func clear_draw_preview() -> void:
