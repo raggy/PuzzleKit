@@ -1171,19 +1171,16 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             erase_positions = get_cells_entered(_paint_plane_position, _cursor_plane_position)
         _paint_plane_position = _cursor_plane_position
         for erase_position in erase_positions:
-            var piece_under_cursor := _board.get_piece_at(erase_position)
-            if not piece_under_cursor:
-                # Nothing to erase here
-                continue
-            var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
-            if piece_root_node is Board3D:
-                # Don't erase whole boards
-                continue
-            if piece_root_node is Node3D:
-                var piece_root_node3d := piece_root_node as Node3D
-                var change := AddRemoveChange.create_from(piece_root_node3d, AddRemoveChange.Action.REMOVE)
-                _paint_changes.append(change)
-                piece_root_node3d.get_parent().remove_child(piece_root_node3d)
+            for piece_under_cursor in _board.get_pieces_at(erase_position).duplicate():
+                var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
+                if piece_root_node is Board3D:
+                    # Don't erase whole boards
+                    continue
+                if piece_root_node is Node3D:
+                    var piece_root_node3d := piece_root_node as Node3D
+                    var change := AddRemoveChange.create_from(piece_root_node3d, AddRemoveChange.Action.REMOVE)
+                    _paint_changes.append(change)
+                    piece_root_node3d.get_parent().remove_child(piece_root_node3d)
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)
