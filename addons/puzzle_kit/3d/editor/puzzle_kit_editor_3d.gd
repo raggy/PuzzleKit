@@ -1053,8 +1053,8 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
                 elif input_action == InputAction.INPUT_SELECT:
-                    var box_selection_preview := _box_selection_preview_by_viewport[viewport_camera.get_viewport()]
-                    box_selection_preview.clear()
+                    for box_selection_preview: BoxSelectionPreview in _box_selection_preview_by_viewport.values():
+                        box_selection_preview.clear()
                     _selection_root_nodes.clear()
                     _selection_root_node_bounding_boxes.clear()
                     _initial_selection.clear()
