@@ -1570,7 +1570,10 @@ func can_paint_at_preview_position() -> bool:
         return false
     
     for piece in _draw_preview_pieces:
-        if _board.get_piece_at(piece.grid_position):
+        for piece_overlapping in _board.get_pieces_at(piece.grid_position):
+            if piece.editor_paint_layer and piece_overlapping.editor_paint_layer and piece.editor_paint_layer & piece_overlapping.editor_paint_layer == 0:
+                # Piece doesn't collide with our paint layer
+                continue
             return false
     
     return true
@@ -1585,6 +1588,9 @@ func erase_pieces_overlapping_preview() -> bool:
             if piece_overlapping._board != _board:
                 # There's a piece we can't erase (from a nested board)
                 return false
+            if piece.editor_paint_layer and piece_overlapping.editor_paint_layer and piece.editor_paint_layer & piece_overlapping.editor_paint_layer == 0:
+                # Piece doesn't collide with our paint layer
+                continue
             var piece_root_node := _get_piece_root_in_board(piece_overlapping)
             if piece_root_node is Board3D:
                 # Don't erase whole boards

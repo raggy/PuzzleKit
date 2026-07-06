@@ -7,6 +7,11 @@ signal changes_committing()
 signal changes_reverting()
 signal teleported()
 
+@export_group("Editor")
+## The layers this piece will be considered overlapping with when painting with the PuzzleKit editor.
+## When no flags are selected, this piece is considered to overlap with every other piece.
+@export_flags_3d_physics var editor_paint_layer: int = 1
+
 ## Inactive pieces aren't included in positional queries and (by-default) ignored in other queries
 var active: bool = true: set = set_active
 ## `global_position`, rounded to snap to the grid
