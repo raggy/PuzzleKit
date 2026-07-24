@@ -106,6 +106,11 @@ enum SelectionMode {
     SELECTION_MODE_REMOVE,
 }
 
+enum SelectionDragMode {
+    SELECTION_DRAG_MODE_BOX_SELECT,
+    SELECTION_DRAG_MODE_TRANSLATE,
+}
+
 var options_axis_ids: Array[Menu] = [Menu.MENU_OPTION_X_AXIS, Menu.MENU_OPTION_Y_AXIS, Menu.MENU_OPTION_Z_AXIS]
 
 var mode_buttons_group: ButtonGroup
@@ -157,6 +162,7 @@ var _pick_copy_groups: bool
 
 var _box_selection_preview_by_viewport: Dictionary[Viewport, BoxSelectionPreview]
 var _selection_mode: SelectionMode
+var _selection_drag_mode: SelectionDragMode
 var _selection_movement_threshold_passed: bool
 var _selection_original_mouse_position: Vector2
 var _selection_root_nodes: Array[Node3D] = []
@@ -165,6 +171,10 @@ var _selection_bounding_boxes_cached_camera_global_transform: Transform3D
 var _selection_bounding_boxes_cached_camera_size: float
 var _selection_piece_outlines: Dictionary[Node3D, PieceOutline3D] = {}
 var _selection_first_click_time: int = 0
+var _selection_translate_nodes: Array[Node3D] = []
+var _selection_translate_plane_offset: float = 0.0
+var _selection_translate_previous_world_position: Vector3
+var _selection_translate_index: int = 0
 var _initial_selection: Array[Node] = []
 
 var _grid: Array[ArrayMesh]
@@ -1096,6 +1106,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                 elif input_action == InputAction.INPUT_SELECT:
                     for box_selection_preview: BoxSelectionPreview in _box_selection_preview_by_viewport.values():
                         box_selection_preview.clear()
+                    _selection_translate_nodes.clear()
                     _selection_root_nodes.clear()
                     _selection_root_node_bounding_boxes.clear()
                     _initial_selection.clear()
@@ -1292,30 +1303,84 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         # Start box-selecting when mouse has moved enough from starting position
         if not _selection_movement_threshold_passed:
             _selection_movement_threshold_passed = _selection_original_mouse_position.distance_to(mouse_position) > 8 * EditorInterface.get_editor_theme().get_constant("scale", "Editor")
+            if _selection_movement_threshold_passed:
+                # Default to box select
+                _selection_drag_mode = SelectionDragMode.SELECTION_DRAG_MODE_BOX_SELECT
+                if _selection_mode == SelectionMode.SELECTION_MODE_REPLACE:
+                    update_cursor_state_raycast_piece(camera, mouse_position)
+                    var new_selection: Node3D = null
+                    var select_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
+                    if select_node is Node3D:
+                        new_selection = select_node
+                    if new_selection:
+                        # Dragging from a piece, start translating selection on drag
+                        _selection_drag_mode = SelectionDragMode.SELECTION_DRAG_MODE_TRANSLATE
+                        _selection_translate_index += 1
+                        if not new_selection in editor_selection.get_selected_nodes():
+                            # Dragging from an unselected piece, replace the selection with it and then drag
+                            editor_selection.clear()
+                            if new_selection:
+                                editor_selection.add_node(new_selection)
+                        # Save list of translateable nodes
+                        var editor_selected_nodes := editor_selection.get_selected_nodes()
+                        _selection_translate_nodes.clear()
+                        for node in _selection_root_nodes:
+                            if node in editor_selected_nodes:
+                                _selection_translate_nodes.append(node)
+                        match edit_axis:
+                            Vector3.AXIS_X: _selection_translate_plane_offset = new_selection.global_position.x
+                            Vector3.AXIS_Y: _selection_translate_plane_offset = new_selection.global_position.y
+                            Vector3.AXIS_Z: _selection_translate_plane_offset = new_selection.global_position.z
+                        _selection_translate_previous_world_position = new_selection.global_position
+                        var translate_plane := _create_plane(edit_axis, _selection_translate_plane_offset)
+                        var translate_plane_intersection: Variant = translate_plane.intersects_ray(camera.project_ray_origin(mouse_position), camera.project_ray_normal(mouse_position))
+                        if translate_plane_intersection:
+                            _selection_translate_previous_world_position = translate_plane_intersection
         if _selection_movement_threshold_passed:
-            # Draw box selection
-            box_selection_preview.rect = Rect2(_selection_original_mouse_position, mouse_position - _selection_original_mouse_position).abs()
-            # Box selection
-            _update_box_selection_bounding_boxes(camera)
-            var new_selection: Array[Node] = []
-            # Reset to initial selection if we're not just replacing
-            if _selection_mode == SelectionMode.SELECTION_MODE_ADD or _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
-                new_selection = _initial_selection.duplicate()
-            # Find nodes contained in the selection box and modify their selection state
-            for node: Node3D in _selection_root_node_bounding_boxes.keys():
-                var node_bounding_box := _selection_root_node_bounding_boxes[node]
-                if box_selection_preview.rect.encloses(node_bounding_box):
-                    if _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
-                        new_selection.erase(node)
-                    elif not node in new_selection:
-                        new_selection.append(node)
-            var current_editor_selection := editor_selection.get_selected_nodes()
-            # Deselect nodes that should no longer be selected
-            for node: Node in current_editor_selection.filter(func(x: Node) -> bool: return not x in new_selection):
-                editor_selection.remove_node(node)
-            # Select nodes that should now be selected
-            for node: Node in new_selection.filter(func(x: Node) -> bool: return not x in current_editor_selection):
-                editor_selection.add_node(node)
+            match _selection_drag_mode:
+                SelectionDragMode.SELECTION_DRAG_MODE_BOX_SELECT:
+                    # Draw box selection
+                    box_selection_preview.rect = Rect2(_selection_original_mouse_position, mouse_position - _selection_original_mouse_position).abs()
+                    # Box selection
+                    _update_box_selection_bounding_boxes(camera)
+                    var new_selection: Array[Node] = []
+                    # Reset to initial selection if we're not just replacing
+                    if _selection_mode == SelectionMode.SELECTION_MODE_ADD or _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
+                        new_selection = _initial_selection.duplicate()
+                    # Find nodes contained in the selection box and modify their selection state
+                    for node: Node3D in _selection_root_node_bounding_boxes.keys():
+                        var node_bounding_box := _selection_root_node_bounding_boxes[node]
+                        if box_selection_preview.rect.encloses(node_bounding_box):
+                            if _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
+                                new_selection.erase(node)
+                            elif not node in new_selection:
+                                new_selection.append(node)
+                    var current_editor_selection := editor_selection.get_selected_nodes()
+                    # Deselect nodes that should no longer be selected
+                    for node: Node in current_editor_selection.filter(func(x: Node) -> bool: return not x in new_selection):
+                        editor_selection.remove_node(node)
+                    # Select nodes that should now be selected
+                    for node: Node in new_selection.filter(func(x: Node) -> bool: return not x in current_editor_selection):
+                        editor_selection.add_node(node)
+                SelectionDragMode.SELECTION_DRAG_MODE_TRANSLATE:
+                    var translate_plane := _create_plane(edit_axis, _selection_translate_plane_offset)
+                    var translate_plane_intersection: Variant = translate_plane.intersects_ray(camera.project_ray_origin(mouse_position), camera.project_ray_normal(mouse_position))
+                    if translate_plane_intersection:
+                        var mouse_world_position: Vector3 = translate_plane_intersection
+                        var mouse_world_offset: Vector3 = round(mouse_world_position - _selection_translate_previous_world_position)
+                        if mouse_world_offset:
+                            _selection_translate_previous_world_position += mouse_world_offset
+                            undo_redo.create_action("PuzzleKit Translate (%s)" % _selection_translate_index, UndoRedo.MERGE_ALL, get_node_owner(_board), true, true)
+                            for node in _selection_translate_nodes:
+                                undo_redo.add_do_property(node, "top_level", true)
+                                undo_redo.add_undo_property(node, "top_level", node.top_level)
+                            for node in _selection_translate_nodes:
+                                undo_redo.add_do_property(node, "global_position", node.global_position + mouse_world_offset)
+                                undo_redo.add_undo_property(node, "global_position", node.global_position)
+                            for node in _selection_translate_nodes:
+                                undo_redo.add_do_property(node, "top_level", node.top_level)
+                                undo_redo.add_undo_property(node, "top_level", true)
+                            undo_redo.commit_action(true)
         return true
     return false
 
