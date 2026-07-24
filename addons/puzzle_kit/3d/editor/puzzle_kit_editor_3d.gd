@@ -705,20 +705,30 @@ func _menu_option(id: Menu) -> void:
                 var editor_selected_nodes := editor_selection.get_selected_nodes()
                 # Get a list of all selected root nodes
                 var selected_root_nodes: Array[Node3D] = []
-                var selection_center := Vector3.ZERO
+                var selection_aabb := AABB()
                 for piece in _board.get_pieces():
                     var piece_root_node := _get_piece_root_in_board(piece) as Node3D
                     if not piece_root_node:
                         continue
+                    if not piece_root_node in editor_selected_nodes:
+                        # Not selected
+                        continue
                     if piece_root_node in selected_root_nodes:
                         # Already found
                         continue
-                    if piece_root_node in editor_selected_nodes:
-                        selected_root_nodes.append(piece_root_node)
-                        selection_center += piece_root_node.global_position
+                    selected_root_nodes.append(piece_root_node)
+                    var node_aabb := AABB(Vector3(piece.grid_position) - Vector3(0.5, 0.5, 0.5), Vector3.ONE)
+                    if piece_root_node is Board3D:
+                        var board_node := piece_root_node as Board3D
+                        node_aabb = board_node._aabb
+                    if not selection_aabb.has_volume():
+                        # This is the first piece, centre AABB on it
+                        selection_aabb = node_aabb
+                        continue
+                    selection_aabb = selection_aabb.merge(node_aabb)
                 if selected_root_nodes.is_empty():
                     return
-                selection_center /= selected_root_nodes.size()
+                var selection_center: Vector3 = round(selection_aabb.get_center())
                 undo_redo.create_action("PuzzleKit Rotate", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
                 for selected_root_node in selected_root_nodes:
                     undo_redo.add_do_property(selected_root_node, "top_level", true)
