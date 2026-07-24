@@ -698,7 +698,46 @@ func _menu_option(id: Menu) -> void:
                 rotation_axis.y = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Y else -1
             elif id == Menu.MENU_OPTION_CURSOR_ROTATE_Z or id == Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
                 rotation_axis.z = 1 if id == Menu.MENU_OPTION_CURSOR_ROTATE_Z else -1
-            _cursor_piece_container.rotate(rotation_axis, -PI / 2.0)
+            if mode_buttons_group.get_pressed_button() == paint_mode_button:
+                _cursor_piece_container.rotate(rotation_axis, -PI / 2.0)
+            elif mode_buttons_group.get_pressed_button() == select_mode_button:
+                var editor_selection := EditorInterface.get_selection()
+                var editor_selected_nodes := editor_selection.get_selected_nodes()
+                # Get a list of all selected root nodes
+                var selected_root_nodes: Array[Node3D] = []
+                var selection_center := Vector3.ZERO
+                for piece in _board.get_pieces():
+                    var piece_root_node := _get_piece_root_in_board(piece) as Node3D
+                    if not piece_root_node:
+                        continue
+                    if piece_root_node in selected_root_nodes:
+                        # Already found
+                        continue
+                    if piece_root_node in editor_selected_nodes:
+                        selected_root_nodes.append(piece_root_node)
+                        selection_center += piece_root_node.global_position
+                if selected_root_nodes.is_empty():
+                    return
+                selection_center /= selected_root_nodes.size()
+                undo_redo.create_action("PuzzleKit Rotate", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
+                for selected_root_node in selected_root_nodes:
+                    undo_redo.add_do_property(selected_root_node, "top_level", true)
+                    undo_redo.add_undo_property(selected_root_node, "top_level", selected_root_node.top_level)
+                for selected_root_node in selected_root_nodes:
+                    undo_redo.add_do_property(selected_root_node, "basis", selected_root_node.basis.rotated(rotation_axis, -PI / 2.0))
+                    undo_redo.add_undo_property(selected_root_node, "basis", selected_root_node.basis)
+                    selected_root_node.basis = selected_root_node.basis.rotated(rotation_axis, -PI / 2.0)
+                    var selected_root_node_offset := selected_root_node.global_position - selection_center
+                    var selected_root_node_offset_length := selected_root_node_offset.length()
+                    if selected_root_node_offset_length == 0.0:
+                        continue
+                    var selected_root_node_offset_normalized := selected_root_node_offset / selected_root_node_offset_length
+                    undo_redo.add_do_property(selected_root_node, "global_position", round(selection_center + selected_root_node_offset_normalized.rotated(rotation_axis, -PI / 2.0) * selected_root_node_offset_length))
+                    undo_redo.add_undo_property(selected_root_node, "global_position", selected_root_node.global_position)
+                for selected_root_node in selected_root_nodes:
+                    undo_redo.add_do_property(selected_root_node, "top_level", selected_root_node.top_level)
+                    undo_redo.add_undo_property(selected_root_node, "top_level", true)
+                undo_redo.commit_action(true)
         Menu.MENU_OPTION_GROUP:
             _group_selection()
         Menu.MENU_OPTION_UNGROUP:
