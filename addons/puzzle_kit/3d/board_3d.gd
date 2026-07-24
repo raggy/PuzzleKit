@@ -48,8 +48,9 @@ func _process(_delta: float) -> void:
         _aabb_needs_recalculating = false
 
 #region Queries
-func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null) -> bool:
-    _update_cells()
+func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> bool:
+    if update_cells:
+        _update_cells()
 
     # No cell here yet
     if not _cells_by_position.has(grid_position):
@@ -69,11 +70,12 @@ func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null) -> bool
     
     return true
 
-func is_occupied(grid_position: Vector3i, group_filter: GroupFilter = null) -> bool:
-    return not is_empty(grid_position, group_filter)
+func is_occupied(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> bool:
+    return not is_empty(grid_position, group_filter, update_cells)
 
-func get_piece_at(grid_position: Vector3i, group_filter: GroupFilter = null) -> Piece3D:
-    _update_cells()
+func get_piece_at(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> Piece3D:
+    if update_cells:
+        _update_cells()
 
     # No cell here yet
     if not _cells_by_position.has(grid_position):
@@ -93,8 +95,9 @@ func get_piece_at(grid_position: Vector3i, group_filter: GroupFilter = null) -> 
     
     return null
 
-func get_pieces_at(grid_position: Vector3i, group_filter: GroupFilter = null) -> Array[Piece3D]:
-    _update_cells()
+func get_pieces_at(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> Array[Piece3D]:
+    if update_cells:
+        _update_cells()
 
     # No cell here yet
     if not _cells_by_position.has(grid_position):
@@ -171,7 +174,10 @@ func count_pieces(group_filter: GroupFilter = null, include_inactive: bool = fal
     return piece_count
 
 ## Get all pieces adjacent to `pieces`, filtered by `group` and in specified `directions`. If `max_search_depth` is specified, returned pieces will be at most `max_search_depth` steps away
-func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = null, directions: Array[Vector3i] = DIRECTIONS_ADJACENT, max_search_depth: int = -1) -> Array[Piece3D]:
+func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = null, directions: Array[Vector3i] = DIRECTIONS_ADJACENT, max_search_depth: int = -1, update_cells: bool = true) -> Array[Piece3D]:
+    if update_cells:
+        _update_cells()
+
     var filtered_by_group := group_filter != null
     var pieces_touching: Array[Piece3D] = []
     var pieces_size := pieces.size()
@@ -196,7 +202,7 @@ func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = nul
 
         for direction in directions:
             # Gather the pieces adjacent (if not already in list)
-            for piece_in_direction in get_pieces_at(piece.grid_position + direction):
+            for piece_in_direction in get_pieces_at(piece.grid_position + direction, null, false):
                 # Check if in group here rather than get_pieces_at() to prevent an extra array being created
                 if filtered_by_group and not group_filter.matches_3d(piece_in_direction):
                     continue
@@ -209,9 +215,23 @@ func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = nul
     
     return pieces_touching
 
-func raycast_points(from: Vector3, direction: Vector3) -> Array[Vector3i]:
-    _update_cells()
+func get_nearest_in_direction(grid_position: Vector3i, grid_direction: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> Piece3D:
+    if update_cells:
+        _update_cells()
+    
+    if grid_direction == Vector3i.ZERO:
+        return null
 
+    var search_position := grid_position
+    while _aabb.has_point(search_position):
+        search_position += grid_direction
+        var piece := get_piece_at(search_position, group_filter, false)
+        if piece:
+            return piece
+
+    return null
+
+func raycast_points(from: Vector3, direction: Vector3) -> Array[Vector3i]:
     var aabb_intersection: Variant = _aabb.intersects_ray(from, direction)
     if not aabb_intersection:
         # Ray didn't intersect our bounds
@@ -258,12 +278,25 @@ func raycast_points(from: Vector3, direction: Vector3) -> Array[Vector3i]:
             next_edge.z += dt.z
     return points
 
-func raycast_piece(from: Vector3, direction: Vector3, group_filter: GroupFilter = null) -> Piece3D:
+func raycast_piece(from: Vector3, direction: Vector3, group_filter: GroupFilter = null, update_cells: bool = true) -> Piece3D:
+    if update_cells:
+        _update_cells()
+
     for point in raycast_points(from, direction):
-        var piece := get_piece_at(point, group_filter)
+        var piece := get_piece_at(point, group_filter, false)
         if piece:
             return piece
     return null
+
+func raycast_pieces(from: Vector3, direction: Vector3, group_filter: GroupFilter = null, update_cells: bool = true) -> Array[Piece3D]:
+    if update_cells:
+        _update_cells()
+
+    for point in raycast_points(from, direction):
+        if is_empty(point, group_filter, false):
+            continue
+        return get_pieces_at(point, group_filter, false)
+    return []
 #endregion
 
 #region Commit/revert
@@ -282,15 +315,15 @@ func revert_changes() -> void:
 
 #region Board nesting
 ## Fetches closest descendant `Board3D` at `index`
-func get_child_piece(index: int) -> Board3D:
+func get_child_board(index: int) -> Board3D:
     return _child_boards[index]
 
 ## Returns the number of closest-descendant `Board3D` in the scene tree
-func get_child_piece_count() -> int:
+func get_child_board_count() -> int:
     return _child_boards.size()
 
 ## Returns a new Array of the closest descendant `Board3D` in the scene tree
-func get_child_pieces() -> Array[Board3D]:
+func get_child_boards() -> Array[Board3D]:
     return _child_boards.duplicate()
 
 ## Returns the closest ancestor `Board3D` in the scene tree

@@ -41,12 +41,12 @@ piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
 piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
 path_to_board = NodePath("ScrollContainer/PathToBoard")
-palette = NodePath("HBoxContainer_Board/ScrollContainer/PiecePalette")
-group_name_filter = NodePath("HBoxContainer_Board/VBoxContainer/GroupNameFilter")
-groups_clear_button = NodePath("HBoxContainer_Board/VBoxContainer/HBoxContainer/ClearGroupsButton")
-groups_container = NodePath("HBoxContainer_Board/VBoxContainer/ScrollContainer/GroupsContainer")
+palette = NodePath("HSplitContainer_Board/ScrollContainer/PiecePalette")
+group_name_filter = NodePath("HSplitContainer_Board/VBoxContainer/GroupNameFilter")
+groups_clear_button = NodePath("HSplitContainer_Board/VBoxContainer/HBoxContainer/ClearGroupsButton")
+groups_container = NodePath("HSplitContainer_Board/VBoxContainer/ScrollContainer/GroupsContainer")
 options_button = NodePath("Toolbar/OptionsButton")
-container_board = NodePath("HBoxContainer_Board")
+container_board = NodePath("HSplitContainer_Board")
 info_no_board = NodePath("Info_NoBoard")
 metadata/_custom_type_script = "uid://vbuogr241dq1"
 
@@ -158,18 +158,18 @@ z_index = 1
 layout_mode = 2
 text = "Board3D"
 
-[node name="HBoxContainer_Board" type="HBoxContainer" parent="." unique_id=116559197]
+[node name="HSplitContainer_Board" type="HSplitContainer" parent="." unique_id=136898223]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ScrollContainer" type="ScrollContainer" parent="HBoxContainer_Board" unique_id=1319309317]
+[node name="ScrollContainer" type="ScrollContainer" parent="HSplitContainer_Board" unique_id=1319309317]
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="PiecePalette" type="ItemList" parent="HBoxContainer_Board/ScrollContainer" unique_id=1092692555]
+[node name="PiecePalette" type="ItemList" parent="HSplitContainer_Board/ScrollContainer" unique_id=1092692555]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -181,32 +181,32 @@ same_column_width = true
 fixed_column_width = 80
 icon_mode = 0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HBoxContainer_Board" unique_id=2133804596]
+[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer_Board" unique_id=2133804596]
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="GroupNameFilter" type="LineEdit" parent="HBoxContainer_Board/VBoxContainer" unique_id=1491252953]
+[node name="GroupNameFilter" type="LineEdit" parent="HSplitContainer_Board/VBoxContainer" unique_id=1491252953]
 layout_mode = 2
 placeholder_text = "Filter Groups"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="HBoxContainer_Board/VBoxContainer" unique_id=408837585]
+[node name="HBoxContainer" type="HBoxContainer" parent="HSplitContainer_Board/VBoxContainer" unique_id=408837585]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HBoxContainer_Board/VBoxContainer/HBoxContainer" unique_id=148233138]
+[node name="Label" type="Label" parent="HSplitContainer_Board/VBoxContainer/HBoxContainer" unique_id=148233138]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Add to Groups"
 
-[node name="ClearGroupsButton" type="Button" parent="HBoxContainer_Board/VBoxContainer/HBoxContainer" unique_id=123642385]
+[node name="ClearGroupsButton" type="Button" parent="HSplitContainer_Board/VBoxContainer/HBoxContainer" unique_id=123642385]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="HBoxContainer_Board/VBoxContainer" unique_id=293713554]
+[node name="ScrollContainer" type="ScrollContainer" parent="HSplitContainer_Board/VBoxContainer" unique_id=293713554]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="GroupsContainer" type="VBoxContainer" parent="HBoxContainer_Board/VBoxContainer/ScrollContainer" unique_id=1999736316]
+[node name="GroupsContainer" type="VBoxContainer" parent="HSplitContainer_Board/VBoxContainer/ScrollContainer" unique_id=1999736316]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3

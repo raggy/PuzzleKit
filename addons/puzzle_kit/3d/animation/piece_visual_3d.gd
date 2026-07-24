@@ -1,3 +1,4 @@
+@tool
 class_name PieceVisual3D
 extends Node3D
 
@@ -16,11 +17,13 @@ var _has_animation_this_step: bool
 
 func _enter_tree() -> void:
     piece = get_parent() as Piece3D
-    top_level = true
+    if not Engine.is_editor_hint():
+        top_level = true
 
 func _exit_tree() -> void:
     piece = null
-    top_level = false
+    if not Engine.is_editor_hint():
+        top_level = false
 
 func create_default_animation() -> PieceAnimation3D:
     # Default animation toggled off

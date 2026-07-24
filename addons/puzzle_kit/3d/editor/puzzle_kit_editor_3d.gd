@@ -127,6 +127,7 @@ var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
 var _draw_preview_pieces: Array[Piece3D]
 var _draw_scene: PackedScene
+var _draw_is_unique: bool
 var _preview_blank: ImageTexture
 
 var _board: Board3D
@@ -157,7 +158,6 @@ var _selection_root_nodes: Array[Node3D] = []
 var _selection_root_node_bounding_boxes: Dictionary[Node3D, Rect2] = {}
 var _selection_bounding_boxes_cached_camera_global_transform: Transform3D
 var _selection_bounding_boxes_cached_camera_size: float
-var _selection_debug: Control
 var _selection_piece_outlines: Dictionary[Node3D, PieceOutline3D] = {}
 var _selection_first_click_time: int = 0
 var _initial_selection: Array[Node] = []
@@ -478,8 +478,9 @@ func edit(board: Board3D) -> void:
     
     if _board:
         emulate_release_input()
-        transform_mode_button.button_pressed = true
-        _on_tool_mode_changed()
+        if not board:
+            transform_mode_button.button_pressed = true
+            _on_tool_mode_changed()
 
     _board = board
 
@@ -862,9 +863,9 @@ func _add_to_palette_from_dir(path: String, base_path: String) -> void:
             # Failed to load scene
             continue
         var scene_state := packed_scene.get_state()
-        if scene_state.get_node_type(0) != "Node3D":
-            # Only interested in scenes with Node3D root nodes
-            continue
+        # if scene_state.get_node_type(0) != "Node3D":
+        #     # Only interested in scenes with Node3D root nodes
+        #     continue
         var relative_file_path := file_path
         if relative_file_path.begins_with(base_path):
             relative_file_path = relative_file_path.substr(base_path.length())
@@ -927,11 +928,14 @@ func _load_global_groups_from_config_file() -> PackedStringArray:
 
     if not project_config.has_section("global_group"):
         return []
-
-    return project_config.get_section_keys("global_group")
+    
+    var _global_groups := project_config.get_section_keys("global_group")
+    _global_groups.sort()
+    return _global_groups
 
 func _on_group_checkbox_pressed() -> void:
     _update_filtered_groups(group_name_filter.text)
+    auto_setup_draw_preview()
 
 func _update_filtered_groups(filter: String) -> void:
     for group_checkbox in group_checkboxes:
@@ -1038,7 +1042,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     if not _paint_changes.is_empty():
                         # Setup undo history
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                        undo_redo.create_action("PuzzleKit Paint", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                        undo_redo.create_action("PuzzleKit Paint", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
                         for change in _paint_changes:
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
@@ -1047,7 +1051,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     if not _paint_changes.is_empty():
                         # Setup undo history
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                        undo_redo.create_action("PuzzleKit Erase", UndoRedo.MERGE_DISABLE, _board.owner, true, true)
+                        undo_redo.create_action("PuzzleKit Erase", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
                         for change in _paint_changes:
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
@@ -1058,9 +1062,6 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     _selection_root_nodes.clear()
                     _selection_root_node_bounding_boxes.clear()
                     _initial_selection.clear()
-                    if _selection_debug:
-                        _selection_debug.get_parent().remove_child(_selection_debug)
-                        _selection_debug.queue_free()
                     if not _selection_movement_threshold_passed:
                         # Select what's under cursor
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
@@ -1140,22 +1141,37 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     continue
             if not can_paint_at_preview_position():
                 continue
+            # Remove same-scene nodes if there's a piece marked as unique
+            if _draw_is_unique:
+                var nodes_to_erase: Array[Node3D] = []
+                for piece in _board._pieces:
+                    var piece_root_node := _get_piece_root_in_board(piece)
+                    if not piece_root_node is Node3D:
+                        continue
+                    var piece_root_node3d: Node3D = piece_root_node
+                    if piece_root_node3d.scene_file_path != _draw_scene.resource_path:
+                        # Not a piece from the same draw scene
+                        continue
+                    if nodes_to_erase.has(piece_root_node3d):
+                        continue
+                    nodes_to_erase.append(piece_root_node3d)
+                for node_to_erase in nodes_to_erase:
+                    var erase_change := AddRemoveChange.create_from(node_to_erase, AddRemoveChange.Action.REMOVE)
+                    _paint_changes.append(erase_change)
+                    node_to_erase.get_parent().remove_child(node_to_erase)
             var node := _draw_scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
             var node3d := node as Node3D
             if not node3d:
                 node.queue_free()
                 return true
-            _board.add_child(node3d, true)
-            node3d.global_transform = _cursor_piece_container.global_transform
-            if _board == EditorInterface.get_edited_scene_root():
-                node3d.owner = _board
-            else:
-                node3d.owner = _board.owner
             # Add to custom groups
             for group_checkbox in group_checkboxes:
                 if not group_checkbox.button_pressed or node3d.is_in_group(group_checkbox.text):
                     continue
                 node3d.add_to_group(group_checkbox.text, true)
+            _board.add_child(node3d, true)
+            node3d.global_transform = _cursor_piece_container.global_transform
+            node3d.owner = get_node_owner(_board)
             var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
             _paint_changes.append(change)
         return true
@@ -1231,10 +1247,6 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             # Save initial selection
             _initial_selection = editor_selection.get_selected_nodes()
             # Calculate screen-space bounding boxes for selectable nodes
-            _selection_debug = Control.new()
-            _selection_debug.visible = false
-            _selection_debug.draw.connect(_draw_selection_debug)
-            camera.get_viewport().add_child(_selection_debug)
             _update_box_selection_bounding_boxes(camera, true)
         # Start box-selecting when mouse has moved enough from starting position
         if not _selection_movement_threshold_passed:
@@ -1267,7 +1279,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
     return false
 
 func emulate_release_input() -> void:
-    if input_action == InputAction.INPUT_NONE:
+    if input_action == InputAction.INPUT_NONE or input_mouse_button == MOUSE_BUTTON_NONE:
         return
     var release_event := InputEventMouseButton.new()
     release_event.button_index = input_mouse_button
@@ -1299,13 +1311,6 @@ func _update_box_selection_bounding_boxes(camera: Camera3D, force: bool = false)
                 else:
                     node_bounding_box = node_bounding_box.expand(corner_screen_position)
         _selection_root_node_bounding_boxes[node] = node_bounding_box
-    
-    _selection_debug.queue_redraw()
-
-func _draw_selection_debug() -> void:
-    for node: Node3D in _selection_root_node_bounding_boxes.keys():
-        var node_bounding_box := _selection_root_node_bounding_boxes[node]
-        _selection_debug.draw_rect(node_bounding_box, Color.BLUE, false)
 
 func _get_piece_root_in_board(piece: Piece3D) -> Node:
     if not _board:
@@ -1389,12 +1394,12 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
         # Using pick mode tool
-        if mode_buttons_group.get_pressed_button() == pick_mode_button:
+        if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
             update_cursor_state_raycast_piece(camera, mouse_position)
         # Right-click quick-pick
         else:
             update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
-            var piece_under_cursor := _board.get_piece_at(_cursor_grid_position)
+            var piece_under_cursor := get_piece_on_highest_paint_layer(_board.get_pieces_at(_cursor_grid_position))
             if piece_under_cursor:
                 var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
                 if piece_root_node is Board3D:
@@ -1542,7 +1547,7 @@ func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2
     var mouse_origin := camera.project_ray_origin(mouse_position)
     var mouse_normal := camera.project_ray_normal(mouse_position)
 
-    var piece := _board.raycast_piece(mouse_origin, mouse_normal)
+    var piece := get_piece_on_highest_paint_layer(_board.raycast_pieces(mouse_origin, mouse_normal))
 
     if not piece:
         # Ray didn't intersect
@@ -1579,6 +1584,7 @@ func erase_pieces_overlapping_preview() -> bool:
     if not _draw_preview or _draw_preview_pieces.size() == 0:
         return false
 
+    var should_paint := true
     var nodes_to_erase: Array[Node3D] = []
     for piece in _draw_preview_pieces:
         for piece_overlapping in _board.get_pieces_at(piece.grid_position):
@@ -1595,28 +1601,49 @@ func erase_pieces_overlapping_preview() -> bool:
             if not piece_root_node is Node3D:
                 # Don't know how to erase this
                 return false
-            if not piece_root_node.scene_file_path.is_empty() and piece_root_node.scene_file_path == _draw_scene.resource_path and is_node_in_all_groups_to_add(piece_root_node):
+            if not piece_root_node.scene_file_path.is_empty() and piece_root_node.scene_file_path == _draw_scene.resource_path and does_node_match_draw_preview_groups(piece_root_node):
                 # Don't overwrite piece with same piece
-                return false
+                should_paint = false
+                continue
             var piece_root_node3d: Node3D = piece_root_node
             if nodes_to_erase.has(piece_root_node3d):
                 continue
             nodes_to_erase.append(piece_root_node3d)
-    
+
     for node in nodes_to_erase:
         var change := AddRemoveChange.create_from(node, AddRemoveChange.Action.REMOVE)
         _paint_changes.append(change)
         node.get_parent().remove_child(node)
+
+    return should_paint
+
+func does_node_match_draw_preview_groups(node: Node) -> bool:
+    var draw_preview_groups := _draw_preview.get_groups()
+    var node_groups := node.get_groups()
+    
+    if draw_preview_groups.size() != node_groups.size():
+        return false
+
+    for group in draw_preview_groups:
+        if not group in node_groups:
+            return false
     
     return true
 
-func is_node_in_all_groups_to_add(node: Node) -> bool:
-    for group_checkbox in group_checkboxes:
-        if not group_checkbox.button_pressed:
-            continue
-        if not node.is_in_group(group_checkbox.text):
-            return false
-    return true
+func get_piece_on_highest_paint_layer(pieces: Array[Piece3D]) -> Piece3D:
+    if pieces.is_empty():
+        return null
+    pieces.sort_custom(func(a: Piece3D, b: Piece3D) -> bool:
+        return count_highest_bit(a.editor_paint_layer) > (b.editor_paint_layer)
+    )
+    return pieces[0]
+
+func count_highest_bit(integer: int) -> int:
+    for i in range(64):
+        if integer == 0:
+            return i
+        integer = integer >> 1
+    return 64
 
 func clear_draw_preview() -> void:
     if not _draw_preview:
@@ -1638,12 +1665,23 @@ func setup_draw_preview(scene: PackedScene) -> void:
         return
     
     _draw_preview = node
+    # Add to custom groups
+    for group_checkbox in group_checkboxes:
+        if not group_checkbox.button_pressed or node.is_in_group(group_checkbox.text):
+            continue
+        node.add_to_group(group_checkbox.text, true)
     _cursor_piece_container.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
     _cursor_piece_outline.generate_from(_draw_preview)
     
     _draw_preview_pieces = []
     Piece3D.find_descendant_pieces(_draw_preview, _draw_preview_pieces)
+
+    _draw_is_unique = false
+    for preview_piece in _draw_preview_pieces:
+        if preview_piece.editor_paint_unique:
+            _draw_is_unique = true
+            break
 
 func auto_setup_draw_preview() -> void:
     if _draw_scene and (mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button):
@@ -1706,7 +1744,7 @@ func _group_selection() -> void:
         return
 
     # Setup undo history
-    undo_redo.create_action("PuzzleKit Group", UndoRedo.MERGE_DISABLE, _board.owner, false, true)
+    undo_redo.create_action("PuzzleKit Group", UndoRedo.MERGE_DISABLE, get_node_owner(_board), false, true)
 
     var editor_selection := EditorInterface.get_selection()
     var editor_selected_nodes := editor_selection.get_selected_nodes()
@@ -1720,7 +1758,7 @@ func _group_selection() -> void:
     # Add created board to the selected nodes' parent
     undo_redo.add_do_method(parent_node, "add_child", created_board, true)
     undo_redo.add_do_method(parent_node, "move_child", created_board, first_node.get_index())
-    undo_redo.add_do_property(created_board, "owner", parent_node.owner)
+    undo_redo.add_do_property(created_board, "owner", get_node_owner(parent_node))
     
     for node in editor_selected_nodes:
         # Move the selected nodes into the board
@@ -1739,12 +1777,12 @@ func _group_selection() -> void:
     undo_redo.commit_action(true)
 
 func _add_do_set_owner_node_and_children(node: Node) -> void:
-    undo_redo.add_do_property(node, "owner", node.owner)
+    undo_redo.add_do_property(node, "owner", get_node_owner(node))
     for i in range(node.get_child_count()):
         _add_do_set_owner_node_and_children(node.get_child(i))
 
 func _add_undo_set_owner_node_and_children(node: Node) -> void:
-    undo_redo.add_undo_property(node, "owner", node.owner)
+    undo_redo.add_undo_property(node, "owner", get_node_owner(node))
     for i in range(node.get_child_count()):
         _add_undo_set_owner_node_and_children(node.get_child(i))
 
@@ -1753,7 +1791,7 @@ func _ungroup_selection() -> void:
         return
 
     # Setup undo history
-    undo_redo.create_action("PuzzleKit Ungroup", UndoRedo.MERGE_DISABLE, _board.owner, false, true)
+    undo_redo.create_action("PuzzleKit Ungroup", UndoRedo.MERGE_DISABLE, get_node_owner(_board), false, true)
     
     var editor_selection := EditorInterface.get_selection()
     var editor_selected_nodes := editor_selection.get_selected_nodes()
@@ -1781,16 +1819,16 @@ func _ungroup_selection() -> void:
         # When undoing, need to add board back to scene first
         undo_redo.add_undo_method(selected_board_node_parent, "add_child", selected_board)
         undo_redo.add_undo_method(selected_board_node_parent, "move_child", selected_board, selected_board.get_index())
-        undo_redo.add_undo_property(selected_board, "owner", selected_board.owner)
+        undo_redo.add_undo_property(selected_board, "owner", get_node_owner(selected_board))
 
         for child in selected_board_node_children:
             # Move the selected board's children into the parent board
             undo_redo.add_do_method(selected_board, "remove_child", child)
             undo_redo.add_do_method(previous_sibling, "add_sibling", child, true)
-            undo_redo.add_do_property(child, "owner", child.owner)
+            undo_redo.add_do_property(child, "owner", get_node_owner(child))
             undo_redo.add_undo_method(parent_board, "remove_child", child)
             undo_redo.add_undo_method(selected_board, "add_child", child)
-            undo_redo.add_undo_property(child, "owner", child.owner)
+            undo_redo.add_undo_property(child, "owner", get_node_owner(child))
             undo_redo.add_undo_property(child, "name", child.name)
             previous_sibling = child
 
@@ -1802,6 +1840,11 @@ func _ungroup_selection() -> void:
     undo_redo.commit_action(true)
 
 #endregion
+
+static func get_node_owner(node: Node) -> Node:
+    if node == EditorInterface.get_edited_scene_root():
+        return node
+    return node.owner
 
 static func get_cells_entered(from: Vector3, to: Vector3) -> Array[Vector3i]:
     var points: Array[Vector3i] = []
