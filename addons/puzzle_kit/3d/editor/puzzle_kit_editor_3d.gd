@@ -654,25 +654,27 @@ func _menu_option(id: Menu) -> void:
                 var index := options_button.get_popup().get_item_index(axis_id)
                 options_button.get_popup().set_item_checked(index, axis_id == id)
                 edit_axis = (id - Menu.MENU_OPTION_X_AXIS) as Vector3.Axis
-        Menu.MENU_OPTION_PAINT_OVERWRITE:
-            _paint_overwrite = not _paint_overwrite
-            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _paint_overwrite)
-            ProjectSettings.set_setting(SETTING_PAINT_OVERWRITES, _paint_overwrite)
-            ProjectSettings.save()
-        Menu.MENU_OPTION_PICK_COPY_ROTATION:
-            _pick_copy_rotation = not _pick_copy_rotation
-            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _pick_copy_rotation)
-            ProjectSettings.set_setting(SETTING_PICK_COPIES_ROTATION, _pick_copy_rotation)
-            ProjectSettings.save()
-        Menu.MENU_OPTION_PICK_COPY_OFFSET:
-            _pick_copy_offset = not _pick_copy_offset
-            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _pick_copy_offset)
-            ProjectSettings.set_setting(SETTING_PICK_COPIES_OFFSET, _pick_copy_offset)
-            ProjectSettings.save()
+        Menu.MENU_OPTION_PAINT_OVERWRITE, \
+        Menu.MENU_OPTION_PICK_COPY_ROTATION, \
+        Menu.MENU_OPTION_PICK_COPY_OFFSET, \
         Menu.MENU_OPTION_PICK_COPY_GROUPS:
-            _pick_copy_groups = not _pick_copy_groups
-            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), _pick_copy_groups)
-            ProjectSettings.set_setting(SETTING_PICK_COPIES_GROUPS, _pick_copy_groups)
+            var setting_name := _menu_option_to_setting_name(id)
+            if setting_name.is_empty():
+                printerr("No setting name for id: %s" % id)
+                return
+            var property_name := _menu_option_to_property_name(id)
+            if property_name.is_empty():
+                printerr("No property name for id: %s" % id)
+                return
+            var value: Variant = get(property_name)
+            if not value is bool:
+                printerr("Property %s was not a bool for id: %s" % [property_name, id])
+                return
+            var bool_value: bool = value
+            var checked := not bool_value
+            set(property_name, checked)
+            options_button.get_popup().set_item_checked(options_button.get_popup().get_item_index(id), checked)
+            ProjectSettings.set_setting(setting_name, checked)
             ProjectSettings.save()
         Menu.MENU_OPTION_CURSOR_ROTATE_X, Menu.MENU_OPTION_CURSOR_ROTATE_Y, Menu.MENU_OPTION_CURSOR_ROTATE_Z, \
         Menu.MENU_OPTION_CURSOR_BACK_ROTATE_X, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Y, Menu.MENU_OPTION_CURSOR_BACK_ROTATE_Z:
@@ -688,6 +690,22 @@ func _menu_option(id: Menu) -> void:
             _group_selection()
         Menu.MENU_OPTION_UNGROUP:
             _ungroup_selection()
+
+func _menu_option_to_setting_name(id: Menu) -> String:
+    match id:
+        Menu.MENU_OPTION_PAINT_OVERWRITE: return SETTING_PAINT_OVERWRITES
+        Menu.MENU_OPTION_PICK_COPY_ROTATION: return SETTING_PICK_COPIES_ROTATION
+        Menu.MENU_OPTION_PICK_COPY_OFFSET: return SETTING_PICK_COPIES_OFFSET
+        Menu.MENU_OPTION_PICK_COPY_GROUPS: return SETTING_PICK_COPIES_GROUPS
+    return ""
+
+func _menu_option_to_property_name(id: Menu) -> StringName:
+    match id:
+        Menu.MENU_OPTION_PAINT_OVERWRITE: return &"_paint_overwrite"
+        Menu.MENU_OPTION_PICK_COPY_ROTATION: return &"_pick_copy_rotation"
+        Menu.MENU_OPTION_PICK_COPY_OFFSET: return &"_pick_copy_offset"
+        Menu.MENU_OPTION_PICK_COPY_GROUPS: return &"_pick_copy_groups"
+    return ""
 
 func _set_editor_layer_visible(layer: int, value: bool) -> void:
     for i in range(4):
