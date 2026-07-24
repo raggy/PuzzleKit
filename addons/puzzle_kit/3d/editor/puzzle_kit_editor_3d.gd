@@ -62,6 +62,8 @@ const CUBE_CORNERS: Array[Vector3] = [
 @export var groups_clear_button: Button
 @export var groups_container: Container
 var group_checkboxes: Array[CheckBox] = []
+var groups_to_add: Array[StringName] = []
+var groups_on_draw_preview: Array[StringName] = []
 
 @export var options_button: MenuButton
 
@@ -900,6 +902,7 @@ func _update_groups_list() -> void:
             # CheckBox still valid
             global_groups_to_add.erase(group_checkbox.text)
             continue
+        groups_to_add.erase(group_checkbox.text)
         group_checkbox.pressed.disconnect(_on_group_checkbox_pressed)
         groups_container.remove_child(group_checkbox)
         group_checkboxes.erase(group_checkbox)
@@ -934,16 +937,29 @@ func _load_global_groups_from_config_file() -> PackedStringArray:
     return _global_groups
 
 func _on_group_checkbox_pressed() -> void:
+    for group_checkbox in group_checkboxes:
+        if group_checkbox.text in groups_on_draw_preview:
+            continue
+        if group_checkbox.button_pressed and not group_checkbox.text in groups_to_add:
+            groups_to_add.append(group_checkbox.text)
+        elif not group_checkbox.button_pressed and group_checkbox.text in groups_to_add:
+            groups_to_add.erase(group_checkbox.text)
     _update_filtered_groups(group_name_filter.text)
     auto_setup_draw_preview()
+
+func _sync_group_checkboxes() -> void:
+    for group_checkbox in group_checkboxes:
+        var group_is_on_draw_preview := group_checkbox.text in groups_on_draw_preview
+        group_checkbox.button_pressed = group_is_on_draw_preview or group_checkbox.text in groups_to_add
+        group_checkbox.disabled = group_is_on_draw_preview
 
 func _update_filtered_groups(filter: String) -> void:
     for group_checkbox in group_checkboxes:
         group_checkbox.visible = group_checkbox.button_pressed or filter.is_empty() or group_checkbox.text.contains(filter)
 
 func _on_clear_groups_pressed() -> void:
-    for group_checkbox in group_checkboxes:
-        group_checkbox.button_pressed = false
+    groups_to_add.clear()
+    _sync_group_checkboxes()
     _update_filtered_groups(group_name_filter.text)
 #endregion
 
@@ -1165,10 +1181,10 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 node.queue_free()
                 return true
             # Add to custom groups
-            for group_checkbox in group_checkboxes:
-                if not group_checkbox.button_pressed or node3d.is_in_group(group_checkbox.text):
+            for group in groups_to_add:
+                if node3d.is_in_group(group):
                     continue
-                node3d.add_to_group(group_checkbox.text, true)
+                node3d.add_to_group(group, true)
             _board.add_child(node3d, true)
             node3d.global_transform = _cursor_piece_container.global_transform
             node3d.owner = get_node_owner(_board)
@@ -1215,8 +1231,12 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             if _pick_copy_offset:
                 draw_offset_spin_box.value = round(node3d.global_position[edit_axis])
             if _pick_copy_groups:
-                for group_checkbox in group_checkboxes:
-                    group_checkbox.button_pressed = node3d.is_in_group(group_checkbox.text)
+                groups_to_add.clear()
+                for group in node3d.get_groups():
+                    if group in groups_to_add or group in groups_on_draw_preview:
+                        continue
+                    groups_to_add.append(group)
+                _sync_group_checkboxes()
                 _update_filtered_groups(group_name_filter.text)
         if input_mouse_button == MOUSE_BUTTON_RIGHT:
             if found_palette_item:
@@ -1665,11 +1685,15 @@ func setup_draw_preview(scene: PackedScene) -> void:
         return
     
     _draw_preview = node
+    groups_on_draw_preview.clear()
+    for group in node.get_groups():
+        groups_on_draw_preview.append(group)
     # Add to custom groups
-    for group_checkbox in group_checkboxes:
-        if not group_checkbox.button_pressed or node.is_in_group(group_checkbox.text):
+    for group in groups_to_add:
+        if node.is_in_group(group):
             continue
-        node.add_to_group(group_checkbox.text, true)
+        node.add_to_group(group, true)
+    _sync_group_checkboxes()
     _cursor_piece_container.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
     _cursor_piece_outline.generate_from(_draw_preview)
