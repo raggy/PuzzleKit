@@ -1,4 +1,3 @@
-class_name TileOutline3D
 extends Node3D
 
 var _mesh: ArrayMesh

@@ -1,4 +1,3 @@
-class_name PieceOutline3D
 extends Node3D
 
 var _mesh: ArrayMesh

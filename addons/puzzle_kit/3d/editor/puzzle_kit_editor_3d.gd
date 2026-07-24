@@ -8,6 +8,9 @@ extends VBoxContainer
 
 signal board_edit_requested(board: Board3D)
 
+const PieceOutline3D := preload("res://addons/puzzle_kit/3d/editor/display/piece_outline_3d.gd")
+const TileOutline3D := preload("res://addons/puzzle_kit/3d/editor/display/tile_outline_3d.gd")
+
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 const SETTING_PAINT_OVERWRITES := "puzzle_kit/editor/paint_overwrites"
 const SETTING_PICK_COPIES_ROTATION := "puzzle_kit/editor/pick_copies_rotation"
