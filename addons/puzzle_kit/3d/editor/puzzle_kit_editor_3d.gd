@@ -172,6 +172,7 @@ var _selection_bounding_boxes_cached_camera_size: float
 var _selection_piece_outlines: Dictionary[Node3D, PieceOutline3D] = {}
 var _selection_first_click_time: int = 0
 var _selection_translate_nodes: Array[Node3D] = []
+var _selection_translate_clicked_node: Node3D
 var _selection_translate_plane_offset: float = 0.0
 var _selection_translate_previous_world_position: Vector3
 var _selection_translate_index: int = 0
@@ -1159,6 +1160,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     _selection_root_nodes.clear()
                     _selection_root_node_bounding_boxes.clear()
                     _initial_selection.clear()
+                    _selection_translate_clicked_node = null
                     if not _selection_movement_threshold_passed:
                         # Select what's under cursor
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
@@ -1349,42 +1351,42 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             _initial_selection = editor_selection.get_selected_nodes()
             # Calculate screen-space bounding boxes for selectable nodes
             _update_box_selection_bounding_boxes(camera, true)
+            # Default to box select
+            _selection_drag_mode = SelectionDragMode.SELECTION_DRAG_MODE_BOX_SELECT
+            if _selection_mode == SelectionMode.SELECTION_MODE_REPLACE:
+                update_cursor_state_raycast_piece(camera, mouse_position)
+                var node_under_cursor: Node3D = null
+                var cursor_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
+                if cursor_node is Node3D:
+                    node_under_cursor = cursor_node
+                if node_under_cursor:
+                    # Dragging from a piece, start translating selection on drag
+                    _selection_drag_mode = SelectionDragMode.SELECTION_DRAG_MODE_TRANSLATE
+                    _selection_translate_clicked_node = node_under_cursor
+                    _selection_translate_previous_world_position = node_under_cursor.global_position
+                    match edit_axis:
+                        Vector3.AXIS_X: _selection_translate_plane_offset = _selection_translate_clicked_node.global_position.x
+                        Vector3.AXIS_Y: _selection_translate_plane_offset = _selection_translate_clicked_node.global_position.y
+                        Vector3.AXIS_Z: _selection_translate_plane_offset = _selection_translate_clicked_node.global_position.z
+                    var translate_plane := _create_plane(edit_axis, _selection_translate_plane_offset)
+                    var translate_plane_intersection: Variant = translate_plane.intersects_ray(camera.project_ray_origin(mouse_position), camera.project_ray_normal(mouse_position))
+                    if translate_plane_intersection:
+                        _selection_translate_previous_world_position = translate_plane_intersection
         # Start box-selecting when mouse has moved enough from starting position
         if not _selection_movement_threshold_passed:
             _selection_movement_threshold_passed = _selection_original_mouse_position.distance_to(mouse_position) > 8 * EditorInterface.get_editor_theme().get_constant("scale", "Editor")
-            if _selection_movement_threshold_passed:
-                # Default to box select
-                _selection_drag_mode = SelectionDragMode.SELECTION_DRAG_MODE_BOX_SELECT
-                if _selection_mode == SelectionMode.SELECTION_MODE_REPLACE:
-                    update_cursor_state_raycast_piece(camera, mouse_position)
-                    var new_selection: Node3D = null
-                    var select_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
-                    if select_node is Node3D:
-                        new_selection = select_node
-                    if new_selection:
-                        # Dragging from a piece, start translating selection on drag
-                        _selection_drag_mode = SelectionDragMode.SELECTION_DRAG_MODE_TRANSLATE
-                        _selection_translate_index += 1
-                        if not new_selection in editor_selection.get_selected_nodes():
-                            # Dragging from an unselected piece, replace the selection with it and then drag
-                            editor_selection.clear()
-                            if new_selection:
-                                editor_selection.add_node(new_selection)
-                        # Save list of translateable nodes
-                        var editor_selected_nodes := editor_selection.get_selected_nodes()
-                        _selection_translate_nodes.clear()
-                        for node in _selection_root_nodes:
-                            if node in editor_selected_nodes:
-                                _selection_translate_nodes.append(node)
-                        match edit_axis:
-                            Vector3.AXIS_X: _selection_translate_plane_offset = new_selection.global_position.x
-                            Vector3.AXIS_Y: _selection_translate_plane_offset = new_selection.global_position.y
-                            Vector3.AXIS_Z: _selection_translate_plane_offset = new_selection.global_position.z
-                        _selection_translate_previous_world_position = new_selection.global_position
-                        var translate_plane := _create_plane(edit_axis, _selection_translate_plane_offset)
-                        var translate_plane_intersection: Variant = translate_plane.intersects_ray(camera.project_ray_origin(mouse_position), camera.project_ray_normal(mouse_position))
-                        if translate_plane_intersection:
-                            _selection_translate_previous_world_position = translate_plane_intersection
+            if _selection_movement_threshold_passed and _selection_drag_mode == SelectionDragMode.SELECTION_DRAG_MODE_TRANSLATE:
+                _selection_translate_index += 1
+                if not _selection_translate_clicked_node in editor_selection.get_selected_nodes():
+                    # Dragging from an unselected piece, replace the selection with it and then drag
+                    editor_selection.clear()
+                    editor_selection.add_node(_selection_translate_clicked_node)
+                # Save list of translateable nodes
+                var editor_selected_nodes := editor_selection.get_selected_nodes()
+                _selection_translate_nodes.clear()
+                for node in _selection_root_nodes:
+                    if node in editor_selected_nodes:
+                        _selection_translate_nodes.append(node)
         if _selection_movement_threshold_passed:
             match _selection_drag_mode:
                 SelectionDragMode.SELECTION_DRAG_MODE_BOX_SELECT:
