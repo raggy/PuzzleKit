@@ -339,6 +339,12 @@ func _set_parent_board(value: Board3D) -> void:
     if value:
         value._child_boards.append(self)
 
+## Returns the furthest ancestor `Board3D` in the scene tree
+func get_root_board() -> Board3D:
+    if not parent_board:
+        return self
+    return parent_board.get_root_board()
+
 func _find_board_ancestor() -> Board3D:
     if not is_inside_tree():
         return null
