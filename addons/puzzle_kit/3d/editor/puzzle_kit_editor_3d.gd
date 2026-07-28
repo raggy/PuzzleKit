@@ -1987,10 +1987,12 @@ func _ungroup_selection() -> void:
             undo_redo.add_do_method(selected_board, "remove_child", child)
             undo_redo.add_do_method(previous_sibling, "add_sibling", child, true)
             undo_redo.add_do_property(child, "owner", get_node_owner(child))
+            undo_redo.add_do_property(child, "global_transform", child.global_transform)
             undo_redo.add_undo_method(parent_board, "remove_child", child)
             undo_redo.add_undo_method(selected_board, "add_child", child)
             undo_redo.add_undo_property(child, "owner", get_node_owner(child))
             undo_redo.add_undo_property(child, "name", child.name)
+            undo_redo.add_undo_property(child, "global_transform", child.global_transform)
             previous_sibling = child
 
         # Remove the selected board from its parent
