@@ -13,6 +13,8 @@ signal teleported()
 @export_flags_3d_physics var editor_paint_layer: int = 1
 ## When painting this piece, erase other copies of it on the same board
 @export var editor_paint_unique: bool = false
+## When painting this piece, also paint this scene
+@export_file_path("*.tscn") var editor_paint_extra_scene_path: String
 
 ## Inactive pieces aren't included in positional queries and (by-default) ignored in other queries
 var active: bool = true: set = set_active
@@ -88,9 +90,32 @@ func get_child_piece(index: int) -> Piece3D:
 func get_child_piece_count() -> int:
     return _child_pieces.size()
 
-## Returns a new Array of the closest descendant `Piece3D` in the scene tree
-func get_child_pieces() -> Array[Piece3D]:
-    return _child_pieces.duplicate()
+## Returns a new Array of the closest descendant `Piece3D` in the scene tree (optionally filtered by group, optionally including inactive)
+func get_child_pieces(group_filter: GroupFilter = null, include_inactive: bool = false) -> Array[Piece3D]:
+    var filtered_by_group := group_filter != null
+
+    if not filtered_by_group:
+        # We just want all child pieces
+        if include_inactive:
+            return _child_pieces.duplicate()
+        # We just want all active child pieces
+        return _child_pieces.filter(func(piece: Piece3D) -> bool: return piece.active)
+
+    if include_inactive:
+        # Filter child pieces by group
+        return _child_pieces.filter(group_filter.matches_3d)
+    # Filter active child pieces by group
+    return _child_pieces.filter(group_filter.matches_3d).filter(func(piece: Piece3D) -> bool: return piece.active)
+
+## Returns the first descendant `Piece3D` (optionally filtered by group, optionally including inactive)
+func get_first_child_piece(group_filter: GroupFilter = null, include_inactive: bool = false) -> Piece3D:
+    for child_piece_index in range(get_child_piece_count()):
+        var child_piece := _child_pieces[child_piece_index]
+        if not include_inactive and not child_piece.active:
+            continue
+        if group_filter and child_piece.matches(group_filter):
+            return child_piece
+    return null
 
 ## Returns the closest ancestor `Piece3D` in the scene tree
 func get_parent_piece() -> Piece3D:
@@ -115,16 +140,9 @@ func set_parent_piece(value: Piece3D) -> void:
 func matches(group_filter: GroupFilter) -> bool:
     return group_filter.matches_3d(self)
 
-## Returns the first descendant `Piece3D` matching `group_filter`
-func get_first_child_piece_matching(group_filter: GroupFilter) -> Piece3D:
-    var child_piece_index := _child_pieces.find_custom(group_filter.matches_3d)
-    if child_piece_index != -1:
-        return _child_pieces[child_piece_index]
-    return null
-
-## Returns an Array of all descendant `Piece3D` matching `group_filter`
-func get_child_pieces_matching(group_filter: GroupFilter) -> Array[Piece3D]:
-    return _child_pieces.filter(group_filter.matches_3d)
+## Has this piece changed this step?
+func has_changed() -> bool:
+    return active != _previous_active or parent_piece != _previous_parent_piece or global_transform != _previous_transform
 
 ## Returns true if Piece3D's `active` property is true, all its ancestor Piece3D are also `active` and `is_inside_tree()` is true
 func is_active_in_tree() -> bool:

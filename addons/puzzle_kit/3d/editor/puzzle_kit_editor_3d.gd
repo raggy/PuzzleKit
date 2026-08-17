@@ -137,6 +137,7 @@ var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
 var _draw_preview_pieces: Array[Piece3D]
 var _draw_scene: PackedScene
+var _draw_extra_scenes: Array[PackedScene] = []
 var _draw_is_unique: bool
 var _preview_blank: ImageTexture
 
@@ -1273,6 +1274,18 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             node3d.owner = get_node_owner(_board)
             var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
             _paint_changes.append(change)
+            for extra_scene in _draw_extra_scenes:
+                var extra_node := extra_scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
+                var extra_node3d := extra_node as Node3D
+                if not extra_node3d:
+                    extra_node.queue_free()
+                    continue
+                _board.add_child(extra_node3d, true)
+                extra_node3d.global_transform = _cursor_piece_container.global_transform
+                extra_node3d.owner = get_node_owner(_board)
+                var extra_change := AddRemoveChange.create_from(extra_node3d, AddRemoveChange.Action.ADD)
+                _paint_changes.append(extra_change)
+
         return true
     if input_action == InputAction.INPUT_ERASE:
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
@@ -1791,11 +1804,11 @@ func get_piece_on_highest_paint_layer(pieces: Array[Piece3D]) -> Piece3D:
     if pieces.is_empty():
         return null
     pieces.sort_custom(func(a: Piece3D, b: Piece3D) -> bool:
-        return count_highest_bit(a.editor_paint_layer) > (b.editor_paint_layer)
+        return most_significant_bit(a.editor_paint_layer) > most_significant_bit(b.editor_paint_layer)
     )
     return pieces[0]
 
-func count_highest_bit(integer: int) -> int:
+func most_significant_bit(integer: int) -> int:
     for i in range(64):
         if integer == 0:
             return i
@@ -1821,19 +1834,22 @@ func setup_draw_preview(scene: PackedScene) -> void:
         node.queue_free()
         return
     
-    _draw_preview = node
+    var node3d := node as Node3D
+    
+    _draw_preview = Node3D.new()
+    _draw_preview.add_child(node3d)
+    node3d.transform = Transform3D.IDENTITY
     groups_on_draw_preview.clear()
-    for group in node.get_groups():
+    for group in node3d.get_groups():
         groups_on_draw_preview.append(group)
     # Add to custom groups
     for group in groups_to_add:
-        if node.is_in_group(group):
+        if node3d.is_in_group(group):
             continue
-        node.add_to_group(group, true)
+        node3d.add_to_group(group, true)
     _sync_group_checkboxes()
     _cursor_piece_container.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
-    _cursor_piece_outline.generate_from(_draw_preview)
     
     _draw_preview_pieces = []
     Piece3D.find_descendant_pieces(_draw_preview, _draw_preview_pieces)
@@ -1843,6 +1859,29 @@ func setup_draw_preview(scene: PackedScene) -> void:
         if preview_piece.editor_paint_unique:
             _draw_is_unique = true
             break
+
+    _draw_extra_scenes.clear()
+    for piece in _draw_preview_pieces:
+        if piece.editor_paint_extra_scene_path.is_empty():
+            continue
+        var extra_scene := load(piece.editor_paint_extra_scene_path)
+        if not extra_scene:
+            continue
+        if extra_scene in _draw_extra_scenes:
+            continue
+        _draw_extra_scenes.append(extra_scene)
+    
+    for extra_scene in _draw_extra_scenes:
+        var extra_node := extra_scene.instantiate()
+        if not extra_node is Node3D:
+            extra_node.queue_free()
+            continue
+        var extra_node3d := extra_node as Node3D
+        _draw_preview.add_child(extra_node3d)
+        extra_node3d.transform = Transform3D.IDENTITY
+        Piece3D.find_descendant_pieces(extra_node3d, _draw_preview_pieces)
+
+    _cursor_piece_outline.generate_from(_draw_preview)
 
 func auto_setup_draw_preview() -> void:
     if _draw_scene and (mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button):
@@ -1987,12 +2026,14 @@ func _ungroup_selection() -> void:
             undo_redo.add_do_method(selected_board, "remove_child", child)
             undo_redo.add_do_method(previous_sibling, "add_sibling", child, true)
             undo_redo.add_do_property(child, "owner", get_node_owner(child))
-            undo_redo.add_do_property(child, "global_transform", child.global_transform)
             undo_redo.add_undo_method(parent_board, "remove_child", child)
             undo_redo.add_undo_method(selected_board, "add_child", child)
             undo_redo.add_undo_property(child, "owner", get_node_owner(child))
             undo_redo.add_undo_property(child, "name", child.name)
-            undo_redo.add_undo_property(child, "global_transform", child.global_transform)
+            if child is Node3D:
+                var child_node3d := child as Node3D
+                undo_redo.add_do_property(child_node3d, "global_transform", child_node3d.global_transform)
+                undo_redo.add_undo_property(child_node3d, "global_transform", child_node3d.global_transform)
             previous_sibling = child
 
         # Remove the selected board from its parent

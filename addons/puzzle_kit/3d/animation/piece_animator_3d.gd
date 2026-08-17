@@ -23,13 +23,13 @@ func _notification(what: int) -> void:
 
 ## Play animation now
 func play(animation: PieceAnimation3D) -> void:
-    # TODO: Queue up animation until board.commit_changes() is called, so we can tell if we need to make a default animation
-    # Maybe store this animation on the PieceVisual3D?
+    if not animation:
+        return
+
     add_child(animation, true)
     _animations_playing.append(animation)
     animation.finished.connect(_on_animation_finished.bind(animation))
     animation.stopped.connect(_on_animation_stopped.bind(animation))
-    animation.visual._has_animation_this_step = true
     animation.visual.animation = animation
     animation.start()
 
@@ -37,12 +37,17 @@ func play(animation: PieceAnimation3D) -> void:
 
 ## Queue animation to play after one or more specific animations
 func queue_after(animation: PieceAnimation3D, after_animations: Array[PieceAnimation3D]) -> void:
+    if not animation:
+        return
+
     animation._queued_after = after_animations.duplicate()
-    animation.visual._has_animation_this_step = true
     _animations_queued.append(animation)
 
 ## Queue animation to play after the piece's latest animation in the queue
 func queue_for(animation: PieceAnimation3D, piece: Piece3D) -> void:
+    if not animation:
+        return
+
     var after_animation := _find_latest_animation_for_piece(piece)
 
     if not after_animation:
@@ -50,7 +55,6 @@ func queue_for(animation: PieceAnimation3D, piece: Piece3D) -> void:
         return
     
     animation._queued_after = [after_animation]
-    animation.visual._has_animation_this_step = true
     _animations_queued.append(animation)
 
 ## Remove animation from the queue (and all animations queued after it)
@@ -209,15 +213,7 @@ func _play_default_animations() -> void:
         if not piece.visual:
             continue
         
-        var animation := piece.visual.create_default_animation()
-        # Reset for next step
-        piece.visual._has_animation_this_step = false
-        # Doesn't want to play an animation
-        if not animation:
-            continue
-        play(animation)
-        # Reset for next step
-        piece.visual._has_animation_this_step = false
+        play(piece.visual.create_default_animation())
 
 func _queue_free_animations(animations: Array[PieceAnimation3D]) -> void:
     for animation in animations:

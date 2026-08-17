@@ -56,10 +56,6 @@ func get_previous_state() -> PieceState3D:
     state.transform = piece._previous_transform
     return state
 
-## Has this piece changed this step?
-func has_changed() -> bool:
-    return piece.active != piece._previous_active or piece.parent_piece != piece._previous_parent_piece or piece.global_transform != piece._previous_transform
-
 ## Save current state for checkpoint
 func set_checkpoint() -> void:
     _in_checkpoint = true

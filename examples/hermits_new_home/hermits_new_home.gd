@@ -21,7 +21,7 @@ func _ready() -> void:
     # Create initial checkpoint
     history.checkpoint()
 
-    var player_shell := player.get_first_child_piece_matching(group_shell)
+    var player_shell := player.get_first_child_piece(group_shell)
     # Teleport player's shell on-the-spot to set correct visual state on first play
     if player_shell:
         player_shell._teleport(player_shell.active, player_shell.parent_piece, player_shell.global_transform)
@@ -63,7 +63,7 @@ func _move(direction_2d: Vector2i) -> bool:
 
     animator.stop_for(player)
     
-    var player_shell := player.get_first_child_piece_matching(group_shell)
+    var player_shell := player.get_first_child_piece(group_shell)
     if player_shell:
         animator.stop_for(player_shell)
         animator.play(player_shell.visual.create_animation(player_shell.visual.default_animation))
@@ -91,7 +91,7 @@ func _push(pushable: Piece3D, direction: Vector3i, pushed_by: Piece3D = null) ->
         var blocking_piece := blocking_pieces[0]
         # If the blocking piece is pushable, push it instead
         if blocking_piece.matches(group_pushable):
-            return _push(blocking_piece, direction, pushable if pushable.visual and pushable.visual._has_animation_this_step else pushed_by)
+            return _push(blocking_piece, direction, pushable if pushable.visual and pushable.has_changed() else pushed_by)
         # Blocking piece wasn't pushable, nothing moves
         return false
     
@@ -135,7 +135,7 @@ func _swap() -> void:
         _swap_fail()
         return
 
-    var current_shell := player.get_first_child_piece_matching(group_shell)
+    var current_shell := player.get_first_child_piece(group_shell)
     # Leave current shell behind
     if current_shell:
         current_shell.parent_piece = null
@@ -157,7 +157,7 @@ func _swap() -> void:
     animator.finish_for(player)
 
 func _swap_fail() -> void:
-    var player_shell := player.get_first_child_piece_matching(group_shell)
+    var player_shell := player.get_first_child_piece(group_shell)
     # Animate trying to leave shell and re-entering
     if player_shell:
         var player_shell_visual := player_shell.visual as ShellVisual

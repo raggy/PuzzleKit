@@ -111,7 +111,7 @@ func _create_undo_step() -> void:
         if group_filter and not piece.is_in_group(group_filter):
             continue
         # Piece didn't change
-        if not piece.history.has_changed():
+        if not piece.has_changed():
             continue
         undo_step.states.append(piece.history.get_previous_state())
  

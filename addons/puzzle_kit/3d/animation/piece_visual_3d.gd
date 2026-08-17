@@ -17,8 +17,6 @@ var cached_active: bool
 var current_piece_transform: Transform3D: get = get_current_piece_transform
 var previous_piece_transform: Transform3D: get = get_previous_piece_transform
 
-var _has_animation_this_step: bool
-
 func _enter_tree() -> void:
     piece = get_parent() as Piece3D
     if not Engine.is_editor_hint():
@@ -43,16 +41,12 @@ func create_default_animation() -> PieceAnimation3D:
     if not uses_default_animation:
         return null
     
-    # Already have something playing for this step
-    if _has_animation_this_step:
-        return null
-    
-    # Piece didn't change state
-    if piece._previous_active == piece.active and previous_piece_transform == current_piece_transform:
-        return null
-    
     # No default animation to play
     if not default_animation:
+        return null
+    
+    # Already displaying current piece state
+    if cached_active == piece.active and cached_transform == current_piece_transform:
         return null
     
     return create_animation(default_animation)
