@@ -16,7 +16,7 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_clear_button", "groups_container", "options_button", "container_board", "info_no_board")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "attach_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "flip_x_button", "flip_y_button", "flip_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_clear_button", "groups_container", "options_button", "container_board", "info_no_board")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -33,9 +33,12 @@ select_mode_button = NodePath("Toolbar/SelectModeButton")
 rotate_x_button = NodePath("Toolbar/RotateXButton")
 rotate_y_button = NodePath("Toolbar/RotateYButton")
 rotate_z_button = NodePath("Toolbar/RotateZButton")
+flip_x_button = NodePath("Toolbar/FlipXButton")
+flip_y_button = NodePath("Toolbar/FlipYButton")
+flip_z_button = NodePath("Toolbar/FlipZButton")
 group_button = NodePath("Toolbar/GroupButton")
 ungroup_button = NodePath("Toolbar/UngroupButton")
-viewport_shortcut_buttons = [NodePath("Toolbar/TransformModeButton"), NodePath("Toolbar/PaintModeButton"), NodePath("Toolbar/AttachModeButton"), NodePath("Toolbar/EraseModeButton"), NodePath("Toolbar/PickModeButton"), NodePath("Toolbar/SelectModeButton"), NodePath("Toolbar/RotateXButton"), NodePath("Toolbar/RotateYButton"), NodePath("Toolbar/RotateZButton"), NodePath("Toolbar/PickPieceDirectory")]
+viewport_shortcut_buttons = [NodePath("Toolbar/TransformModeButton"), NodePath("Toolbar/PaintModeButton"), NodePath("Toolbar/AttachModeButton"), NodePath("Toolbar/EraseModeButton"), NodePath("Toolbar/PickModeButton"), NodePath("Toolbar/SelectModeButton"), NodePath("Toolbar/RotateXButton"), NodePath("Toolbar/RotateYButton"), NodePath("Toolbar/RotateZButton"), NodePath("Toolbar/FlipXButton"), NodePath("Toolbar/FlipYButton"), NodePath("Toolbar/FlipZButton"), NodePath("Toolbar/GroupButton"), NodePath("Toolbar/UngroupButton"), NodePath("Toolbar/PickPieceDirectory")]
 draw_offset_spin_box = NodePath("Toolbar/DrawOffsetSpinBox")
 piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
@@ -102,6 +105,21 @@ layout_mode = 2
 theme_type_variation = &"FlatButton"
 
 [node name="VSeparator3" type="VSeparator" parent="Toolbar" unique_id=2096334879]
+layout_mode = 2
+
+[node name="FlipXButton" type="Button" parent="Toolbar" unique_id=1714126515]
+layout_mode = 2
+theme_type_variation = &"FlatButton"
+
+[node name="FlipYButton" type="Button" parent="Toolbar" unique_id=122314814]
+layout_mode = 2
+theme_type_variation = &"FlatButton"
+
+[node name="FlipZButton" type="Button" parent="Toolbar" unique_id=1889449689]
+layout_mode = 2
+theme_type_variation = &"FlatButton"
+
+[node name="VSeparator4" type="VSeparator" parent="Toolbar" unique_id=1744010532]
 layout_mode = 2
 
 [node name="GroupButton" type="Button" parent="Toolbar" unique_id=404703885]

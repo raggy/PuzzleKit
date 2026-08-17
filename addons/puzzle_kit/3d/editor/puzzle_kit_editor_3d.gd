@@ -46,6 +46,10 @@ const CUBE_CORNERS: Array[Vector3] = [
 @export var rotate_y_button: Button
 @export var rotate_z_button: Button
 
+@export var flip_x_button: Button
+@export var flip_y_button: Button
+@export var flip_z_button: Button
+
 @export var group_button: Button
 @export var ungroup_button: Button
 
@@ -96,6 +100,9 @@ enum Menu {
     MENU_OPTION_CURSOR_BACK_ROTATE_X,
     MENU_OPTION_CURSOR_BACK_ROTATE_Y,
     MENU_OPTION_CURSOR_BACK_ROTATE_Z,
+    MENU_OPTION_CURSOR_FLIP_X,
+    MENU_OPTION_CURSOR_FLIP_Y,
+    MENU_OPTION_CURSOR_FLIP_Z,
     MENU_OPTION_GROUP,
     MENU_OPTION_UNGROUP,
 }
@@ -282,6 +289,9 @@ func _ready() -> void:
     rotate_x_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_x")
     rotate_y_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_y")
     rotate_z_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_rotate_z")
+    flip_x_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_flip_x")
+    flip_y_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_flip_y")
+    flip_z_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/cursor_flip_z")
     group_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/group")
     ungroup_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/ungroup")
     piece_directory_pick_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_piece_directory")
@@ -306,6 +316,10 @@ func _ready() -> void:
     rotate_x_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_X))
     rotate_y_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_Y))
     rotate_z_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_ROTATE_Z))
+
+    flip_x_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_FLIP_X))
+    flip_y_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_FLIP_Y))
+    flip_z_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_CURSOR_FLIP_Z))
     
     group_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_GROUP))
     ungroup_button.pressed.connect(_menu_option.bind(Menu.MENU_OPTION_UNGROUP))
@@ -397,6 +411,24 @@ func _add_shortcuts_to_editor_settings() -> void:
     input_event_cursor_rotate_z.physical_keycode = KEY_D
     shortcut_cursor_rotate_z.events.append(input_event_cursor_rotate_z)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_rotate_z", shortcut_cursor_rotate_z)
+    var shortcut_cursor_flip_x := Shortcut.new()
+    shortcut_cursor_flip_x.resource_name = "Cursor Flip X"
+    var input_event_cursor_flip_x := InputEventKey.new()
+    input_event_cursor_flip_x.physical_keycode = KEY_Z
+    shortcut_cursor_flip_x.events.append(input_event_cursor_flip_x)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_flip_x", shortcut_cursor_flip_x)
+    var shortcut_cursor_flip_y := Shortcut.new()
+    shortcut_cursor_flip_y.resource_name = "Cursor Flip Y"
+    var input_event_cursor_flip_y := InputEventKey.new()
+    input_event_cursor_flip_y.physical_keycode = KEY_X
+    shortcut_cursor_flip_y.events.append(input_event_cursor_flip_y)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_flip_y", shortcut_cursor_flip_y)
+    var shortcut_cursor_flip_z := Shortcut.new()
+    shortcut_cursor_flip_z.resource_name = "Cursor Flip Z"
+    var input_event_cursor_flip_z := InputEventKey.new()
+    input_event_cursor_flip_z.physical_keycode = KEY_C
+    shortcut_cursor_flip_z.events.append(input_event_cursor_flip_z)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/cursor_flip_z", shortcut_cursor_flip_z)
     var shortcut_group := Shortcut.new()
     shortcut_group.resource_name = "Group"
     var input_event_group := InputEventKey.new()
@@ -488,6 +520,9 @@ func _update_theme() -> void:
     rotate_x_button.icon = editor_theme.get_icon("RotateLeft", "EditorIcons")
     rotate_y_button.icon = editor_theme.get_icon("ToolRotate", "EditorIcons")
     rotate_z_button.icon = editor_theme.get_icon("RotateRight", "EditorIcons")
+    flip_x_button.icon = editor_theme.get_icon("MirrorX", "EditorIcons")
+    flip_y_button.icon = editor_theme.get_icon("GuiSliderGrabberHl", "EditorIcons")
+    flip_z_button.icon = editor_theme.get_icon("MirrorY", "EditorIcons")
     group_button.icon = editor_theme.get_icon("Group", "EditorIcons")
     ungroup_button.icon = editor_theme.get_icon("Ungroup", "EditorIcons")
     piece_directory_pick_button.icon = editor_theme.get_icon("Folder", "EditorIcons")
@@ -537,6 +572,9 @@ func _set_interactable(interactable: bool) -> void:
     rotate_x_button.disabled = not interactable
     rotate_y_button.disabled = not interactable
     rotate_z_button.disabled = not interactable
+    flip_x_button.disabled = not interactable
+    flip_y_button.disabled = not interactable
+    flip_z_button.disabled = not interactable
     draw_offset_spin_box.editable = interactable
     piece_directory_pick_button.disabled = not interactable
     options_button.disabled = not interactable
@@ -712,53 +750,19 @@ func _menu_option(id: Menu) -> void:
             if mode_buttons_group.get_pressed_button() == paint_mode_button:
                 _cursor_piece_container.rotate(rotation_axis, -PI / 2.0)
             elif mode_buttons_group.get_pressed_button() == select_mode_button:
-                var editor_selection := EditorInterface.get_selection()
-                var editor_selected_nodes := editor_selection.get_selected_nodes()
-                # Get a list of all selected root nodes
-                var selected_root_nodes: Array[Node3D] = []
-                var selection_aabb := AABB()
-                for piece in _board.get_pieces():
-                    var piece_root_node := _get_piece_root_in_board(piece, _board) as Node3D
-                    if not piece_root_node:
-                        continue
-                    if not piece_root_node in editor_selected_nodes:
-                        # Not selected
-                        continue
-                    if piece_root_node in selected_root_nodes:
-                        # Already found
-                        continue
-                    selected_root_nodes.append(piece_root_node)
-                    var node_aabb := AABB(Vector3(piece.grid_position) - Vector3(0.5, 0.5, 0.5), Vector3.ONE)
-                    if piece_root_node is Board3D:
-                        var board_node := piece_root_node as Board3D
-                        node_aabb = board_node._aabb
-                    if not selection_aabb.has_volume():
-                        # This is the first piece, centre AABB on it
-                        selection_aabb = node_aabb
-                        continue
-                    selection_aabb = selection_aabb.merge(node_aabb)
-                if selected_root_nodes.is_empty():
-                    return
-                var selection_center: Vector3 = round(selection_aabb.get_center())
-                undo_redo.create_action("PuzzleKit Rotate", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
-                for selected_root_node in selected_root_nodes:
-                    undo_redo.add_do_property(selected_root_node, "top_level", true)
-                    undo_redo.add_undo_property(selected_root_node, "top_level", selected_root_node.top_level)
-                for selected_root_node in selected_root_nodes:
-                    undo_redo.add_do_property(selected_root_node, "basis", selected_root_node.basis.rotated(rotation_axis, -PI / 2.0))
-                    undo_redo.add_undo_property(selected_root_node, "basis", selected_root_node.basis)
-                    selected_root_node.basis = selected_root_node.basis.rotated(rotation_axis, -PI / 2.0)
-                    var selected_root_node_offset := selected_root_node.global_position - selection_center
-                    var selected_root_node_offset_length := selected_root_node_offset.length()
-                    if selected_root_node_offset_length == 0.0:
-                        continue
-                    var selected_root_node_offset_normalized := selected_root_node_offset / selected_root_node_offset_length
-                    undo_redo.add_do_property(selected_root_node, "global_position", round(selection_center + selected_root_node_offset_normalized.rotated(rotation_axis, -PI / 2.0) * selected_root_node_offset_length))
-                    undo_redo.add_undo_property(selected_root_node, "global_position", selected_root_node.global_position)
-                for selected_root_node in selected_root_nodes:
-                    undo_redo.add_do_property(selected_root_node, "top_level", selected_root_node.top_level)
-                    undo_redo.add_undo_property(selected_root_node, "top_level", true)
-                undo_redo.commit_action(true)
+                transform_selection("PuzzleKit Rotate", rotation_axis, -PI / 2.0, Vector3.ONE)
+        Menu.MENU_OPTION_CURSOR_FLIP_X, Menu.MENU_OPTION_CURSOR_FLIP_Y, Menu.MENU_OPTION_CURSOR_FLIP_Z:
+            var scale_factor := Vector3.ONE
+            if id == Menu.MENU_OPTION_CURSOR_FLIP_X:
+                scale_factor.x = -1
+            elif id == Menu.MENU_OPTION_CURSOR_FLIP_Y:
+                scale_factor.y = -1
+            elif id == Menu.MENU_OPTION_CURSOR_FLIP_Z:
+                scale_factor.z = -1
+            if mode_buttons_group.get_pressed_button() == paint_mode_button:
+                _cursor_piece_container.scale_object_local(scale_factor)
+            elif mode_buttons_group.get_pressed_button() == select_mode_button:
+                transform_selection("PuzzleKit Rotate", Vector3.ZERO, 0.0, scale_factor)
         Menu.MENU_OPTION_GROUP:
             _group_selection()
         Menu.MENU_OPTION_UNGROUP:
@@ -779,6 +783,61 @@ func _menu_option_to_property_name(id: Menu) -> StringName:
         Menu.MENU_OPTION_PICK_COPY_OFFSET: return &"_pick_copy_offset"
         Menu.MENU_OPTION_PICK_COPY_GROUPS: return &"_pick_copy_groups"
     return ""
+
+func transform_selection(action_name: String, rotation_axis: Vector3, rotation_angle: float, scale_factor: Vector3) -> void:
+    var editor_selection := EditorInterface.get_selection()
+    var editor_selected_nodes := editor_selection.get_selected_nodes()
+    # Get a list of all selected root nodes
+    var selected_root_nodes: Array[Node3D] = []
+    var selection_aabb := AABB()
+    for piece in _board.get_pieces():
+        var piece_root_node := _get_piece_root_in_board(piece, _board) as Node3D
+        if not piece_root_node:
+            continue
+        if not piece_root_node in editor_selected_nodes:
+            # Not selected
+            continue
+        if piece_root_node in selected_root_nodes:
+            # Already found
+            continue
+        selected_root_nodes.append(piece_root_node)
+        var node_aabb := AABB(Vector3(piece.grid_position) - Vector3(0.5, 0.5, 0.5), Vector3.ONE)
+        if piece_root_node is Board3D:
+            var board_node := piece_root_node as Board3D
+            node_aabb = board_node._aabb
+        if not selection_aabb.has_volume():
+            # This is the first piece, centre AABB on it
+            selection_aabb = node_aabb
+            continue
+        selection_aabb = selection_aabb.merge(node_aabb)
+    if selected_root_nodes.is_empty():
+        return
+    var rotating := rotation_axis != Vector3.ZERO and rotation_angle != 0.0
+    var selection_center: Vector3 = round(selection_aabb.get_center())
+    undo_redo.create_action(action_name, UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
+    for selected_root_node in selected_root_nodes:
+        undo_redo.add_do_property(selected_root_node, "top_level", true)
+        undo_redo.add_undo_property(selected_root_node, "top_level", selected_root_node.top_level)
+    for selected_root_node in selected_root_nodes:
+        var selected_root_node_transformed_basis := selected_root_node.basis.scaled(scale_factor)
+        if rotating:
+            selected_root_node_transformed_basis = selected_root_node_transformed_basis.rotated(rotation_axis, rotation_angle)
+        undo_redo.add_do_property(selected_root_node, "basis", selected_root_node_transformed_basis)
+        undo_redo.add_undo_property(selected_root_node, "basis", selected_root_node.basis)
+        var selected_root_node_offset := selected_root_node.global_position - selection_center
+        var selected_root_node_offset_length := selected_root_node_offset.length()
+        if selected_root_node_offset_length == 0.0:
+            continue
+        var selected_root_node_offset_normalized := selected_root_node_offset / selected_root_node_offset_length
+        var selected_root_node_offset_normalized_transformed := selected_root_node_offset_normalized * scale_factor
+        if rotating:
+            selected_root_node_offset_normalized_transformed = selected_root_node_offset_normalized_transformed.rotated(rotation_axis, rotation_angle)
+        undo_redo.add_do_property(selected_root_node, "global_position", round(selection_center + selected_root_node_offset_normalized_transformed * selected_root_node_offset_length))
+        undo_redo.add_undo_property(selected_root_node, "global_position", selected_root_node.global_position)
+    for selected_root_node in selected_root_nodes:
+        undo_redo.add_do_property(selected_root_node, "top_level", selected_root_node.top_level)
+        undo_redo.add_undo_property(selected_root_node, "top_level", true)
+    undo_redo.commit_action(true)
 
 func _set_editor_layer_visible(layer: int, value: bool) -> void:
     for i in range(4):
