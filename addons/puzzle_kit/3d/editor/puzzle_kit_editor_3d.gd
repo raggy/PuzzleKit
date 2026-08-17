@@ -633,7 +633,7 @@ func _get_board_to_edit_from_scene() -> Board3D:
     # Search through nodes, first Board3D found, at most shallow depth possible
     while not nodes.is_empty():
         for node in nodes:
-            if node is Board3D and (node.scene_file_path.is_empty() or edited_scene_root.is_editable_instance(node)):
+            if node is Board3D and _is_board_editable(node as Board3D):
                 # Found a Board3D
                 return node
         
@@ -689,6 +689,18 @@ static func _find_nearest_ancestor_board(node: Node) -> Board3D:
         search_parent = search_parent.get_parent()
     # Reached the root without finding anything
     return null
+
+static func _is_board_editable(board: Board3D) -> bool:
+    if not board:
+        return false
+
+    if not board.scene_file_path.is_empty() and not EditorInterface.get_edited_scene_root().is_editable_instance(board):
+        return false
+
+    if board.parent_board:
+        return _is_board_editable(board.parent_board)
+    
+    return true
 
 func _on_tool_mode_changed() -> void:
     if mode_buttons_group.get_pressed_button() != transform_mode_button:
@@ -1316,8 +1328,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             # Remove same-scene nodes if there's a piece marked as unique
             if _draw_is_unique:
                 var nodes_to_erase: Array[Node3D] = []
-                for piece in _board._pieces:
-                    var piece_root_node := _get_piece_root_in_board(piece, _board)
+                for piece in _board.get_root_board().get_pieces(null, true):
+                    var piece_root_node := _get_piece_root_in_board(piece, piece._board)
                     if not piece_root_node is Node3D:
                         continue
                     var piece_root_node3d: Node3D = piece_root_node
@@ -1325,6 +1337,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                         # Not a piece from the same draw scene
                         continue
                     if nodes_to_erase.has(piece_root_node3d):
+                        continue
+                    if not _is_board_editable(piece._board):
                         continue
                     nodes_to_erase.append(piece_root_node3d)
                 for node_to_erase in nodes_to_erase:

@@ -78,8 +78,6 @@ metadata/_custom_type_script = "uid://bceex4c4v2k7w"
 [node name="Player" parent="Board3D" unique_id=1369082371 instance=ExtResource("4_x4bk7")]
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 2, 1, 4)
 
-[node name="Shell" parent="Board3D/Player" unique_id=22993793 instance=ExtResource("9_qujdy")]
-
 [node name="Level 4" type="Node3D" parent="Board3D" unique_id=266919213]
 script = ExtResource("3_jqp8w")
 metadata/_custom_type_script = "uid://bm5ybkqrahvnl"
