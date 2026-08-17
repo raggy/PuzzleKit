@@ -694,7 +694,12 @@ static func _is_board_editable(board: Board3D) -> bool:
     if not board:
         return false
 
-    if not board.scene_file_path.is_empty() and not EditorInterface.get_edited_scene_root().is_editable_instance(board):
+    var edited_scene_root := EditorInterface.get_edited_scene_root()
+
+    if board == edited_scene_root:
+        return true
+
+    if not board.scene_file_path.is_empty() and not edited_scene_root.is_editable_instance(board):
         return false
 
     if board.parent_board:
