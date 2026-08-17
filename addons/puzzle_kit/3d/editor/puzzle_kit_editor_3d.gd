@@ -100,6 +100,11 @@ enum Menu {
     MENU_OPTION_UNGROUP,
 }
 
+enum PickTargetting {
+    PICK_TARGET_PLANE,
+    PICK_TARGET_RAYCAST,
+}
+
 enum SelectionMode {
     SELECTION_MODE_REPLACE,
     SELECTION_MODE_ADD,
@@ -160,6 +165,7 @@ var _paint_plane_position: Vector3
 var _pick_copy_rotation: bool
 var _pick_copy_offset: bool
 var _pick_copy_groups: bool
+var _pick_targetting: PickTargetting = PickTargetting.PICK_TARGET_RAYCAST
 
 var _box_selection_preview_by_viewport: Dictionary[Viewport, BoxSelectionPreview]
 var _selection_mode: SelectionMode
@@ -658,6 +664,9 @@ func _on_tool_mode_changed() -> void:
     _set_editor_layer_visible(GIZMO_BASE_LAYER, mode_buttons_group.get_pressed_button() == transform_mode_button)
     _set_editor_layer_visible(GIZMO_EDIT_LAYER, mode_buttons_group.get_pressed_button() == transform_mode_button)
     _set_editor_layer_visible(GIZMO_GRID_LAYER, mode_buttons_group.get_pressed_button() == transform_mode_button || mode_buttons_group.get_pressed_button() == pick_mode_button || mode_buttons_group.get_pressed_button() == select_mode_button)
+    # Reset pick mode
+    if mode_buttons_group.get_pressed_button() == pick_mode_button:
+        _pick_targetting = PickTargetting.PICK_TARGET_RAYCAST
 
 func _set_draw_offset(value: float) -> void:
     draw_offset = roundi(value)
@@ -709,7 +718,7 @@ func _menu_option(id: Menu) -> void:
                 var selected_root_nodes: Array[Node3D] = []
                 var selection_aabb := AABB()
                 for piece in _board.get_pieces():
-                    var piece_root_node := _get_piece_root_in_board(piece) as Node3D
+                    var piece_root_node := _get_piece_root_in_board(piece, _board) as Node3D
                     if not piece_root_node:
                         continue
                     if not piece_root_node in editor_selected_nodes:
@@ -1125,6 +1134,10 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         _selection_mode = SelectionMode.SELECTION_MODE_REPLACE
             elif mb.button_index == MOUSE_BUTTON_RIGHT:
                 input_action = InputAction.INPUT_PICK
+                if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
+                    _pick_targetting = PickTargetting.PICK_TARGET_RAYCAST
+                else:
+                    _pick_targetting = PickTargetting.PICK_TARGET_PLANE
             else:
                 return EditorPlugin.AFTER_GUI_INPUT_PASS
             
@@ -1245,7 +1258,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             if _draw_is_unique:
                 var nodes_to_erase: Array[Node3D] = []
                 for piece in _board._pieces:
-                    var piece_root_node := _get_piece_root_in_board(piece)
+                    var piece_root_node := _get_piece_root_in_board(piece, _board)
                     if not piece_root_node is Node3D:
                         continue
                     var piece_root_node3d: Node3D = piece_root_node
@@ -1300,7 +1313,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         _paint_plane_position = _cursor_plane_position
         for erase_position in erase_positions:
             for piece_under_cursor: Piece3D in _board.get_pieces_at(erase_position).duplicate():
-                var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
+                var piece_root_node := _get_piece_root_in_board(piece_under_cursor, _board)
                 if piece_root_node is Board3D:
                     # Don't erase whole boards
                     continue
@@ -1355,7 +1368,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             # Get a list of all selectable nodes
             _selection_root_nodes.clear()
             for piece in _board.get_pieces():
-                var piece_root_node := _get_piece_root_in_board(piece)
+                var piece_root_node := _get_piece_root_in_board(piece, _board)
                 if piece_root_node in _selection_root_nodes:
                     # Already found
                     continue
@@ -1482,24 +1495,21 @@ func _update_box_selection_bounding_boxes(camera: Camera3D, force: bool = false)
                     node_bounding_box = node_bounding_box.expand(corner_screen_position)
         _selection_root_node_bounding_boxes[node] = node_bounding_box
 
-func _get_piece_root_in_board(piece: Piece3D) -> Node:
-    if not _board:
-        return null
-
-    if not piece:
+func _get_piece_root_in_board(piece: Piece3D, board: Board3D) -> Node:
+    if not board or not piece:
         return null
     
-    if piece._board != _board:
+    if piece._board != board:
         var search_board := piece._board
 
         # Walk back through piece board's ancestry to find a direct child board of the one we're editing (or null if it's not a child)
-        while search_board and search_board.parent_board != _board:
+        while search_board and search_board.parent_board != board:
             search_board = search_board.parent_board
         
         return search_board
     
-    # Piece is from the board we're editing
-    return _get_node_root_in_ancestor(piece, _board)
+    # Piece is from the specified board
+    return _get_node_root_in_ancestor(piece, board)
 
 static func _get_node_root_in_ancestor(node: Node, ancestor: Node) -> Node:
     if not node:
@@ -1563,15 +1573,17 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         else:
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
-        # Using pick mode tool
-        if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
-            update_cursor_state_raycast_piece(camera, mouse_position)
+        # Using pick mode tool or right-clicking with select mode tool
+        # if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
+        if _pick_targetting == PickTargetting.PICK_TARGET_RAYCAST:
+            update_cursor_state_raycast_piece(camera, mouse_position, true)
         # Right-click quick-pick
-        else:
+        # else:
+        elif _pick_targetting == PickTargetting.PICK_TARGET_PLANE:
             update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
-            var piece_under_cursor := get_piece_on_highest_paint_layer(_board.get_pieces_at(_cursor_grid_position))
+            var piece_under_cursor := get_piece_on_highest_paint_layer(_board.get_root_board().get_pieces_at(_cursor_grid_position))
             if piece_under_cursor:
-                var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
+                var piece_root_node := _get_piece_root_in_board(piece_under_cursor, piece_under_cursor._board)
                 if piece_root_node is Board3D:
                     var piece_root_board3d := piece_root_node as Node3D
                     _cursor_piece_container.global_transform = piece_root_board3d.global_transform
@@ -1623,7 +1635,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         var piece_under_cursor := _board.get_piece_at(_cursor_grid_position)
         if piece_under_cursor:
-            var piece_root_node := _get_piece_root_in_board(piece_under_cursor)
+            var piece_root_node := _get_piece_root_in_board(piece_under_cursor, _board)
             if piece_root_node is Board3D:
                 var piece_root_board3d := piece_root_node as Node3D
                 _cursor_piece_container.global_transform = piece_root_board3d.global_transform
@@ -1713,18 +1725,19 @@ func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axi
 func update_cursor_state_raycast_face(camera: Camera3D, mouse_position: Vector2, offset: int) -> void:
     pass
     
-func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2) -> void:
+func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2, from_any_board: bool = false) -> void:
     var mouse_origin := camera.project_ray_origin(mouse_position)
     var mouse_normal := camera.project_ray_normal(mouse_position)
 
-    var piece := get_piece_on_highest_paint_layer(_board.raycast_pieces(mouse_origin, mouse_normal))
+    var board := _board.get_root_board() if from_any_board else _board
+    var piece := get_piece_on_highest_paint_layer(board.raycast_pieces(mouse_origin, mouse_normal))
 
     if not piece:
         # Ray didn't intersect
         _cursor.visible = false
         return
     
-    var piece_root_node := _get_piece_root_in_board(piece)
+    var piece_root_node := _get_piece_root_in_board(piece, piece._board if from_any_board else _board)
 
     if not piece_root_node or not piece_root_node is Node3D:
         _cursor.visible = false
@@ -1764,7 +1777,7 @@ func erase_pieces_overlapping_preview() -> bool:
             if piece.editor_paint_layer and piece_overlapping.editor_paint_layer and piece.editor_paint_layer & piece_overlapping.editor_paint_layer == 0:
                 # Piece doesn't collide with our paint layer
                 continue
-            var piece_root_node := _get_piece_root_in_board(piece_overlapping)
+            var piece_root_node := _get_piece_root_in_board(piece_overlapping, _board)
             if piece_root_node is Board3D:
                 # Don't erase whole boards
                 return false
