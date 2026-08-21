@@ -7,6 +7,7 @@ var _node_generated_from: WeakRef
 
 var fill_material: Material: set = set_fill_material
 var outline_material: Material: set = set_outline_material
+var outline_xray_material: Material: set = set_outline_xray_material
 
 func _init() -> void:
     _mesh = ArrayMesh.new()
@@ -14,12 +15,12 @@ func _init() -> void:
     _mesh_instance.mesh = _mesh
     add_child(_mesh_instance)
 
-func generate_from(node: Node3D) -> void:
+func generate_from(node: Node3D, force: bool = false) -> void:
     if not node:
         _mesh.clear_surfaces()   
         return
 
-    if _node_generated_from and node == _node_generated_from.get_ref():
+    if not force and _node_generated_from and node == _node_generated_from.get_ref():
         return
     # Save a reference to node so we can skip redundant regenerations
     _node_generated_from = weakref(node)
@@ -131,21 +132,29 @@ func generate_from(node: Node3D) -> void:
     lines_surface_array[Mesh.ARRAY_INDEX] = lines_indices
     _mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, lines_surface_array)
     _mesh.surface_set_material(0, outline_material)
+
+    _mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, lines_surface_array)
+    _mesh.surface_set_material(1, outline_xray_material)
     
     triangles_surface_array[Mesh.ARRAY_VERTEX] = triangles_verts
     triangles_surface_array[Mesh.ARRAY_INDEX] = triangles_indices
     _mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, triangles_surface_array)
-    _mesh.surface_set_material(1, fill_material)
+    _mesh.surface_set_material(2, fill_material)
 
 func set_fill_material(value: Material) -> void:
-    if _mesh and _mesh.get_surface_count() >= 2:
-        _mesh.surface_set_material(1, value)
+    if _mesh and _mesh.get_surface_count() >= 3:
+        _mesh.surface_set_material(2, value)
     fill_material = value
 
 func set_outline_material(value: Material) -> void:
     if _mesh and _mesh.get_surface_count() >= 1:
         _mesh.surface_set_material(0, value)
     outline_material = value
+
+func set_outline_xray_material(value: Material) -> void:
+    if _mesh and _mesh.get_surface_count() >= 2:
+        _mesh.surface_set_material(1, value)
+    outline_xray_material = value
 
 static func add_vert(vert: Vector3, verts: PackedVector3Array, indices: PackedInt32Array, verts_to_indices: Dictionary[Vector3, int]) -> void:
     indices.append(vert_to_index(vert, verts, verts_to_indices))

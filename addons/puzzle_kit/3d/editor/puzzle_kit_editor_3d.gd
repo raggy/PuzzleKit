@@ -11,6 +11,9 @@ signal board_edit_requested(board: Board3D)
 const PieceOutline3D := preload("res://addons/puzzle_kit/3d/editor/display/piece_outline_3d.gd")
 const TileOutline3D := preload("res://addons/puzzle_kit/3d/editor/display/tile_outline_3d.gd")
 
+const PalettePreview := preload("res://addons/puzzle_kit/3d/editor/palette_preview.gd")
+const PalettePreviewGenerator := preload("res://addons/puzzle_kit/3d/editor/palette_preview_generator.gd")
+
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 const SETTING_PAINT_OVERWRITES := "puzzle_kit/editor/paint_overwrites"
 const SETTING_PICK_COPIES_ROTATION := "puzzle_kit/editor/pick_copies_rotation"
@@ -34,6 +37,15 @@ const CUBE_CORNERS: Array[Vector3] = [
     Vector3(-0.5,  0.5,  0.5),
     Vector3( 0.5,  0.5,  0.5),
 ]
+
+const OUTLINE_COLOR_MULT := Color(1, 1, 1, 0.8)
+const FILL_COLOR_MULT := Color(1, 1, 1, 0.2)
+
+const VALID_COLOR := Color(1, 1, 1)
+const INVALID_COLOR := Color(0.8, 0.8, 0.8, 0.6)
+const ERASE_COLOR := Color(1, 0.2, 0.2)
+const BOARD_COLOR := Color(0.8, 0.6, 1)
+const CHILD_BOARD_COLOR := Color(0.8, 0.6, 1, 0.6)
 
 @export var transform_mode_button: Button
 @export var paint_mode_button: Button
@@ -137,23 +149,38 @@ var input_mouse_button: MouseButton = MOUSE_BUTTON_NONE
 
 var undo_redo: EditorUndoRedoManager
 
+var palette_preview_generator: PalettePreviewGenerator
+
 var valid_draw_outline_material: Material
+var valid_draw_outline_xray_material: Material
 var valid_draw_fill_material: Material
 var invalid_draw_outline_material: Material
+var invalid_draw_outline_xray_material: Material
 var invalid_draw_fill_material: Material
 var erase_draw_outline_material: Material
+var erase_draw_outline_xray_material: Material
 var erase_draw_fill_material: Material
+var board_outline_material: Material
+var board_outline_xray_material: Material
+var board_fill_material: Material
+var child_board_outline_material: Material
+var child_board_outline_xray_material: Material
+var child_board_fill_material: Material
 var grid_material: Material
 
 var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
 var _draw_preview_pieces: Array[Piece3D]
+var _draw_preview_extra_pieces: Array[Piece3D]
 var _draw_scene: PackedScene
 var _draw_extra_scenes: Array[PackedScene] = []
 var _draw_is_unique: bool
 var _preview_blank: ImageTexture
 
 var _board: Board3D
+var _board_outline: PieceOutline3D
+var _board_outline_will_redraw: bool
+var _child_board_outlines: Dictionary[Board3D, PieceOutline3D] = {}
 
 var _cursor: Node3D
 var _cursor_piece_container: Node3D
@@ -204,7 +231,11 @@ func _enter_tree() -> void:
     ProjectSettings.settings_changed.connect(_on_settings_changed)
     EditorInterface.get_selection().selection_changed.connect(_on_editor_selection_changed)
     undo_redo.history_changed.connect(_update_selection_outlines)
+    undo_redo.history_changed.connect(_update_child_board_outlines)
+    undo_redo.history_changed.connect(_queue_board_outline_redraw)
     undo_redo.version_changed.connect(_update_selection_outlines)
+    undo_redo.version_changed.connect(_update_child_board_outlines)
+    undo_redo.version_changed.connect(_queue_board_outline_redraw)
     
     _box_selection_preview_by_viewport = {}
     for i in range(4):
@@ -220,7 +251,11 @@ func _exit_tree() -> void:
     ProjectSettings.settings_changed.disconnect(_on_settings_changed)
     EditorInterface.get_selection().selection_changed.disconnect(_on_editor_selection_changed)
     undo_redo.history_changed.disconnect(_update_selection_outlines)
+    undo_redo.history_changed.disconnect(_update_child_board_outlines)
+    undo_redo.history_changed.disconnect(_queue_board_outline_redraw)
     undo_redo.version_changed.disconnect(_update_selection_outlines)
+    undo_redo.version_changed.disconnect(_update_child_board_outlines)
+    undo_redo.version_changed.disconnect(_queue_board_outline_redraw)
 
     # Make sure we leave editor viewport camera culling masks as we found them
     _set_editor_layer_visible(GIZMO_BASE_LAYER, true)
@@ -237,12 +272,21 @@ func _ready() -> void:
     if is_part_of_edited_scene():
         return
 
-    valid_draw_outline_material = create_tool_material(Color(1, 1, 1, 1))
-    valid_draw_fill_material = create_tool_material(Color(1, 1, 1, 0.25))
-    invalid_draw_outline_material = create_tool_material(Color(0.7, 0.7, 0.7, 1))
-    invalid_draw_fill_material = create_tool_material(Color(0.7, 0.7, 0.7, 0.25))
-    erase_draw_outline_material = create_tool_material(Color(1, 0, 0, 1))
-    erase_draw_fill_material = create_tool_material(Color(1, 0, 0, 0.25))
+    valid_draw_outline_material = create_tool_material(VALID_COLOR * OUTLINE_COLOR_MULT)
+    valid_draw_outline_xray_material = create_xray_tool_material(VALID_COLOR * OUTLINE_COLOR_MULT)
+    valid_draw_fill_material = create_tool_material(VALID_COLOR * FILL_COLOR_MULT)
+    invalid_draw_outline_material = create_tool_material(INVALID_COLOR * OUTLINE_COLOR_MULT)
+    invalid_draw_outline_xray_material = create_xray_tool_material(INVALID_COLOR * OUTLINE_COLOR_MULT)
+    invalid_draw_fill_material = create_tool_material(INVALID_COLOR * FILL_COLOR_MULT)
+    erase_draw_outline_material = create_tool_material(ERASE_COLOR * OUTLINE_COLOR_MULT)
+    erase_draw_outline_xray_material = create_xray_tool_material(ERASE_COLOR * OUTLINE_COLOR_MULT)
+    erase_draw_fill_material = create_tool_material(ERASE_COLOR * FILL_COLOR_MULT)
+    board_outline_material = create_tool_material(BOARD_COLOR * OUTLINE_COLOR_MULT)
+    board_outline_xray_material = create_xray_tool_material(BOARD_COLOR * OUTLINE_COLOR_MULT)
+    board_fill_material = create_tool_material(Color(BOARD_COLOR, 0))
+    child_board_outline_material = create_tool_material(CHILD_BOARD_COLOR * OUTLINE_COLOR_MULT)
+    child_board_outline_xray_material = create_xray_tool_material(CHILD_BOARD_COLOR * OUTLINE_COLOR_MULT)
+    child_board_fill_material = create_tool_material(CHILD_BOARD_COLOR * FILL_COLOR_MULT)
     grid_material = create_tool_material(Color(0.5, 0.5, 0.5, 1))
     
     _cursor = Node3D.new()
@@ -253,13 +297,22 @@ func _ready() -> void:
 
     _cursor_piece_outline = PieceOutline3D.new()
     _cursor_piece_outline.outline_material = invalid_draw_outline_material
+    _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
     _cursor_piece_outline.fill_material = invalid_draw_fill_material
     _cursor_piece_container.add_child(_cursor_piece_outline)
 
     _cursor_tile_outline = TileOutline3D.new()
     _cursor_tile_outline.outline_material = erase_draw_outline_material
+    _cursor_tile_outline.outline_xray_material = erase_draw_outline_xray_material
     _cursor_tile_outline.fill_material = erase_draw_fill_material
     _cursor.add_child(_cursor_tile_outline)
+
+    _board_outline = PieceOutline3D.new()
+    _board_outline.outline_material = board_outline_material
+    _board_outline.outline_xray_material = board_outline_xray_material
+    _board_outline.fill_material = board_fill_material
+    _board_outline.visible = false
+    add_child(_board_outline)
 
     _grid = []
     _grid_instances = []
@@ -332,6 +385,9 @@ func _ready() -> void:
     piece_directory_pick_dialog.dir_selected.connect(_on_piece_directory_pick_dialog_dir_selected)
     
     palette.item_selected.connect(_on_palette_item_selected)
+
+    palette_preview_generator = PalettePreviewGenerator.new()
+    add_child(palette_preview_generator)
 
     group_name_filter.text_changed.connect(_on_group_name_filter_text_changed)
     groups_clear_button.pressed.connect(_on_clear_groups_pressed)
@@ -561,6 +617,9 @@ func edit(board: Board3D) -> void:
         _hide_all_grids()
     
     _update_path_to_board()
+    _update_board_outline()
+    _update_child_board_outlines()
+    _update_selection_outlines()
 
 func _set_interactable(interactable: bool) -> void:
     transform_mode_button.disabled = not interactable
@@ -676,6 +735,62 @@ func _update_path_to_board() -> void:
             node_button.pressed.connect(edit.bind(node as Board3D))
             path_to_board.add_child(node_button)
 
+func _queue_board_outline_redraw() -> void:
+    if _board_outline_will_redraw:
+        return
+
+    _board_outline_will_redraw = true
+    call_deferred("_queue_board_outline_redraw")
+
+func _update_board_outline() -> void:
+    _board_outline_will_redraw = false
+
+    if not _board or not _board.parent_board:
+        _board_outline.visible = false
+        return
+    
+    _board_outline.visible = true
+    _board_outline.generate_from(_board, true)
+    _board_outline.global_transform = _board.global_transform
+
+func _update_child_board_outlines() -> void:
+    if not _board:
+        # Clear all outlines
+        for board: Board3D in _child_board_outlines.keys().duplicate():
+            _remove_child_board_outline_for(board)
+        return
+
+    # Remove invalid outlines
+    for board: Board3D in _child_board_outlines.keys().duplicate():
+        if board.parent_board == _board:
+            continue
+        _remove_child_board_outline_for(board)
+    
+    # Create or update valid outlines
+    for board in _board._child_boards:
+        if board in _child_board_outlines:
+            var board_outline := _child_board_outlines[board]
+            board_outline.global_transform = board.global_transform
+        else:
+            var board_outline := PieceOutline3D.new()
+            add_child(board_outline)
+            board_outline.generate_from(board)
+            board_outline.fill_material = child_board_fill_material
+            board_outline.outline_material = child_board_outline_material
+            board_outline.outline_xray_material = child_board_outline_xray_material
+            board_outline.global_transform = board.global_transform
+            _child_board_outlines[board] = board_outline
+            board.tree_exiting.connect(_remove_child_board_outline_for.bind(board))
+
+func _remove_child_board_outline_for(board: Board3D) -> void:
+    if not board:
+        return
+
+    var board_outline := _child_board_outlines[board]
+    board_outline.free()
+    _child_board_outlines.erase(board)
+    board.tree_exiting.disconnect(_remove_child_board_outline_for)
+
 static func _find_nearest_ancestor_board(node: Node) -> Board3D:
     if not node.is_inside_tree():
         return null
@@ -711,6 +826,7 @@ func _on_tool_mode_changed() -> void:
     if mode_buttons_group.get_pressed_button() != transform_mode_button:
         last_selected_mode_button = mode_buttons_group.get_pressed_button()
     auto_setup_draw_preview()
+    _update_selection_outlines()
     # Hide by default
     _cursor_piece_outline.visible = false
     _cursor_tile_outline.visible = false
@@ -779,7 +895,7 @@ func _menu_option(id: Menu) -> void:
             if mode_buttons_group.get_pressed_button() == paint_mode_button:
                 _cursor_piece_container.scale_object_local(scale_factor)
             elif mode_buttons_group.get_pressed_button() == select_mode_button:
-                transform_selection("PuzzleKit Rotate", Vector3.ZERO, 0.0, scale_factor)
+                transform_selection("PuzzleKit Flip", Vector3.ZERO, 0.0, scale_factor)
         Menu.MENU_OPTION_GROUP:
             _group_selection()
         Menu.MENU_OPTION_UNGROUP:
@@ -855,6 +971,8 @@ func transform_selection(action_name: String, rotation_axis: Vector3, rotation_a
         undo_redo.add_do_property(selected_root_node, "top_level", selected_root_node.top_level)
         undo_redo.add_undo_property(selected_root_node, "top_level", true)
     undo_redo.commit_action(true)
+    _queue_board_outline_redraw()
+    _update_child_board_outlines()
 
 func _set_editor_layer_visible(layer: int, value: bool) -> void:
     for i in range(4):
@@ -868,12 +986,10 @@ func _set_editor_layer_visible(layer: int, value: bool) -> void:
             viewport_camera.cull_mask &= ~(1 << viewport_layer)
 
 func _update_selection_outlines() -> void:
-    if not _board:
+    if not _board or mode_buttons_group.get_pressed_button() == transform_mode_button:
         # Clear all outlines
-        for root_node in _selection_piece_outlines:
-            var piece_outline := _selection_piece_outlines[root_node]
+        for piece_outline: PieceOutline3D in _selection_piece_outlines.values():
             piece_outline.free()
-            _selection_piece_outlines.erase(root_node)
         _selection_piece_outlines.clear()
         return
     
@@ -903,6 +1019,7 @@ func _update_selection_outlines() -> void:
             piece_outline.global_transform = root_node.global_transform
             piece_outline.fill_material = valid_draw_fill_material
             piece_outline.outline_material = valid_draw_outline_material
+            piece_outline.outline_xray_material = valid_draw_outline_xray_material
             add_child(piece_outline)
             _selection_piece_outlines[root_node] = piece_outline
     
@@ -1035,23 +1152,35 @@ func _add_to_palette_from_dir(path: String, base_path: String) -> void:
         # if scene_state.get_node_type(0) != "Node3D":
         #     # Only interested in scenes with Node3D root nodes
         #     continue
-        var relative_file_path := file_path
-        if relative_file_path.begins_with(base_path):
-            relative_file_path = relative_file_path.substr(base_path.length())
-            if relative_file_path.begins_with("/"):
-                relative_file_path = relative_file_path.substr(1)
-        EditorInterface.get_resource_previewer().queue_resource_preview(file_path, self, "_add_palette_item", relative_file_path)
+        var scene_root_name := scene_state.get_node_name(0)
+        # var relative_file_path := file_path
+        # if relative_file_path.begins_with(base_path):
+        #     relative_file_path = relative_file_path.substr(base_path.length())
+        #     if relative_file_path.begins_with("/"):
+        #         relative_file_path = relative_file_path.substr(1)
+        var item_index := palette.add_item(scene_root_name, _preview_blank)
+        _palette_index_to_path[item_index] = file_path
+        _setup_palette_item_icon(file_path)
     for dir_name in DirAccess.get_directories_at(path):
         if dir_name.begins_with("."):
             # Ignore hidden directories
             continue
         _add_to_palette_from_dir(path.path_join(dir_name), base_path)
 
-func _add_palette_item(path: String, preview: Texture2D, _thumbnail_preview: Texture2D, item_text: String) -> void:
-    if not preview:
-        preview = _preview_blank
-    var item_index := palette.add_item(item_text, preview)
-    _palette_index_to_path[item_index] = path
+func _setup_palette_item_icon(file_path: String) -> void:
+    var palette_preview := await palette_preview_generator.generate_from_path(file_path)
+    var palette_index := _get_palette_index_for_path(file_path)
+
+    if palette_index == -1:
+        return
+    
+    palette.set_item_icon(palette_index, palette_preview.texture)
+
+func _get_palette_index_for_path(file_path: String) -> int:
+    for palette_index in _palette_index_to_path:
+        if _palette_index_to_path[palette_index] == file_path:
+            return palette_index
+    return -1
 
 #endregion
 
@@ -1254,7 +1383,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     if not _selection_movement_threshold_passed:
                         # Select what's under cursor
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
-                        var is_double_click := Time.get_ticks_msec() - _selection_first_click_time <= 300
+                        var is_double_click := Time.get_ticks_msec() - _selection_first_click_time <= 500
                         var new_selection: Node = null
                         var select_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
                         if select_node is Node3D:
@@ -1327,7 +1456,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         for paint_position in paint_positions:
             _cursor.global_position = paint_position
             if _paint_overwrite and not erase_pieces_overlapping_preview():
-                    continue
+                continue
             if not can_paint_at_preview_position():
                 continue
             # Remove same-scene nodes if there's a piece marked as unique
@@ -1373,9 +1502,15 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     continue
                 _board.add_child(extra_node3d, true)
                 extra_node3d.global_transform = _cursor_piece_container.global_transform
+                if not can_paint_here(Piece3D.find_descendant_pieces(extra_node3d), Piece3D.find_descendant_pieces(node3d)):
+                    # Cannot paint extra node here
+                    _board.remove_child(extra_node3d)
+                    extra_node.queue_free()
+                    continue
                 extra_node3d.owner = get_node_owner(_board)
                 var extra_change := AddRemoveChange.create_from(extra_node3d, AddRemoveChange.Action.ADD)
                 _paint_changes.append(extra_change)
+            _queue_board_outline_redraw()
 
         return true
     if input_action == InputAction.INPUT_ERASE:
@@ -1400,6 +1535,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     var change := AddRemoveChange.create_from(piece_root_node3d, AddRemoveChange.Action.REMOVE)
                     _paint_changes.append(change)
                     piece_root_node3d.get_parent().remove_child(piece_root_node3d)
+                    _queue_board_outline_redraw()
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)
@@ -1647,9 +1783,11 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         _hide_all_grids()
         if input_action == InputAction.INPUT_PICK:
             _cursor_piece_outline.outline_material = valid_draw_outline_material
+            _cursor_piece_outline.outline_xray_material = valid_draw_outline_xray_material
             _cursor_piece_outline.fill_material = valid_draw_fill_material
         else:
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
         # Using pick mode tool or right-clicking with select mode tool
         # if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
@@ -1667,6 +1805,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                     _cursor_piece_container.global_transform = piece_root_board3d.global_transform
                     _cursor_piece_outline.generate_from(piece_root_board3d)
                     _cursor_piece_outline.outline_material = invalid_draw_outline_material
+                    _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
                     _cursor_piece_outline.fill_material = invalid_draw_fill_material
                 elif piece_root_node is Node3D:
                     var piece_root_node3d := piece_root_node as Node3D
@@ -1675,11 +1814,13 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                     _cursor_piece_container.global_transform = piece_root_node3d.global_transform
                     _cursor_piece_outline.generate_from(piece_root_node3d)
                     _cursor_piece_outline.outline_material = valid_draw_outline_material
+                    _cursor_piece_outline.outline_xray_material = valid_draw_outline_xray_material
                     _cursor_piece_outline.fill_material = valid_draw_fill_material
             else:
                 _cursor_piece_outline.visible = false
                 _cursor_tile_outline.visible = true
                 _cursor_tile_outline.outline_material = invalid_draw_outline_material
+                _cursor_tile_outline.outline_xray_material = invalid_draw_outline_xray_material
                 _cursor_tile_outline.fill_material = invalid_draw_fill_material
         return
 
@@ -1690,9 +1831,11 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         if can_paint_at_preview_position():
             _cursor_piece_outline.outline_material = valid_draw_outline_material
+            _cursor_piece_outline.outline_xray_material = valid_draw_outline_xray_material
             _cursor_piece_outline.fill_material = valid_draw_fill_material
         else:
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
         return
 
@@ -1721,6 +1864,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                 _cursor_piece_outline.visible = true
                 _cursor_tile_outline.visible = false
                 _cursor_piece_outline.outline_material = invalid_draw_outline_material
+                _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
                 _cursor_piece_outline.fill_material = invalid_draw_fill_material
             elif piece_root_node is Node3D:
                 var piece_root_node3d := piece_root_node as Node3D
@@ -1731,6 +1875,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
                 _cursor_piece_outline.visible = true
                 _cursor_tile_outline.visible = false
                 _cursor_piece_outline.outline_material = erase_draw_outline_material
+                _cursor_piece_outline.outline_xray_material = erase_draw_outline_xray_material
                 _cursor_piece_outline.fill_material = erase_draw_fill_material
         return
 
@@ -1743,6 +1888,7 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
             _cursor_piece_container.transform = Transform3D.IDENTITY
             _cursor_piece_outline.visible = true
             _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
             update_cursor_state_raycast_piece(camera, mouse_position)
         return
@@ -1808,6 +1954,11 @@ func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2
     var mouse_normal := camera.project_ray_normal(mouse_position)
 
     var board := _board.get_root_board() if from_any_board else _board
+
+    if not board:
+        _cursor.visible = false
+        return
+
     var piece := get_piece_on_highest_paint_layer(board.raycast_pieces(mouse_origin, mouse_normal))
 
     if not piece:
@@ -1832,39 +1983,74 @@ func can_paint_at_preview_position() -> bool:
     if not _draw_preview or _draw_preview_pieces.size() == 0:
         return false
     
-    for piece in _draw_preview_pieces:
+    return can_paint_here(_draw_preview_pieces)
+
+func can_paint_here(pieces: Array[Piece3D], pieces_to_ignore_overlap: Array[Piece3D] = []) -> bool:
+    for piece in pieces:
+        if piece.editor_paint_allow_overlap:
+            continue
         for piece_overlapping in _board.get_pieces_at(piece.grid_position):
+            if piece_overlapping in pieces or piece_overlapping in pieces_to_ignore_overlap:
+                continue
             if piece.editor_paint_layer and piece_overlapping.editor_paint_layer and piece.editor_paint_layer & piece_overlapping.editor_paint_layer == 0:
                 # Piece doesn't collide with our paint layer
                 continue
             return false
-    
     return true
 
 func erase_pieces_overlapping_preview() -> bool:
     if not _draw_preview or _draw_preview_pieces.size() == 0:
         return false
-
+    
     var should_paint := true
     var nodes_to_erase: Array[Node3D] = []
     for piece in _draw_preview_pieces:
         for piece_overlapping in _board.get_pieces_at(piece.grid_position):
             if piece_overlapping._board != _board:
                 # There's a piece we can't erase (from a nested board)
-                return false
+                if piece.editor_paint_allow_overlap:
+                    continue
+                else:
+                    return false
             if piece.editor_paint_layer and piece_overlapping.editor_paint_layer and piece.editor_paint_layer & piece_overlapping.editor_paint_layer == 0:
                 # Piece doesn't collide with our paint layer
                 continue
             var piece_root_node := _get_piece_root_in_board(piece_overlapping, _board)
             if piece_root_node is Board3D:
                 # Don't erase whole boards
-                return false
+                if piece.editor_paint_allow_overlap:
+                    continue
+                else:
+                    return false
             if not piece_root_node is Node3D:
                 # Don't know how to erase this
-                return false
+                if piece.editor_paint_allow_overlap:
+                    continue
+                else:
+                    return false
             if not piece_root_node.scene_file_path.is_empty() and piece_root_node.scene_file_path == _draw_scene.resource_path and does_node_match_draw_preview_groups(piece_root_node):
                 # Don't overwrite piece with same piece
                 should_paint = false
+                continue
+            var piece_root_node3d: Node3D = piece_root_node
+            if nodes_to_erase.has(piece_root_node3d):
+                continue
+            nodes_to_erase.append(piece_root_node3d)
+
+    # Erase any pieces that overlap extra pieces if we can
+    for piece in _draw_preview_extra_pieces:
+        for piece_overlapping in _board.get_pieces_at(piece.grid_position):
+            if piece_overlapping._board != _board:
+                continue
+            if piece.editor_paint_layer and piece_overlapping.editor_paint_layer and piece.editor_paint_layer & piece_overlapping.editor_paint_layer == 0:
+                # Piece doesn't collide with our paint layer
+                continue
+            var piece_root_node := _get_piece_root_in_board(piece_overlapping, _board)
+            if piece_root_node is Board3D:
+                # Don't erase whole boards
+                continue
+            if not piece_root_node is Node3D:
+                # Don't know how to erase this
                 continue
             var piece_root_node3d: Node3D = piece_root_node
             if nodes_to_erase.has(piece_root_node3d):
@@ -1912,7 +2098,8 @@ func clear_draw_preview() -> void:
     
     _draw_preview.queue_free()
     _draw_preview = null
-    _draw_preview_pieces = []
+    _draw_preview_pieces.clear()
+    _draw_preview_extra_pieces.clear()
 
 func setup_draw_preview(scene: PackedScene) -> void:
     clear_draw_preview()
@@ -1941,9 +2128,7 @@ func setup_draw_preview(scene: PackedScene) -> void:
     _sync_group_checkboxes()
     _cursor_piece_container.add_child(_draw_preview)
     _draw_preview.transform = Transform3D.IDENTITY
-    
-    _draw_preview_pieces = []
-    Piece3D.find_descendant_pieces(_draw_preview, _draw_preview_pieces)
+    _draw_preview_pieces = Piece3D.find_descendant_pieces(node3d)
 
     _draw_is_unique = false
     for preview_piece in _draw_preview_pieces:
@@ -1970,7 +2155,7 @@ func setup_draw_preview(scene: PackedScene) -> void:
         var extra_node3d := extra_node as Node3D
         _draw_preview.add_child(extra_node3d)
         extra_node3d.transform = Transform3D.IDENTITY
-        Piece3D.find_descendant_pieces(extra_node3d, _draw_preview_pieces)
+        Piece3D.find_descendant_pieces(extra_node3d, _draw_preview_extra_pieces)
 
     _cursor_piece_outline.generate_from(_draw_preview)
 
@@ -2066,6 +2251,7 @@ func _group_selection() -> void:
     undo_redo.add_undo_method(parent_node, "remove_child", created_board)
     # Commit undo history (and call the do methods)
     undo_redo.commit_action(true)
+    _update_child_board_outlines()
 
 func _add_do_set_owner_node_and_children(node: Node) -> void:
     undo_redo.add_do_property(node, "owner", get_node_owner(node))
@@ -2133,6 +2319,7 @@ func _ungroup_selection() -> void:
 
     # Commit undo history (and call the do methods)
     undo_redo.commit_action(true)
+    _update_child_board_outlines()
 
 #endregion
 
@@ -2186,6 +2373,16 @@ static func create_tool_material(color: Color) -> BaseMaterial3D:
     m.vertex_color_use_as_albedo = true
     m.disable_fog = true
     m.albedo_color = color
+    return m
+
+static func create_xray_tool_material(color: Color) -> BaseMaterial3D:
+    var m := StandardMaterial3D.new()
+    m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    m.vertex_color_use_as_albedo = true
+    m.disable_fog = true
+    m.set_flag(BaseMaterial3D.FLAG_DISABLE_DEPTH_TEST, true)
+    m.albedo_color = color * Color(Color.WHITE, 0.15)
     return m
 
 class AddRemoveChange:

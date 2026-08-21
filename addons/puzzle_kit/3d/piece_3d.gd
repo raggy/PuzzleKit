@@ -11,6 +11,8 @@ signal teleported()
 ## The layers this piece will be considered overlapping with when painting with the PuzzleKit editor.
 ## When no flags are selected, this piece is considered to overlap with every other piece.
 @export_flags_3d_physics var editor_paint_layer: int = 1
+## When painting this piece and we can't erase what's there, should we allow drawing it anyway?
+@export var editor_paint_allow_overlap: bool = false
 ## When painting this piece, erase other copies of it on the same board
 @export var editor_paint_unique: bool = false
 ## When painting this piece, also paint this scene
@@ -269,7 +271,7 @@ func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Trans
     _previous_transform = new_transform
     teleported.emit()
 
-static func find_descendant_pieces(node: Node, pieces: Array[Piece3D], group_filter: GroupFilter = null) -> void:
+static func find_descendant_pieces(node: Node, pieces: Array[Piece3D] = [], group_filter: GroupFilter = null) -> Array[Piece3D]:
     var piece := node as Piece3D
     if piece and (not group_filter or group_filter.matches_3d(piece)):
         # Found a matching piece
@@ -277,3 +279,4 @@ static func find_descendant_pieces(node: Node, pieces: Array[Piece3D], group_fil
     for i in range(node.get_child_count()):
         # Search child
         find_descendant_pieces(node.get_child(i), pieces)
+    return pieces
