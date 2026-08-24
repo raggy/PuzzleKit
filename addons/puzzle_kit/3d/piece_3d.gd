@@ -35,6 +35,15 @@ var parent_piece: Piece3D: get = get_parent_piece, set = set_parent_piece
 ## Editing this manually will probably break things!
 var _child_pieces: Array[Piece3D] = []
 
+## `_original_transform.origin`, rounded to snap to the grid
+var original_grid_position: Vector3i: get = _get_original_grid_position
+## `_original_transform.basis.x`, rounded to snap to the grid
+var original_grid_right: Vector3i: get = _get_original_grid_right
+## `_original_transform.basis.y`, rounded to snap to the grid
+var original_grid_up: Vector3i: get = _get_original_grid_up
+## `-_original_transform.basis.z`, rounded to snap to the grid
+var original_grid_forward: Vector3i: get = _get_original_grid_forward
+
 ## Flags for filtering (auto-set from groups)
 var flags: int
 
@@ -46,10 +55,16 @@ var visual: PieceVisual3D
 var _board: Board3D: set = _set_board
 var _parent_piece: Piece3D
 
-var _has_init_previous: bool = false
+var _has_entered_tree: bool = false
+
 var _previous_active: bool
 var _previous_parent_piece: Piece3D
 var _previous_transform: Transform3D
+
+var _original_active: bool
+var _original_transform: Transform3D
+var _original_ancestor: Piece3D
+var _original_descendant_path: String
 
 @warning_ignore_start("unused_private_class_variable")
 var _board_cached_active: bool
@@ -59,12 +74,18 @@ var _piece_state_cached_top_level: bool
 func _enter_tree() -> void:
     _set_parent_piece_no_scene_tree_changes(_find_piece_ancestor())
 
-    if not _has_init_previous:
-        _has_init_previous = true
+    if not _has_entered_tree:
+        _has_entered_tree = true
         # _previous_active should be true if we exist during the initial scene
         _previous_active = not get_parent().is_node_ready()
         _previous_parent_piece = parent_piece
         _previous_transform = global_transform
+        # _original_active should be true if we exist during the initial scene
+        _original_active = not get_parent().is_node_ready()
+        _original_transform = global_transform
+        if scene_file_path.is_empty() and owner is Piece3D:
+            _original_ancestor = owner
+            _original_descendant_path = owner.get_path_to(self)
 
     _board = _find_board()
 
@@ -181,6 +202,18 @@ func _get_grid_up() -> Vector3i:
 func _get_grid_forward() -> Vector3i:
     return round(-global_transform.basis.z)
 
+func _get_original_grid_position() -> Vector3i:
+    return round(_original_transform.origin)
+
+func _get_original_grid_right() -> Vector3i:
+    return round(_original_transform.basis.x)
+
+func _get_original_grid_up() -> Vector3i:
+    return round(_original_transform.basis.y)
+
+func _get_original_grid_forward() -> Vector3i:
+    return round(-_original_transform.basis.z)
+
 func _set_board(value: Board3D) -> void:
     if _board == value:
         return
@@ -270,6 +303,24 @@ func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Trans
     global_transform = new_transform
     _previous_transform = new_transform
     teleported.emit()
+
+## Get `PieceState3D` for current step
+func get_current_state() -> PieceState3D:
+    var state := PieceState3D.new()
+    state.piece = self
+    state.active = active
+    state.parent_piece = parent_piece
+    state.transform = global_transform
+    return state
+
+## Get `PieceState3D` for previous step
+func get_previous_state() -> PieceState3D:
+    var state := PieceState3D.new()
+    state.piece = self
+    state.active = _previous_active
+    state.parent_piece = _previous_parent_piece
+    state.transform = _previous_transform
+    return state
 
 static func find_descendant_pieces(node: Node, pieces: Array[Piece3D] = [], group_filter: GroupFilter = null) -> Array[Piece3D]:
     var piece := node as Piece3D

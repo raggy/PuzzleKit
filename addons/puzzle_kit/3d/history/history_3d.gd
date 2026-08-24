@@ -60,7 +60,7 @@ func reset() -> void:
         if group_filter and not piece.is_in_group(group_filter):
             continue
         
-        undo_step.states.append(piece.history.get_current_state())
+        undo_step.states.append(piece.get_current_state())
         piece.history.reset_to_checkpoint()
     
     resetted.emit()
@@ -113,7 +113,7 @@ func _create_undo_step() -> void:
         # Piece didn't change
         if not piece.has_changed():
             continue
-        undo_step.states.append(piece.history.get_previous_state())
+        undo_step.states.append(piece.get_previous_state())
  
     # No pieces changed
     if undo_step.states.size() == 0:

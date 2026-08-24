@@ -16,7 +16,7 @@ static func from_board(board: Board3D, group_filter: String = "") -> BoardSaveSt
         if group_filter != "" and not piece.is_in_group(group_filter):
             continue
         # Don't save non-original, inactive pieces
-        if not piece.active and not piece.history._original_active:
+        if not piece.active and not piece._original_active:
             continue
         var piece_save_state := PieceSaveState3D.from_piece(piece, piece_to_reference)
         # Invalid PieceSaveState
@@ -24,10 +24,10 @@ static func from_board(board: Board3D, group_filter: String = "") -> BoardSaveSt
             printerr("Couldn't create PieceSaveState3D for: %s" % piece.name)
             continue
         # Save changes for original piece
-        if piece.history._original_active:
+        if piece._original_active:
             save_state.changed_pieces.append(piece_save_state)
         # Save changes for descendent of created piece
-        elif piece.history._original_ancestor:
+        elif piece._original_ancestor:
             save_state.changed_pieces.append(piece_save_state)
         # Save created piece
         else:
@@ -45,7 +45,7 @@ func apply_to_board(board: Board3D, group_filter: String = "") -> bool:
         if group_filter != "" and not piece.is_in_group(group_filter):
             continue
         # Piece is original
-        if piece.history._original_active:
+        if piece._original_active:
             continue
         piece.active = false
 
