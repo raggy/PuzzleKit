@@ -64,7 +64,7 @@ func apply_to_board(board: Board3D, group_filter: String = "") -> bool:
         _free_pieces(new_pieces)
         return false
 
-    # Set piece top-level to avoid transform being changed by super-piece
+    # Set piece top-level to avoid transform being changed by parent piece
     for piece in board._pieces:
         if not piece.history:
             continue
@@ -112,7 +112,7 @@ func _recreate_pieces(board: Board3D, new_pieces: Array[Piece3D]) -> bool:
         state_to_piece[state] = piece
         new_pieces.append(piece)
     
-    # Dereference super-pieces
+    # Dereference parent pieces
     for state in created_pieces:
         if state.parent_piece_ref:
             if not state.parent_piece_ref.dereference_from(new_pieces) or not state.parent_piece_ref.dereference_from(board._pieces):
