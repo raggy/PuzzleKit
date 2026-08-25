@@ -949,15 +949,12 @@ func transform_selection(action_name: String, rotation_axis: Vector3, rotation_a
     var selection_center: Vector3 = round(selection_aabb.get_center())
     undo_redo.create_action(action_name, UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
     for selected_root_node in selected_root_nodes:
-        undo_redo.add_do_property(selected_root_node, "top_level", true)
-        undo_redo.add_undo_property(selected_root_node, "top_level", selected_root_node.top_level)
-    for selected_root_node in selected_root_nodes:
         var selected_root_node_transformed_basis := selected_root_node.basis.scaled(scale_factor)
         if rotating:
             selected_root_node_transformed_basis = selected_root_node_transformed_basis.rotated(rotation_axis, rotation_angle)
         undo_redo.add_do_property(selected_root_node, "basis", selected_root_node_transformed_basis)
         undo_redo.add_undo_property(selected_root_node, "basis", selected_root_node.basis)
-        var selected_root_node_offset := selected_root_node.global_position - selection_center
+        var selected_root_node_offset := selected_root_node.position - selection_center
         var selected_root_node_offset_length := selected_root_node_offset.length()
         if selected_root_node_offset_length == 0.0:
             continue
@@ -965,11 +962,8 @@ func transform_selection(action_name: String, rotation_axis: Vector3, rotation_a
         var selected_root_node_offset_normalized_transformed := selected_root_node_offset_normalized * scale_factor
         if rotating:
             selected_root_node_offset_normalized_transformed = selected_root_node_offset_normalized_transformed.rotated(rotation_axis, rotation_angle)
-        undo_redo.add_do_property(selected_root_node, "global_position", round(selection_center + selected_root_node_offset_normalized_transformed * selected_root_node_offset_length))
-        undo_redo.add_undo_property(selected_root_node, "global_position", selected_root_node.global_position)
-    for selected_root_node in selected_root_nodes:
-        undo_redo.add_do_property(selected_root_node, "top_level", selected_root_node.top_level)
-        undo_redo.add_undo_property(selected_root_node, "top_level", true)
+        undo_redo.add_do_property(selected_root_node, "position", round(selection_center + selected_root_node_offset_normalized_transformed * selected_root_node_offset_length))
+        undo_redo.add_undo_property(selected_root_node, "position", selected_root_node.position)
     undo_redo.commit_action(true)
     _queue_board_outline_redraw()
     _update_child_board_outlines()
@@ -1663,14 +1657,12 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                             _selection_translate_previous_world_position += mouse_world_offset
                             undo_redo.create_action("PuzzleKit Translate (%s)" % _selection_translate_index, UndoRedo.MERGE_ALL, get_node_owner(_board), true, true)
                             for node in _selection_translate_nodes:
-                                undo_redo.add_do_property(node, "top_level", true)
-                                undo_redo.add_undo_property(node, "top_level", node.top_level)
-                            for node in _selection_translate_nodes:
-                                undo_redo.add_do_property(node, "global_position", node.global_position + mouse_world_offset)
-                                undo_redo.add_undo_property(node, "global_position", node.global_position)
-                            for node in _selection_translate_nodes:
-                                undo_redo.add_do_property(node, "top_level", node.top_level)
-                                undo_redo.add_undo_property(node, "top_level", true)
+                                var parent := node.get_parent_node_3d()
+                                if parent:
+                                    undo_redo.add_do_property(node, "position", node.get_parent_node_3d().to_local(node.global_position + mouse_world_offset))
+                                else:
+                                    undo_redo.add_do_property(node, "position", node.position + mouse_world_offset)
+                                undo_redo.add_undo_property(node, "position", node.position)
                             undo_redo.commit_action(true)
         return true
     return false
