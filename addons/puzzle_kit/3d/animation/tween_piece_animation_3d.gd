@@ -22,6 +22,7 @@ func _start() -> void:
         tween.tween_property(self, "position_base", piece_transform_end.origin, position_tween_duration).from(piece_visual_cached_transform.origin).set_ease(position_tween_ease).set_trans(position_tween_trans)
         tween.parallel().tween_property(self, "position_offset", Vector3.ZERO, position_catchup_duration).from(visual.position - piece_visual_cached_transform.origin).set_ease(position_catchup_ease).set_trans(position_catchup_trans)
         tween.parallel().tween_property(visual, "quaternion", piece_transform_end.basis.get_rotation_quaternion(), rotation_tween_duration).set_ease(rotation_tween_ease).set_trans(rotation_tween_trans)
+        tween.parallel().tween_property(visual, "scale", piece_transform_end.basis.get_scale(), rotation_tween_duration).set_ease(rotation_tween_ease).set_trans(rotation_tween_trans)
     
     if piece_visual_cached_active != piece_will_be_active:
         tween.tween_callback(func() -> void: visual.visible = piece_will_be_active)

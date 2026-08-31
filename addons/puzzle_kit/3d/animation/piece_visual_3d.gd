@@ -7,6 +7,7 @@ signal event(event_id: String)
 @export var default_animation: PackedScene = preload("res://addons/puzzle_kit/3d/animation/tween_piece_animation_3d.tscn")
 @export var uses_default_animation: bool = true
 @export var ignore_piece_rotation: bool = false
+@export var ignore_piece_scale: bool = false
 
 var animation: PieceAnimation3D
 var piece: Piece3D: set = _set_piece
@@ -61,20 +62,22 @@ func create_animation(animation_scene: PackedScene) -> PieceAnimation3D:
     return result
 
 func get_current_piece_transform() -> Transform3D:
-    if ignore_piece_rotation:
-        var value := piece.global_transform
-        value.basis = Basis.IDENTITY
-        return value
-
-    return piece.global_transform
+    return _piece_to_visual_transform(piece.global_transform)
 
 func get_previous_piece_transform() -> Transform3D:
-    if ignore_piece_rotation:
-        var value := piece._previous_transform
-        value.basis = Basis.IDENTITY
-        return value
+    return _piece_to_visual_transform(piece._previous_transform)
 
-    return piece._previous_transform
+func _piece_to_visual_transform(piece_transform: Transform3D) -> Transform3D:
+    var visual_transform := piece_transform
+
+    if ignore_piece_rotation and ignore_piece_scale:
+        visual_transform.basis = Basis.IDENTITY
+    elif ignore_piece_rotation:
+        visual_transform.basis = Basis.from_scale(piece_transform.basis.get_scale())
+    elif ignore_piece_scale:
+        visual_transform.basis = Basis.from_euler(piece_transform.basis.get_euler())
+
+    return visual_transform
 
 func _set_piece(value: Piece3D) -> void:
     if piece:
