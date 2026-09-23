@@ -7,7 +7,7 @@ var stop_before: bool = false
 var states: Array[PieceState3D] = []
 
 func apply(board: Board3D) -> void:
-    # Set piece top-level to avoid transform being changed by super-piece
+    # Set piece top-level to avoid transform being changed by parent piece
     for piece in board._pieces:
         if not piece.history:
             continue

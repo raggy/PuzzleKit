@@ -60,7 +60,7 @@ func reset() -> void:
         if group_filter and not piece.is_in_group(group_filter):
             continue
         
-        undo_step.states.append(piece.history.get_current_state())
+        undo_step.states.append(piece.get_current_state())
         piece.history.reset_to_checkpoint()
     
     resetted.emit()
@@ -113,7 +113,7 @@ func _create_undo_step() -> void:
         # Piece didn't change
         if not piece.has_changed():
             continue
-        undo_step.states.append(piece.history.get_previous_state())
+        undo_step.states.append(piece.get_previous_state())
  
     # No pieces changed
     if undo_step.states.size() == 0:
@@ -176,7 +176,7 @@ func _apply_undo_step(step: PieceStateSnapshot3D) -> void:
     # Keep track of recently deactivated pieces
     if auto_free_inactive_orphaned_pieces:
         for state in step.states:
-            if state.piece.active and not state.active and not state.piece.history._in_checkpoint:
+            if state.piece.active and not state.active and not state.piece.history._checkpoint_active:
                 _recently_deactivated_pieces.append(state.piece)
     
     step.apply(_board)
