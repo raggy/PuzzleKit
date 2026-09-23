@@ -175,6 +175,7 @@ var _draw_preview_extra_pieces: Array[Piece3D]
 var _draw_scene: PackedScene
 var _draw_extra_scenes: Array[PackedScene] = []
 var _draw_is_unique: bool
+var _drawing_board: Board3D
 var _preview_blank: ImageTexture
 
 var _board: Board3D
@@ -195,6 +196,7 @@ var _cursor_root_node: WeakRef
 var _paint_overwrite: bool
 var _paint_changes: Array[AddRemoveChange]
 var _paint_plane_position: Vector3
+var _painted_positions: Array[Vector3i] = []
 
 var _pick_copy_rotation: bool
 var _pick_copy_offset: bool
@@ -306,6 +308,9 @@ func _ready() -> void:
     _cursor_tile_outline.outline_xray_material = erase_draw_outline_xray_material
     _cursor_tile_outline.fill_material = erase_draw_fill_material
     _cursor.add_child(_cursor_tile_outline)
+
+    _drawing_board = Board3D.new()
+    add_child(_drawing_board)
 
     _board_outline = PieceOutline3D.new()
     _board_outline.outline_material = board_outline_material
@@ -1134,7 +1139,7 @@ func _update_palette() -> void:
 
 func _add_to_palette_from_dir(path: String, base_path: String) -> void:
     for filename in DirAccess.get_files_at(path):
-        if not filename.ends_with(".tscn"):
+        if not filename.ends_with(".scn") and not filename.ends_with(".tscn"):
             # Only interested in scenes
             continue
         var file_path := path.path_join(filename)
@@ -1354,9 +1359,17 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
                         undo_redo.create_action("PuzzleKit Paint", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
                         for change in _paint_changes:
+                            if change.action == AddRemoveChange.Action.ADD:
+                                _drawing_board.remove_child(change.node)
+                                _board.add_child(change.node, true)
+                                change.node.owner = get_node_owner(_board)
+                                change.owner = change.node.owner
+                                change.parent = change.node.get_parent()
+                                change.index = change.node.get_index(false)
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
+                        _queue_board_outline_redraw()
                 elif input_action == InputAction.INPUT_ERASE:
                     if not _paint_changes.is_empty():
                         # Setup undo history
@@ -1435,20 +1448,25 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
 func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> bool:
     if input_action == InputAction.INPUT_PAINT:
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
-        var paint_positions: Array[Vector3i]
+        var cursor_positions: Array[Vector3i]
         if click:
             _paint_changes = []
+            _painted_positions = []
             # Always try to draw once under cursor on click
-            paint_positions = [_cursor_grid_position]
+            cursor_positions = [_cursor_grid_position]
         else:
             # Get positions between position we previously painted at and new position (in case of fast mouse movement)
-            paint_positions = get_cells_entered(_paint_plane_position, _cursor_plane_position)
+            cursor_positions = get_cells_entered(_paint_plane_position, _cursor_plane_position)
         _paint_plane_position = _cursor_plane_position
         # Nothing to draw
         if not _draw_scene:
             return true
-        for paint_position in paint_positions:
-            _cursor.global_position = paint_position
+        for cursor_position in cursor_positions:
+            _cursor.global_position = cursor_position
+            if cursor_position in _painted_positions:
+                # Don't paint same position twice
+                continue
+            _painted_positions.append(cursor_position)
             if _paint_overwrite and not erase_pieces_overlapping_preview():
                 continue
             if not can_paint_at_preview_position():
@@ -1483,9 +1501,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 if node3d.is_in_group(group):
                     continue
                 node3d.add_to_group(group, true)
-            _board.add_child(node3d, true)
+            _drawing_board.add_child(node3d, true)
             node3d.global_transform = _cursor_piece_container.global_transform
-            node3d.owner = get_node_owner(_board)
             var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
             _paint_changes.append(change)
             for extra_scene in _draw_extra_scenes:
@@ -1494,17 +1511,15 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 if not extra_node3d:
                     extra_node.queue_free()
                     continue
-                _board.add_child(extra_node3d, true)
+                _drawing_board.add_child(extra_node3d, true)
                 extra_node3d.global_transform = _cursor_piece_container.global_transform
                 if not can_paint_here(Piece3D.find_descendant_pieces(extra_node3d), Piece3D.find_descendant_pieces(node3d)):
                     # Cannot paint extra node here
-                    _board.remove_child(extra_node3d)
+                    _drawing_board.remove_child(extra_node3d)
                     extra_node.queue_free()
                     continue
-                extra_node3d.owner = get_node_owner(_board)
                 var extra_change := AddRemoveChange.create_from(extra_node3d, AddRemoveChange.Action.ADD)
                 _paint_changes.append(extra_change)
-            _queue_board_outline_redraw()
 
         return true
     if input_action == InputAction.INPUT_ERASE:

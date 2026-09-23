@@ -35,7 +35,10 @@ func _ready() -> void:
 func _notification(what: int) -> void:
     match what:
         NOTIFICATION_TRANSFORM_CHANGED:
-            if Engine.is_editor_hint(): global_transform = current_piece_transform
+            if Engine.is_editor_hint():
+                set_ignore_transform_notification(true)
+                global_transform = current_piece_transform
+                set_ignore_transform_notification(false)
 
 func create_default_animation() -> PieceAnimation3D:
     # Default animation toggled off

@@ -62,9 +62,11 @@ var _previous_parent_piece: Piece3D
 var _previous_transform: Transform3D
 
 var _original_active: bool
+var _original_parent_piece: Piece3D
 var _original_transform: Transform3D
 var _original_ancestor: Piece3D
 var _original_descendant_path: String
+var _original_node_path: String
 
 @warning_ignore_start("unused_private_class_variable")
 var _board_cached_active: bool
@@ -82,10 +84,12 @@ func _enter_tree() -> void:
         _previous_transform = global_transform
         # _original_active should be true if we exist during the initial scene
         _original_active = not get_parent().is_node_ready()
+        _original_parent_piece = parent_piece
         _original_transform = global_transform
         if scene_file_path.is_empty() and owner is Piece3D:
             _original_ancestor = owner
             _original_descendant_path = owner.get_path_to(self)
+        _original_node_path = get_path()
 
     _board = _find_board()
 
