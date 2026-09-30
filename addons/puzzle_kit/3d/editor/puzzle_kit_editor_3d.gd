@@ -1355,12 +1355,14 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             if mb.button_index == input_mouse_button:
                 if input_action == InputAction.INPUT_PAINT:
                     if not _paint_changes.is_empty():
+                        var to_board_transform := _board.transform.affine_inverse()
                         # Setup undo history
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
                         undo_redo.create_action("PuzzleKit Paint", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
                         for change in _paint_changes:
                             if change.action == AddRemoveChange.Action.ADD:
                                 _drawing_board.remove_child(change.node)
+                                change.node.transform = to_board_transform * change.node.transform
                                 _board.add_child(change.node, true)
                                 change.node.owner = get_node_owner(_board)
                                 change.owner = change.node.owner
