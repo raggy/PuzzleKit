@@ -178,7 +178,7 @@ func has_changed() -> bool:
         return true
     
     for property_path in _extra_property_paths:
-        if get_property(property_path) != get_property_previous(property_path):
+        if get_value(property_path) != get_previous_value(property_path):
             return true
     
     return false
@@ -189,42 +189,42 @@ func register_property(property_path: NodePath) -> void:
     if property_path in _extra_property_paths:
         return
     _extra_property_paths.append(property_path)
-    var value: Variant = get_property(property_path)
-    set_property_previous(property_path, value)
-    set_property_original(property_path, value)
+    var value: Variant = get_value(property_path)
+    set_previous_value(property_path, value)
+    set_original_value(property_path, value)
     property_registered.emit(property_path)
 
 ## Get value for a property
-func get_property(property_path: NodePath) -> Variant:
+func get_value(property_path: NodePath) -> Variant:
     var node := get_node(property_path)
     return node.get_indexed(property_path.slice(-1))
 
 ## Get previous value for a tracked property registered with `register_property`
-func get_property_previous(property_path: NodePath) -> Variant:
+func get_previous_value(property_path: NodePath) -> Variant:
     return _previous_property_values.get(property_path)
 
 ## Get original value for a tracked property registered with `register_property`
-func get_property_original(property_path: NodePath) -> Variant:
+func get_original_value(property_path: NodePath) -> Variant:
     return _original_property_values.get(property_path)
 
 ## Set value for a property
-func set_property(property_path: NodePath, value: Variant) -> void:
+func set_value(property_path: NodePath, value: Variant) -> void:
     var node := get_node(property_path)
     return node.set_indexed(property_path.slice(-1), value)
 
 ## Set previous value for a tracked property registered with `register_property`
-func set_property_previous(property_path: NodePath, value: Variant) -> void:
+func set_previous_value(property_path: NodePath, value: Variant) -> void:
     _previous_property_values.set(property_path, value)
 
 ## Set original value for a tracked property registered with `register_property`
-func set_property_original(property_path: NodePath, value: Variant) -> void:
+func set_original_value(property_path: NodePath, value: Variant) -> void:
     _original_property_values.set(property_path, value)
 
 ## Returns a Dictionary of property NodePath -> value 
 func get_property_values() -> Dictionary[NodePath, Variant]:
     var property_values: Dictionary[NodePath, Variant] = {}
     for property_path in _extra_property_paths:
-        property_values[property_path] = get_property(property_path)
+        property_values[property_path] = get_value(property_path)
     return property_values
 
 ## Returns true if Piece3D's `active` property is true, all its ancestor Piece3D are also `active` and `is_inside_tree()` is true
@@ -349,7 +349,7 @@ func _commit_changes() -> void:
     _previous_parent_piece = parent_piece
     _previous_transform = global_transform
     for property_path in _extra_property_paths:
-        set_property_previous(property_path, get_property(property_path))
+        set_previous_value(property_path, get_value(property_path))
 
 func _revert_changes() -> void:
     changes_reverting.emit()
@@ -357,7 +357,7 @@ func _revert_changes() -> void:
     parent_piece = _previous_parent_piece
     global_transform = _previous_transform
     for property_path in _extra_property_paths:
-        set_property(property_path, get_property_previous(property_path))
+        set_value(property_path, get_previous_value(property_path))
 
 func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Transform3D, extra_properties: Dictionary[NodePath, Variant] = {}) -> void:
     active = new_active
@@ -368,8 +368,8 @@ func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Trans
     _previous_transform = new_transform
     for property_path in _extra_property_paths:
         if property_path in extra_properties:
-            set_property(property_path, extra_properties[property_path])
-            set_property_previous(property_path, extra_properties[property_path])
+            set_value(property_path, extra_properties[property_path])
+            set_previous_value(property_path, extra_properties[property_path])
     teleported.emit()
 
 ## Get `PieceState3D` for current step

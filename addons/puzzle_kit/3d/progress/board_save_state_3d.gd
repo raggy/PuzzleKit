@@ -87,7 +87,7 @@ func apply_to_board(board: Board3D, group_filter: String = "") -> bool:
     
     # Reset original pieces that had no saved changes
     for piece in pieces_to_reset:
-        piece._teleport(piece._original_active, piece._original_parent_piece, piece._original_transform)
+        piece._teleport(piece._original_active, piece._original_parent_piece, piece._original_transform, piece._original_property_values)
 
     # Restore top-level to previous value
     for piece in board._pieces:
@@ -172,6 +172,7 @@ func _dereference_states_from_pieces(states: Array[PieceSaveState3D], pieces_cac
             success = success and piece_save_state.parent_piece_ref.dereference_from(pieces_cache)
         if piece_save_state.checkpoint_parent_piece_ref:
             success = success and piece_save_state.checkpoint_parent_piece_ref and piece_save_state.checkpoint_parent_piece_ref.dereference_from(pieces_cache)
+        success = success and piece_save_state.dereference_properties(pieces_cache)
     
     return success
 
