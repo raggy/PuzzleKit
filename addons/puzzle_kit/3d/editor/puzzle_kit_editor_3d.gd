@@ -1092,11 +1092,12 @@ func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
 func _on_palette_item_selected(index: int) -> void:
     _setup_draw_scene_from_palette_index(index)
     # Automatically change tool when palette item is manually selected
-    if _draw_scene:
-        paint_mode_button.set_pressed(true)
-    else:
+    if not _draw_scene:
         erase_mode_button.set_pressed(true)
-    _on_tool_mode_changed()
+        _on_tool_mode_changed()
+    elif mode_buttons_group.get_pressed_button() != paint_mode_button and mode_buttons_group.get_pressed_button() != fill_mode_button:
+        paint_mode_button.set_pressed(true)
+        _on_tool_mode_changed()
 
 func _set_palette_selected_index(index: int) -> void:
     palette.select(index, true)
@@ -1574,7 +1575,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 _update_filtered_groups(group_name_filter.text)
         if input_mouse_button == MOUSE_BUTTON_RIGHT:
             if found_palette_item:
-                paint_mode_button.set_pressed(true)
+                if mode_buttons_group.get_pressed_button() != paint_mode_button and mode_buttons_group.get_pressed_button() != fill_mode_button:
+                    paint_mode_button.set_pressed(true)
                 _on_tool_mode_changed()
             elif not pick_node:
                 erase_mode_button.set_pressed(true)
