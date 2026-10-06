@@ -367,9 +367,8 @@ func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Trans
     global_transform = new_transform
     _previous_transform = new_transform
     for property_path in _extra_property_paths:
-        if property_path in extra_properties:
-            set_value(property_path, extra_properties[property_path])
-            set_previous_value(property_path, extra_properties[property_path])
+        set_value(property_path, extra_properties.get(property_path, null))
+        set_previous_value(property_path, extra_properties.get(property_path, null))
     teleported.emit()
 
 ## Get `PieceState3D` for current step
