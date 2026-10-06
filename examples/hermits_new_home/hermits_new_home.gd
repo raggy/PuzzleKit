@@ -18,9 +18,6 @@ func _ready() -> void:
     directions.input = _move
     history.undo_step_created.connect(func(step: PieceStateSnapshot3D) -> void: if step.has_a_piece_that_matches(group_pushable): step.stop_after = true; step.stop_before = true)
 
-    # Create initial checkpoint
-    history.checkpoint()
-
     var player_shell := player.get_first_child_piece(group_shell)
     # Teleport player's shell on-the-spot to set correct visual state on first play
     if player_shell:
