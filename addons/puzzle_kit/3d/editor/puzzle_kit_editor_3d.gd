@@ -49,7 +49,7 @@ const CHILD_BOARD_COLOR := Color(0.8, 0.6, 1, 0.6)
 
 @export var transform_mode_button: Button
 @export var paint_mode_button: Button
-@export var attach_mode_button: Button
+@export var fill_mode_button: Button
 @export var erase_mode_button: Button
 @export var pick_mode_button: Button
 @export var select_mode_button: Button
@@ -92,7 +92,7 @@ var groups_on_draw_preview: Array[StringName] = []
 enum InputAction {
     INPUT_NONE,
     INPUT_PAINT,
-    INPUT_ATTACH,
+    INPUT_FILL,
     INPUT_ERASE,
     INPUT_PICK,
     INPUT_SELECT,
@@ -340,7 +340,7 @@ func _ready() -> void:
 
     transform_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/transform_mode")
     paint_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/paint_mode")
-    attach_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/attach_mode")
+    fill_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/fill_mode")
     erase_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/erase_mode")
     pick_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/pick_mode")
     select_mode_button.shortcut = EditorInterface.get_editor_settings().get_shortcut("puzzle_kit/select_mode")
@@ -357,7 +357,7 @@ func _ready() -> void:
     mode_buttons_group = ButtonGroup.new()
     transform_mode_button.button_group = mode_buttons_group
     paint_mode_button.button_group = mode_buttons_group
-    attach_mode_button.button_group = mode_buttons_group
+    fill_mode_button.button_group = mode_buttons_group
     erase_mode_button.button_group = mode_buttons_group
     pick_mode_button.button_group = mode_buttons_group
     select_mode_button.button_group = mode_buttons_group
@@ -366,7 +366,7 @@ func _ready() -> void:
 
     transform_mode_button.pressed.connect(_on_tool_mode_changed)
     paint_mode_button.pressed.connect(_on_tool_mode_changed)
-    attach_mode_button.pressed.connect(_on_tool_mode_changed)
+    fill_mode_button.pressed.connect(_on_tool_mode_changed)
     erase_mode_button.pressed.connect(_on_tool_mode_changed)
     pick_mode_button.pressed.connect(_on_tool_mode_changed)
     select_mode_button.pressed.connect(_on_tool_mode_changed)
@@ -430,12 +430,12 @@ func _add_shortcuts_to_editor_settings() -> void:
     input_event_paint_mode.physical_keycode = KEY_Q
     shortcut_paint_mode.events.append(input_event_paint_mode)
     EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/paint_mode", shortcut_paint_mode)
-    var shortcut_attach_mode := Shortcut.new()
-    shortcut_attach_mode.resource_name = "Attach"
-    var input_event_attach_mode := InputEventKey.new()
-    input_event_attach_mode.physical_keycode = KEY_W
-    shortcut_attach_mode.events.append(input_event_attach_mode)
-    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/attach_mode", shortcut_attach_mode)
+    var shortcut_fill_mode := Shortcut.new()
+    shortcut_fill_mode.resource_name = "Fill"
+    var input_event_fill_mode := InputEventKey.new()
+    input_event_fill_mode.physical_keycode = KEY_W
+    shortcut_fill_mode.events.append(input_event_fill_mode)
+    EditorInterface.get_editor_settings().add_shortcut("puzzle_kit/fill_mode", shortcut_fill_mode)
     var shortcut_erase_mode := Shortcut.new()
     shortcut_erase_mode.resource_name = "Erase"
     var input_event_erase_mode := InputEventKey.new()
@@ -574,7 +574,7 @@ func _update_theme() -> void:
 
     transform_mode_button.icon = editor_theme.get_icon("ToolMove", "EditorIcons")
     paint_mode_button.icon = editor_theme.get_icon("Paint", "EditorIcons")
-    attach_mode_button.icon = editor_theme.get_icon("Pin", "EditorIcons")
+    fill_mode_button.icon = editor_theme.get_icon("Bucket", "EditorIcons")
     erase_mode_button.icon = editor_theme.get_icon("Eraser", "EditorIcons")
     pick_mode_button.icon = editor_theme.get_icon("ColorPick", "EditorIcons")
     select_mode_button.icon = editor_theme.get_icon("ToolSelect", "EditorIcons")
@@ -629,7 +629,7 @@ func edit(board: Board3D) -> void:
 func _set_interactable(interactable: bool) -> void:
     transform_mode_button.disabled = not interactable
     paint_mode_button.disabled = not interactable
-    attach_mode_button.disabled = not interactable
+    fill_mode_button.disabled = not interactable
     erase_mode_button.disabled = not interactable
     pick_mode_button.disabled = not interactable
     select_mode_button.disabled = not interactable
@@ -1322,8 +1322,8 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             if mb.button_index == MOUSE_BUTTON_LEFT:
                 if mode_buttons_group.get_pressed_button() == paint_mode_button:
                     input_action = InputAction.INPUT_PAINT
-                elif mode_buttons_group.get_pressed_button() == attach_mode_button:
-                    input_action = InputAction.INPUT_ATTACH
+                elif mode_buttons_group.get_pressed_button() == fill_mode_button:
+                    input_action = InputAction.INPUT_FILL
                 elif mode_buttons_group.get_pressed_button() == erase_mode_button:
                     input_action = InputAction.INPUT_ERASE
                 elif mode_buttons_group.get_pressed_button() == pick_mode_button:
@@ -1848,11 +1848,11 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
         return
 
-    if mode_buttons_group.get_pressed_button() == attach_mode_button:
+    if mode_buttons_group.get_pressed_button() == fill_mode_button:
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
         _hide_all_grids()
-        if input_action == InputAction.INPUT_ATTACH:
+        if input_action == InputAction.INPUT_FILL:
             update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
         else:
             update_cursor_state_raycast_face(camera, mouse_position, draw_offset)
@@ -2182,7 +2182,7 @@ func setup_draw_preview(scene: PackedScene) -> void:
     _cursor_piece_outline.generate_from(_draw_preview)
 
 func auto_setup_draw_preview() -> void:
-    if _draw_scene and (mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == attach_mode_button):
+    if _draw_scene and (mode_buttons_group.get_pressed_button() == paint_mode_button or mode_buttons_group.get_pressed_button() == fill_mode_button):
         setup_draw_preview(_draw_scene)
     else:
         clear_draw_preview()
