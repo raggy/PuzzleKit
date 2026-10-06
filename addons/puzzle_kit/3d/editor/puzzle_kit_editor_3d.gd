@@ -1998,6 +1998,12 @@ func can_paint_here(pieces: Array[Piece3D], pieces_to_ignore_overlap: Array[Piec
     for piece in pieces:
         if piece.editor_paint_allow_overlap:
             continue
+        for drawn_piece_overlapping in _drawing_board.get_pieces_at(piece.grid_position):
+            if piece.editor_paint_layer and drawn_piece_overlapping.editor_paint_layer and piece.editor_paint_layer & drawn_piece_overlapping.editor_paint_layer == 0:
+                # Piece doesn't collide with our paint layer
+                continue
+            # Already painted here this time
+            return false
         for piece_overlapping in _board.get_pieces_at(piece.grid_position):
             if piece_overlapping in pieces or piece_overlapping in pieces_to_ignore_overlap:
                 continue
@@ -2014,6 +2020,13 @@ func erase_pieces_overlapping_preview() -> bool:
     var should_paint := true
     var nodes_to_erase: Array[Node3D] = []
     for piece in _draw_preview_pieces:
+        for drawn_piece_overlapping in _drawing_board.get_pieces_at(piece.grid_position):
+            if piece.editor_paint_layer and drawn_piece_overlapping.editor_paint_layer and piece.editor_paint_layer & drawn_piece_overlapping.editor_paint_layer == 0:
+                # Piece doesn't collide with our paint layer
+                continue
+            # Already painted here this time
+            return false
+
         for piece_overlapping in _board.get_pieces_at(piece.grid_position):
             if piece_overlapping._board != _board:
                 # There's a piece we can't erase (from a nested board)
