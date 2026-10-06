@@ -2063,14 +2063,14 @@ func can_paint_here(pieces: Array[Piece3D], pieces_to_ignore_overlap: Array[Piec
         if piece.editor_paint_allow_overlap:
             continue
         for drawn_piece_overlapping in _drawing_board.get_pieces_at(piece.grid_position):
+            if drawn_piece_overlapping in pieces or drawn_piece_overlapping in pieces_to_ignore_overlap:
+                continue
             if piece.editor_paint_layer and drawn_piece_overlapping.editor_paint_layer and piece.editor_paint_layer & drawn_piece_overlapping.editor_paint_layer == 0:
                 # Piece doesn't collide with our paint layer
                 continue
             # Already painted here this time
             return false
         for piece_overlapping in _board.get_pieces_at(piece.grid_position):
-            if piece_overlapping in pieces or piece_overlapping in pieces_to_ignore_overlap:
-                continue
             if piece.editor_paint_layer and piece_overlapping.editor_paint_layer and piece.editor_paint_layer & piece_overlapping.editor_paint_layer == 0:
                 # Piece doesn't collide with our paint layer
                 continue
