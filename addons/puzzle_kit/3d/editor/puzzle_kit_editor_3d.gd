@@ -1354,12 +1354,12 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             return EditorPlugin.AFTER_GUI_INPUT_PASS
         else:
             if mb.button_index == input_mouse_button:
-                if input_action == InputAction.INPUT_PAINT:
+                if input_action == InputAction.INPUT_PAINT || input_action == InputAction.INPUT_FILL:
                     if not _paint_changes.is_empty():
                         var to_board_transform := _board.transform.affine_inverse()
                         # Setup undo history
                         # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                        undo_redo.create_action("PuzzleKit Paint", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
+                        undo_redo.create_action("PuzzleKit Paint" if input_action == InputAction.INPUT_PAINT else "PuzzleKit Fill", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
                         for change in _paint_changes:
                             if change.action == AddRemoveChange.Action.ADD:
                                 _drawing_board.remove_child(change.node)
@@ -1524,6 +1524,63 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 var extra_change := AddRemoveChange.create_from(extra_node3d, AddRemoveChange.Action.ADD)
                 _paint_changes.append(extra_change)
 
+        return true
+    if input_action == InputAction.INPUT_FILL:
+        update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        var cursor_positions: Array[Vector3i]
+        if click:
+            _paint_changes = []
+            _painted_positions = []
+            # Always try to draw once under cursor on click
+            cursor_positions = [_cursor_grid_position]
+        else:
+            # Get positions between position we previously painted at and new position (in case of fast mouse movement)
+            cursor_positions = get_cells_entered(_paint_plane_position, _cursor_plane_position)
+        _paint_plane_position = _cursor_plane_position
+        # Nothing to draw
+        if not _draw_scene:
+            return true
+        # Doesn't make sense to fill with a unique-marked scene
+        if _draw_is_unique:
+            return true
+        for cursor_position in cursor_positions:
+            _cursor.global_position = cursor_position
+            if cursor_position in _painted_positions:
+                # Don't paint same position twice
+                continue
+            for fill_position in get_fill_positions():
+                _cursor.global_position = fill_position
+                if not can_paint_at_preview_position():
+                    continue
+                var node := _draw_scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
+                var node3d := node as Node3D
+                if not node3d:
+                    node.queue_free()
+                    return true
+                # Add to custom groups
+                for group in groups_to_add:
+                    if node3d.is_in_group(group):
+                        continue
+                    node3d.add_to_group(group, true)
+                _drawing_board.add_child(node3d, true)
+                node3d.global_transform = _cursor_piece_container.global_transform
+                var change := AddRemoveChange.create_from(node3d, AddRemoveChange.Action.ADD)
+                _paint_changes.append(change)
+                for extra_scene in _draw_extra_scenes:
+                    var extra_node := extra_scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)
+                    var extra_node3d := extra_node as Node3D
+                    if not extra_node3d:
+                        extra_node.queue_free()
+                        continue
+                    _drawing_board.add_child(extra_node3d, true)
+                    extra_node3d.global_transform = _cursor_piece_container.global_transform
+                    if not can_paint_here(Piece3D.find_descendant_pieces(extra_node3d), Piece3D.find_descendant_pieces(node3d)):
+                        # Cannot paint extra node here
+                        _drawing_board.remove_child(extra_node3d)
+                        extra_node.queue_free()
+                        continue
+                    var extra_change := AddRemoveChange.create_from(extra_node3d, AddRemoveChange.Action.ADD)
+                    _paint_changes.append(extra_change)
         return true
     if input_action == InputAction.INPUT_ERASE:
         update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
@@ -1851,13 +1908,18 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
         return
 
     if mode_buttons_group.get_pressed_button() == fill_mode_button:
+        _cursor_piece_container.position = Vector3.ZERO
         _cursor_piece_outline.visible = true
         _cursor_tile_outline.visible = false
-        _hide_all_grids()
-        if input_action == InputAction.INPUT_FILL:
-            update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        update_cursor_state_on_plane(camera, mouse_position, edit_axis, draw_offset)
+        if can_paint_at_preview_position():
+            _cursor_piece_outline.outline_material = valid_draw_outline_material
+            _cursor_piece_outline.outline_xray_material = valid_draw_outline_xray_material
+            _cursor_piece_outline.fill_material = valid_draw_fill_material
         else:
-            update_cursor_state_raycast_face(camera, mouse_position, draw_offset)
+            _cursor_piece_outline.outline_material = invalid_draw_outline_material
+            _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
+            _cursor_piece_outline.fill_material = invalid_draw_fill_material
         return
 
     if mode_buttons_group.get_pressed_button() == erase_mode_button:
@@ -2115,6 +2177,45 @@ func most_significant_bit(integer: int) -> int:
             return i
         integer = integer >> 1
     return 64
+
+func get_fill_positions() -> Array[Vector3i]:
+    if not can_paint_at_preview_position():
+        return []
+    var fill_positions: Array[Vector3i] = []
+    var positions_to_check: Array[Vector3i] = [_cursor_grid_position]
+    var checked_positions: Dictionary[Vector3i, bool] = {}
+    while not positions_to_check.is_empty():
+        var p: Vector3i = positions_to_check.pop_back()
+        if not _board.is_empty(p):
+            checked_positions[p] = true
+            continue
+        checked_positions[p] = false
+        fill_positions.append(p)
+        if p.x < _board._aabb.position.x or p.y < _board._aabb.position.y or p.z < _board._aabb.position.z or p.x > _board._aabb.end.x or p.y > _board._aabb.end.y or p.z > _board._aabb.end.z:
+            # Found an empty edge of the board
+            return []
+        if edit_axis != Vector3.AXIS_X:
+            var w := p + Vector3i.LEFT
+            if not w in checked_positions:
+                positions_to_check.append(w)
+            var e := p + Vector3i.RIGHT
+            if not e in checked_positions:
+                positions_to_check.append(e)
+        if edit_axis != Vector3.AXIS_Y:
+            var d := p + Vector3i.DOWN
+            if not d in checked_positions:
+                positions_to_check.append(d)
+            var u := p + Vector3i.UP
+            if not u in checked_positions:
+                positions_to_check.append(u)
+        if edit_axis != Vector3.AXIS_Z:
+            var n := p + Vector3i.FORWARD
+            if not n in checked_positions:
+                positions_to_check.append(n)
+            var s := p + Vector3i.BACK
+            if not s in checked_positions:
+                positions_to_check.append(s)
+    return fill_positions
 
 func clear_draw_preview() -> void:
     if not _draw_preview:
