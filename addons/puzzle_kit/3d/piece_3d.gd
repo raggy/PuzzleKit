@@ -5,6 +5,7 @@ extends Node3D
 
 signal changes_committing()
 signal changes_reverting()
+signal property_registered(property_path: NodePath)
 signal teleported()
 
 @export_group("Editor")
@@ -57,9 +58,12 @@ var _parent_piece: Piece3D
 
 var _has_entered_tree: bool = false
 
+var _extra_property_paths: Array[NodePath] = []
+
 var _previous_active: bool
 var _previous_parent_piece: Piece3D
 var _previous_transform: Transform3D
+var _previous_property_values: Dictionary[NodePath, Variant] = {}
 
 var _original_active: bool
 var _original_parent_piece: Piece3D
@@ -67,6 +71,7 @@ var _original_transform: Transform3D
 var _original_ancestor: Piece3D
 var _original_descendant_path: String
 var _original_node_path: String
+var _original_property_values: Dictionary[NodePath, Variant] = {}
 
 @warning_ignore_start("unused_private_class_variable")
 var _board_cached_active: bool
@@ -169,7 +174,58 @@ func matches(group_filter: GroupFilter) -> bool:
 
 ## Has this piece changed this step?
 func has_changed() -> bool:
-    return active != _previous_active or parent_piece != _previous_parent_piece or global_transform != _previous_transform
+    if active != _previous_active or parent_piece != _previous_parent_piece or global_transform != _previous_transform:
+        return true
+    
+    for property_path in _extra_property_paths:
+        if get_property(property_path) != get_property_previous(property_path):
+            return true
+    
+    return false
+
+## Register an extra property to track for history, progress, and board commit/revert.
+## E.g. ^":name" would track this piece's `name` String
+func register_property(property_path: NodePath) -> void:
+    if property_path in _extra_property_paths:
+        return
+    _extra_property_paths.append(property_path)
+    var value: Variant = get_property(property_path)
+    set_property_previous(property_path, value)
+    set_property_original(property_path, value)
+    property_registered.emit(property_path)
+
+## Get value for a property
+func get_property(property_path: NodePath) -> Variant:
+    var node := get_node(property_path)
+    return node.get_indexed(property_path.slice(-1))
+
+## Get previous value for a tracked property registered with `register_property`
+func get_property_previous(property_path: NodePath) -> Variant:
+    return _previous_property_values.get(property_path)
+
+## Get original value for a tracked property registered with `register_property`
+func get_property_original(property_path: NodePath) -> Variant:
+    return _original_property_values.get(property_path)
+
+## Set value for a property
+func set_property(property_path: NodePath, value: Variant) -> void:
+    var node := get_node(property_path)
+    return node.set_indexed(property_path.slice(-1), value)
+
+## Set previous value for a tracked property registered with `register_property`
+func set_property_previous(property_path: NodePath, value: Variant) -> void:
+    _previous_property_values.set(property_path, value)
+
+## Set original value for a tracked property registered with `register_property`
+func set_property_original(property_path: NodePath, value: Variant) -> void:
+    _original_property_values.set(property_path, value)
+
+## Returns a Dictionary of property NodePath -> value 
+func get_property_values() -> Dictionary[NodePath, Variant]:
+    var property_values: Dictionary[NodePath, Variant] = {}
+    for property_path in _extra_property_paths:
+        property_values[property_path] = get_property(property_path)
+    return property_values
 
 ## Returns true if Piece3D's `active` property is true, all its ancestor Piece3D are also `active` and `is_inside_tree()` is true
 func is_active_in_tree() -> bool:
@@ -292,20 +348,28 @@ func _commit_changes() -> void:
     _previous_active = active
     _previous_parent_piece = parent_piece
     _previous_transform = global_transform
+    for property_path in _extra_property_paths:
+        set_property_previous(property_path, get_property(property_path))
 
 func _revert_changes() -> void:
     changes_reverting.emit()
     active = _previous_active
     parent_piece = _previous_parent_piece
     global_transform = _previous_transform
+    for property_path in _extra_property_paths:
+        set_property(property_path, get_property_previous(property_path))
 
-func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Transform3D) -> void:
+func _teleport(new_active: bool, new_parent_piece: Piece3D, new_transform: Transform3D, extra_properties: Dictionary[NodePath, Variant] = {}) -> void:
     active = new_active
     _previous_active = new_active
     parent_piece = new_parent_piece
     _previous_parent_piece = new_parent_piece
     global_transform = new_transform
     _previous_transform = new_transform
+    for property_path in _extra_property_paths:
+        if property_path in extra_properties:
+            set_property(property_path, extra_properties[property_path])
+            set_property_previous(property_path, extra_properties[property_path])
     teleported.emit()
 
 ## Get `PieceState3D` for current step
@@ -315,6 +379,7 @@ func get_current_state() -> PieceState3D:
     state.active = active
     state.parent_piece = parent_piece
     state.transform = global_transform
+    state.extra_properties = get_property_values()
     return state
 
 ## Get `PieceState3D` for previous step
@@ -324,6 +389,7 @@ func get_previous_state() -> PieceState3D:
     state.active = _previous_active
     state.parent_piece = _previous_parent_piece
     state.transform = _previous_transform
+    state.extra_properties = _previous_property_values.duplicate()
     return state
 
 static func find_descendant_pieces(node: Node, pieces: Array[Piece3D] = [], group_filter: GroupFilter = null) -> Array[Piece3D]:

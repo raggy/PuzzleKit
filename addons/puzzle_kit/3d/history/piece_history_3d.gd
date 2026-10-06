@@ -8,6 +8,7 @@ var _has_entered_tree: bool = false
 var _checkpoint_active: bool
 var _checkpoint_parent_piece: Piece3D
 var _checkpoint_transform: Transform3D
+var _checkpoint_properties: Dictionary[NodePath, Variant] = {}
 
 func _enter_tree() -> void:
     piece = get_parent() as Piece3D
@@ -29,7 +30,7 @@ func set_checkpoint() -> void:
 
 ## Reset to checkpoint state
 func reset_to_checkpoint() -> void:
-    piece._teleport(_checkpoint_active, _checkpoint_parent_piece, _checkpoint_transform)
+    piece._teleport(_checkpoint_active, _checkpoint_parent_piece, _checkpoint_transform, _checkpoint_properties)
 
 ## Returns true if either piece's current state, or the checkpoint state, differ from the original state
 func has_changes_to_save() -> bool:
@@ -51,6 +52,11 @@ func has_changes_to_save() -> bool:
 func _set_piece(value: Piece3D) -> void:
     if piece:
         piece.history = null
+        piece.property_registered.disconnect(_on_property_registered)
     piece = value
     if value:
         value.history = self
+        piece.property_registered.connect(_on_property_registered)
+
+func _on_property_registered(property_path: NodePath) -> void:
+    _checkpoint_properties[property_path] = piece.get_property(property_path)
