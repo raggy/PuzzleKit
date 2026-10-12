@@ -16,7 +16,7 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "fill_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "flip_x_button", "flip_y_button", "flip_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_clear_button", "groups_container", "options_button", "container_board", "info_no_board")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "fill_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "flip_x_button", "flip_y_button", "flip_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_clear_button", "groups_container", "options_button", "container_board", "info_no_board", "extension_buttons_container")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -51,6 +51,7 @@ groups_container = NodePath("HSplitContainer_Board/VBoxContainer/ScrollContainer
 options_button = NodePath("Toolbar/OptionsButton")
 container_board = NodePath("HSplitContainer_Board")
 info_no_board = NodePath("Info_NoBoard")
+extension_buttons_container = NodePath("Toolbar/ExtensionButtons")
 metadata/_custom_type_script = "uid://vbuogr241dq1"
 
 [node name="Toolbar" type="HBoxContainer" parent="." unique_id=1122713076]
@@ -129,6 +130,13 @@ theme_type_variation = &"FlatButton"
 [node name="UngroupButton" type="Button" parent="Toolbar" unique_id=842860573]
 layout_mode = 2
 theme_type_variation = &"FlatButton"
+
+[node name="ExtensionButtons" type="HBoxContainer" parent="Toolbar" unique_id=1056522636]
+visible = false
+layout_mode = 2
+
+[node name="VSeparator5" type="VSeparator" parent="Toolbar/ExtensionButtons" unique_id=1179710867]
+layout_mode = 2
 
 [node name="HSpacer" type="Control" parent="Toolbar" unique_id=731216634]
 layout_mode = 2

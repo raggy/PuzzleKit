@@ -135,6 +135,8 @@ enum SelectionDragMode {
     SELECTION_DRAG_MODE_TRANSLATE,
 }
 
+static var _instance: PuzzleKitEditor3D
+
 var options_axis_ids: Array[Menu] = [Menu.MENU_OPTION_X_AXIS, Menu.MENU_OPTION_Y_AXIS, Menu.MENU_OPTION_Z_AXIS]
 
 var mode_buttons_group: ButtonGroup
@@ -245,6 +247,13 @@ func _enter_tree() -> void:
         var box_selection_preview := BoxSelectionPreview.new()
         viewport.add_child(box_selection_preview)
         _box_selection_preview_by_viewport[viewport] = box_selection_preview
+    
+    for button in extension_buttons:
+        extension_buttons_container.add_child(button)
+        button.disabled = not _board
+    extension_buttons_container.visible = not extension_buttons.is_empty()
+    
+    _instance = self
 
 func _exit_tree() -> void:
     if is_part_of_edited_scene():
@@ -269,6 +278,11 @@ func _exit_tree() -> void:
         viewport.remove_child(box_selection_preview)
         box_selection_preview.queue_free()
     _box_selection_preview_by_viewport.clear()
+    
+    for button in extension_buttons:
+        extension_buttons_container.remove_child(button)
+    
+    _instance = null
 
 func _ready() -> void:
     if is_part_of_edited_scene():
@@ -642,6 +656,9 @@ func _set_interactable(interactable: bool) -> void:
     draw_offset_spin_box.editable = interactable
     piece_directory_pick_button.disabled = not interactable
     options_button.disabled = not interactable
+
+    for button in extension_buttons:
+        button.disabled = not interactable
 
 func _on_visibility_changed() -> void:
     if is_part_of_edited_scene():
@@ -1338,6 +1355,17 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     else:
                         _selection_mode = SelectionMode.SELECTION_MODE_REPLACE
             elif mb.button_index == MOUSE_BUTTON_RIGHT:
+                if Input.is_key_pressed(KEY_SHIFT):
+                    if _cursor_piece and _cursor_piece.get_ref() and _cursor_piece.get_ref() is Piece3D:
+                        for piece_action in extension_piece_actions:
+                            var piece: Piece3D = _cursor_piece.get_ref()
+                            if piece_action.group_filter and not piece_action.group_filter.matches_3d(piece):
+                                continue
+                            var context := get_callback_context()
+                            context.piece = piece
+                            piece_action.callback.call(context)
+                            break
+                    return EditorPlugin.AFTER_GUI_INPUT_STOP
                 input_action = InputAction.INPUT_PICK
                 if mode_buttons_group.get_pressed_button() == pick_mode_button or mode_buttons_group.get_pressed_button() == select_mode_button:
                     _pick_targetting = PickTargetting.PICK_TARGET_RAYCAST
@@ -2509,6 +2537,79 @@ static func create_xray_tool_material(color: Color) -> BaseMaterial3D:
     m.set_flag(BaseMaterial3D.FLAG_DISABLE_DEPTH_TEST, true)
     m.albedo_color = color * Color(Color.WHITE, 0.15)
     return m
+
+#region Extensions
+static var extension_buttons: Array[Button] = []
+static var extension_piece_actions: Array[ExtensionPieceAction] = []
+
+@export var extension_buttons_container: HBoxContainer
+
+static func add_editor_button(callback: Callable) -> Button:
+    var button := Button.new()
+    button.theme_type_variation = "FlatButton"
+    button.pressed.connect(func() -> void: callback.call(get_callback_context()))
+    extension_buttons.append(button)
+    if _instance:
+        _instance.extension_buttons_container.add_child(button)
+        _instance.extension_buttons_container.visible = true
+        button.disabled = not _instance._board
+    return button
+
+static func remove_editor_button(button: Button) -> void:
+    if button in extension_buttons:
+        button.queue_free()
+        extension_buttons.erase(button)
+        if _instance:
+            _instance.extension_buttons_container.visible = not extension_buttons.is_empty()
+
+static func add_editor_piece_action(callback: Callable, action_name: StringName, group_filter: GroupFilter = null) -> void:
+    var editor_piece_action := ExtensionPieceAction.new()
+    editor_piece_action.callback = callback 
+    editor_piece_action.action_name = action_name
+    editor_piece_action.group_filter = group_filter
+    extension_piece_actions.append(editor_piece_action)
+
+static func remove_editor_piece_action(callback: Callable) -> void:
+    for editor_piece_action in extension_piece_actions:
+        if editor_piece_action.callback == callback:
+            extension_piece_actions.erase(editor_piece_action)
+            break
+
+static func get_callback_context() -> CallbackContext:
+    var context := CallbackContext.new()
+
+    if not _instance:
+        return context
+
+    context.board = _instance._board
+    context.selected_boards = []
+    context.selected_pieces = []
+    var editor_selection := EditorInterface.get_selection()
+    for node in editor_selection.get_selected_nodes():
+        if node is Board3D:
+            context.selected_boards.append(node as Board3D)
+        elif node is Piece3D:
+            context.selected_pieces.append(node as Piece3D)
+
+    return context
+
+class ExtensionPieceAction extends RefCounted:
+    var callback: Callable
+    var action_name: StringName
+    var group_filter: GroupFilter
+
+class CallbackContext extends RefCounted:
+    var board: Board3D
+    var piece: Piece3D
+    var selected_boards: Array[Board3D]
+    var selected_pieces: Array[Piece3D]
+
+    func get_selected_piece_positions() -> Array[Vector3i]:
+        var positions: Array[Vector3i] = []
+        for piece in selected_pieces:
+            positions.append(piece.grid_position)
+        return positions
+#endregion
 
 class AddRemoveChange:
     enum Action {
