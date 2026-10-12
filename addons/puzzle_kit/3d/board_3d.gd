@@ -30,6 +30,8 @@ var _pieces: Array[Piece3D] = []
 var _active_pieces: Array[Piece3D] = []
 var _inactive_pieces: Array[Piece3D] = []
 
+var _pieces_by_flags: Dictionary[int, Array] = {}
+
 var _cells_by_position: Dictionary[Vector3i, Cell] = {}
 var _cells_by_piece: Dictionary[Piece3D, Cell] = {}
 
@@ -120,57 +122,74 @@ func get_pieces_at(grid_position: Vector3i, group_filter: GroupFilter = null, up
 
 ## Get the first piece registered (optionally filtered by group, optionally including inactive)
 func get_piece(group_filter: GroupFilter = null, include_inactive: bool = false) -> Piece3D:
-    var filtered_by_group := group_filter != null
+    if not group_filter:
+        if not include_inactive and not _active_pieces.is_empty():
+            # No group filter, not inactive: return first active piece
+            return _active_pieces[0]
 
-    for piece in _pieces:
-        if not include_inactive and not piece.active:
-            # Not including inactive pieces
+        if not _pieces.is_empty():
+            # No group filter, incl. inactive: return first piece
+            return _pieces[0]
+
+    for flags in _pieces_by_flags:
+        if not group_filter.matches(flags):
+            # Piece list doesn't match group filter
             continue
-        if not filtered_by_group:
-            # No group filter, piece matches
+        var pieces_matching_group_filter := _pieces_by_flags[flags]
+        for piece: Piece3D in pieces_matching_group_filter:
+            if not include_inactive and not piece.active:
+                # Not including inactive pieces
+                continue
+            # Found a matching piece
             return piece
-        if group_filter.matches_3d(piece):
-            # Piece matches the group filter
-            return piece
+
     # Found nothing
     return null
 
 ## Get all pieces (optionally filtered by group, optionally including inactive)
 func get_pieces(group_filter: GroupFilter = null, include_inactive: bool = false) -> Array[Piece3D]:
-    var filtered_by_group := group_filter != null
-
-    if not filtered_by_group:
+    if not group_filter:
         # We just want all pieces
         if include_inactive:
             return _pieces
         # We just want all active pieces
         return _active_pieces
 
-    if include_inactive:
-        # Filter all pieces by group
-        return _pieces.filter(group_filter.matches_3d)
-    # Filter active pieces by group
-    return _active_pieces.filter(group_filter.matches_3d)
+    var pieces: Array[Piece3D] = []
+    for flags in _pieces_by_flags:
+        if not group_filter.matches(flags):
+            # Piece list doesn't match group filter
+            continue
+        var pieces_matching_group_filter := _pieces_by_flags[flags]
+        for piece: Piece3D in pieces_matching_group_filter:
+            if not include_inactive and not piece.active:
+                # Not including inactive pieces
+                continue
+            # Found a matching piece
+            pieces.append(piece)
+    return pieces
 
 ## Count all pieces (optionally filtered by group, optionally including inactive)
 func count_pieces(group_filter: GroupFilter = null, include_inactive: bool = false) -> int:
-    var filtered_by_group := group_filter != null
-
-    if not filtered_by_group:
+    if not group_filter:
         # We just want all pieces
         if include_inactive:
             return _pieces.size()
         # We just want all active pieces
         return _active_pieces.size()
     
-    # Filter pieces by what matches
-    var pieces_to_search := _pieces if include_inactive else _active_pieces
     var piece_count := 0
-    for piece in pieces_to_search:
-        if not group_filter.matches_3d(piece):
-            # Didn't match group filter
+    for flags in _pieces_by_flags:
+        if not group_filter.matches(flags):
+            # Piece list doesn't match group filter
             continue
-        piece_count += 1
+        var pieces_matching_group_filter := _pieces_by_flags[flags]
+        for piece: Piece3D in pieces_matching_group_filter:
+            if not include_inactive and not piece.active:
+                # Not including inactive pieces
+                continue
+            # Found a matching piece
+            piece_count += 1
     return piece_count
 
 ## Get all pieces adjacent to `pieces`, filtered by `group` and in specified `directions`. If `max_search_depth` is specified, returned pieces will be at most `max_search_depth` steps away
@@ -364,6 +383,10 @@ func _find_board_ancestor() -> Board3D:
 func _register_piece(piece: Piece3D) -> void:
     piece._board_cached_active = piece.is_active_in_tree()
     _pieces.append(piece)
+    # Add to _pieces_by_flags
+    if not piece.flags in _pieces_by_flags:
+        _pieces_by_flags[piece.flags] = []
+    _pieces_by_flags[piece.flags].append(piece)
     if piece._board_cached_active:
         _active_pieces.append(piece)
         # Add piece to cell
@@ -380,6 +403,9 @@ func _register_piece(piece: Piece3D) -> void:
 
 func _deregister_piece(piece: Piece3D) -> void:
     _pieces.erase(piece)
+    # Erase from _pieces_by_flags (if it exists)
+    if piece.flags in _pieces_by_flags:
+        _pieces_by_flags[piece.flags].erase(piece)
     if piece._board_cached_active:
         _active_pieces.erase(piece)
     else:

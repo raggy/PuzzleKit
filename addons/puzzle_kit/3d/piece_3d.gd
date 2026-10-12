@@ -95,6 +95,7 @@ func _enter_tree() -> void:
             _original_ancestor = owner
             _original_descendant_path = owner.get_path_to(self)
         _original_node_path = get_path()
+        flags = GroupFilter.groups_to_flags(get_groups())
 
     _board = _find_board()
 
@@ -103,7 +104,6 @@ func _exit_tree() -> void:
     _board = null
 
 func _ready() -> void:
-    flags = GroupFilter.groups_to_flags(get_groups())
     set_notify_transform(true)
 
 func _notification(what: int) -> void:
