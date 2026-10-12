@@ -5,8 +5,8 @@ extends Node3D
 
 signal piece_added(piece: Piece3D)
 signal piece_removed(piece: Piece3D)
-signal changes_committing()
-signal changes_reverting()
+signal changes_committing(pieces: Array[Piece3D])
+signal changes_reverting(pieces: Array[Piece3D])
 
 const DIRECTIONS_ADJACENT: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT, Vector3i.DOWN, Vector3i.UP, Vector3i.FORWARD, Vector3i.BACK]
 const DIRECTIONS_CARDINAL: Array[Vector3i] = [Vector3i.LEFT, Vector3i.RIGHT, Vector3i.FORWARD, Vector3i.BACK]
@@ -300,16 +300,16 @@ func raycast_pieces(from: Vector3, direction: Vector3, group_filter: GroupFilter
 #endregion
 
 #region Commit/revert
-func commit_changes() -> void:
-    changes_committing.emit()
-    
-    for piece in _pieces:
+func commit_changes(pieces: Array[Piece3D] = _pieces) -> void:
+    changes_committing.emit(pieces)
+
+    for piece in pieces:
         piece._commit_changes()
 
-func revert_changes() -> void:
-    changes_reverting.emit()
-    
-    for piece in _pieces:
+func revert_changes(pieces: Array[Piece3D] = _pieces) -> void:
+    changes_reverting.emit(pieces)
+
+    for piece in pieces:
         piece._revert_changes()
 #endregion
 

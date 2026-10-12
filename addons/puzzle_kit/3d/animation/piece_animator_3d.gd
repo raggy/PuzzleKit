@@ -208,8 +208,8 @@ func _on_animation_stopped(animation: PieceAnimation3D) -> void:
 func _does_animation_belong_to_piece(animation: PieceAnimation3D, piece: Piece3D) -> bool:
     return animation.visual.piece == piece
 
-func _play_default_animations() -> void:
-    for piece in _board._pieces:
+func _play_default_animations(changed_pieces: Array[Piece3D]) -> void:
+    for piece in changed_pieces:
         if not piece.visual:
             continue
         

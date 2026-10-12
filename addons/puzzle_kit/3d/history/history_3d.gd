@@ -100,10 +100,10 @@ func _set_board(value: Board3D) -> void:
     if value:
         value.changes_committing.connect(_create_undo_step)
 
-func _create_undo_step() -> void:
+func _create_undo_step(changed_pieces: Array[Piece3D]) -> void:
     var undo_step := PieceStateSnapshot3D.new()
 
-    for piece in _board._pieces:
+    for piece in changed_pieces:
         # We don't track this piece
         if not piece.history:
             continue
