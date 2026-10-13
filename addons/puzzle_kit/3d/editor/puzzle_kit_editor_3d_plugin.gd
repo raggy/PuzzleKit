@@ -7,11 +7,14 @@ var _editor_button: Button
 
 var _context_menu: PuzzleKitContextMenu3DPlugin
 
+const PuzzleKitSync3D := preload("res://addons/puzzle_kit/3d/editor/puzzle_kit_sync_3d.gd")
+var _sync := PuzzleKitSync3D.new()
+
 func _enable_plugin() -> void:
-    pass
+    add_autoload_singleton("PuzzleKitLiveEdit3D", "res://addons/puzzle_kit/3d/editor/puzzle_kit_live_edit_3d.gd")
 
 func _disable_plugin() -> void:
-    pass
+    remove_autoload_singleton("PuzzleKitLiveEdit3D")
 
 func _enter_tree() -> void:
     set_input_event_forwarding_always_enabled()
@@ -25,6 +28,10 @@ func _enter_tree() -> void:
     _context_menu.board_edit_requested.connect(_edit_board_requested)
     add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCENE_TREE, _context_menu)
 
+    add_debugger_plugin(_sync)
+    _sync.edited_scene = EditorInterface.get_edited_scene_root()
+    scene_changed.connect(_sync.set_edited_scene)
+
 func _exit_tree() -> void:
     _editor.board_edit_requested.disconnect(_edit_board_requested)
     remove_control_from_bottom_panel(_editor)
@@ -35,6 +42,9 @@ func _exit_tree() -> void:
     _context_menu.board_edit_requested.disconnect(_edit_board_requested)
     remove_context_menu_plugin(_context_menu)
     _context_menu = null
+
+    scene_changed.disconnect(_sync.set_edited_scene)
+    remove_debugger_plugin(_sync)
 
 func _forward_3d_gui_input(viewport_camera: Camera3D, event: InputEvent) -> int:
     return _editor.forward_spatial_input_event(viewport_camera, event)
