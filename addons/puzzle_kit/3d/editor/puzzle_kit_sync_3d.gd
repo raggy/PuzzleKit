@@ -38,41 +38,34 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
     return false
 
 static func message_all(message: String, data: Array) -> void:
-    print("Sending message %s, %s" % [message, data])
     for session: EditorDebuggerSession in instance.get_sessions():
         if not session.is_active:
             continue
         session.send_message(message, data)
 
-static func instantiate_node(node: Node) -> void:
+static func instantiate_node_3d(node: Node3D) -> void:
     if not live_debug:
         return
 
-    message_all("puzzle_kit_3d:live_instantiate_node", [edited_scene.get_path_to(node.get_parent()), node.scene_file_path, node.name])
+    message_all("puzzle_kit_3d:instantiate_node_3d", [edited_scene.get_path_to(node.get_parent()), node.scene_file_path, node.name, node.transform])
 
-static func remove_node(at: NodePath) -> void:
+static func remove_and_keep_node(node: Node) -> void:
     if not live_debug:
         return
-    
-    message_all("puzzle_kit_3d:live_remove_node", [at])
 
-static func remove_and_keep_node(at: NodePath, keep_id: int) -> void:
-    if not live_debug:
-        return
-    
-    message_all("puzzle_kit_3d:live_remove_and_keep_node", [at, keep_id])
+    message_all("puzzle_kit_3d:remove_and_keep_node", [edited_scene.get_path_to(node), node.get_instance_id()])
 
-static func restore_node(id: int, at: NodePath, pos: int) -> void:
+static func restore_node(node: Node) -> void:
     if not live_debug:
         return
     
-    message_all("puzzle_kit_3d:live_restore_node", [id, at, pos])
+    message_all("puzzle_kit_3d:restore_node", [node.get_instance_id(), edited_scene.get_path_to(node), node.get_index()])
 
 static func reparent_node(at: NodePath, new_place: NodePath, new_name: String, pos: int) -> void:
     if not live_debug:
         return
     
-    message_all("puzzle_kit_3d:live_reparent_node", [at, new_place, new_name, pos])
+    message_all("puzzle_kit_3d:reparent_node", [at, new_place, new_name, pos])
 
 static func property_changed(object: Object, property: StringName, value: Variant) -> void:
     if not live_debug:
@@ -85,14 +78,14 @@ static func property_changed(object: Object, property: StringName, value: Varian
 
         if value is Resource:
             var resource_value: Resource = value
-            message_all("puzzle_kit_3d:live_node_prop_res", [path_id, property, resource_value.resource_path])
+            message_all("puzzle_kit_3d:node_prop_res", [path_id, property, resource_value.resource_path])
         elif value is Node:
             var node_value: Node = value
             var node_value_path := edited_scene.get_path_to(node_value)
             var node_value_path_id := _get_node_path_cache(node_value_path)
-            message_all("puzzle_kit_3d:live_node_prop_node", [path_id, property, node_value_path_id])
+            message_all("puzzle_kit_3d:node_prop_node", [path_id, property, node_value_path_id])
         else:
-            message_all("puzzle_kit_3d:live_node_prop", [path_id, property, value])
+            message_all("puzzle_kit_3d:node_prop", [path_id, property, value])
         
         return
     
@@ -103,9 +96,9 @@ static func property_changed(object: Object, property: StringName, value: Varian
 
         if value is Resource:
             var resource_value: Resource = value
-            message_all("puzzle_kit_3d:live_res_prop_res", [path_id, property, resource_value.resource_path])
+            message_all("puzzle_kit_3d:res_prop_res", [path_id, property, resource_value.resource_path])
         else:
-            message_all("puzzle_kit_3d:live_res_prop", [path_id, property, value])
+            message_all("puzzle_kit_3d:res_prop", [path_id, property, value])
         
         return
 
@@ -116,7 +109,7 @@ static func _get_node_path_cache(path: NodePath) -> int:
     last_path_id += 1
 
     node_path_cache[path] = last_path_id
-    message_all("puzzle_kit_3d:live_node_path", [path, last_path_id])
+    message_all("puzzle_kit_3d:node_path", [path, last_path_id])
 
     return last_path_id
 
@@ -127,6 +120,6 @@ static func _get_res_path_cache(path: String) -> int:
     last_path_id += 1
 
     res_path_cache[path] = last_path_id
-    message_all("puzzle_kit_3d:live_res_path", [path, last_path_id])
+    message_all("puzzle_kit_3d:res_path", [path, last_path_id])
 
     return last_path_id

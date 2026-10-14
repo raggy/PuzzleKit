@@ -4,6 +4,8 @@ var edited_scene_path := ""
 
 var nodes_by_scene_file_path: Dictionary[String, Array] = {}
 
+var removed_nodes: Dictionary[Node, Dictionary] = {}
+
 var node_path_cache: Dictionary[int, NodePath] = {}
 var res_path_cache: Dictionary[int, String] = {}
 
@@ -27,7 +29,7 @@ func _capture(message: String, data: Array) -> bool:
                 return true
             edited_scene_path = data[0]
             return true
-        "live_node_path":
+        "node_path":
             if data.size() != 2 or not data[0] is NodePath or not data[1] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
@@ -35,7 +37,7 @@ func _capture(message: String, data: Array) -> bool:
             var path_id: int = data[1]
             node_path_cache[path_id] = path
             return true
-        "live_res_path":
+        "res_path":
             if data.size() != 2 or not data[0] is String or not data[1] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
@@ -43,16 +45,24 @@ func _capture(message: String, data: Array) -> bool:
             var path_id: int = data[1]
             res_path_cache[path_id] = path
             return true
-        "live_instantiate_node":
-            if data.size() != 3 or not data[0] is NodePath or not data[1] is String or not data[2] is StringName:
+        "instantiate_node_3d":
+            if data.size() != 4 or not data[0] is NodePath or not data[1] is String or not data[2] is StringName or not data[3] is Transform3D:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
             var parent_node_path: NodePath = data[0]
             var node_scene_file_path: String = data[1]
             var node_name: String = data[2]
-            _instantiate_node(parent_node_path, node_scene_file_path, node_name)
+            var node_transform: Transform3D = data[3]
+            _instantiate_node_3d(parent_node_path, node_scene_file_path, node_name, node_transform)
             return true
-        "live_node_prop_res":
+        "remove_and_keep_node":
+            if data.size() != 2 or not data[0] is NodePath or not data[1] is int:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return true
+            var path: NodePath = data[0]
+            var keep_id: int = data[1]
+            _remove_and_keep_node(path, keep_id)
+        "node_prop_res":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
@@ -60,7 +70,7 @@ func _capture(message: String, data: Array) -> bool:
             var property_name: StringName = data[1]
             var value_resource_path: String = data[2]
             _node_prop_res(path_id, property_name, value_resource_path)
-        "live_node_prop_node":
+        "node_prop_node":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
@@ -68,7 +78,7 @@ func _capture(message: String, data: Array) -> bool:
             var property_name: StringName = data[1]
             var value_path_id: int = data[2]
             _node_prop_node(path_id, property_name, value_path_id)
-        "live_node_prop":
+        "node_prop":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is Variant:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
@@ -76,7 +86,7 @@ func _capture(message: String, data: Array) -> bool:
             var property_name: StringName = data[1]
             var value: Variant = data[2]
             _node_prop(path_id, property_name, value)
-        "live_res_prop_res":
+        "res_prop_res":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
@@ -84,7 +94,7 @@ func _capture(message: String, data: Array) -> bool:
             var property_name: StringName = data[1]
             var value_resource_path: String = data[2]
             _res_prop_res(path_id, property_name, value_resource_path)
-        "live_res_prop":
+        "res_prop":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is Variant:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
                 return true
@@ -95,7 +105,7 @@ func _capture(message: String, data: Array) -> bool:
 
     return false
 
-func _instantiate_node(parent_node_path: NodePath, node_scene_file_path: String, node_name: String) -> void:
+func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: String, node_name: String, node_transform: Transform3D) -> void:
     var packed_scene := load(node_scene_file_path) as PackedScene
     if not packed_scene:
         printerr("Could not load PackedScene at %s" % node_scene_file_path)
@@ -105,13 +115,33 @@ func _instantiate_node(parent_node_path: NodePath, node_scene_file_path: String,
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
-        var node := packed_scene.instantiate()
-        node.name = node_name
         if not scene_node.has_node(parent_node_path):
             printerr("Couldn't find parent node at %s in %s" % [parent_node_path, scene_node])
             continue
         var parent_node := scene_node.get_node(parent_node_path)
+        var node := packed_scene.instantiate() as Node3D
+        if not node:
+            printerr("Could not create Node3D from scene at %s" % node_scene_file_path)
+            continue
+        node.name = node_name
+        node.transform = node_transform
         parent_node.add_child(node)
+
+func _remove_and_keep_node(path: NodePath, keep_id: int) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        if not scene_node.has_node(path):
+            printerr("Couldn't find node at %s in %s" % [path, scene_node])
+            continue
+        var node := scene_node.get_node(path)
+        if not node.is_ancestor_of(scene_node):
+            continue
+        node.get_parent().remove_child(node)
+        var removed_nodes_for_scene_node: Dictionary = removed_nodes.get_or_add(scene_node, {})
+        removed_nodes_for_scene_node[keep_id] = node
 
 func _node_prop_res(path_id: int, property_name: StringName, value_resource_path: String) -> void:
     if not ResourceLoader.exists(value_resource_path):

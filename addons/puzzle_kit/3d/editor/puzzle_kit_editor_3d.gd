@@ -1399,8 +1399,7 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                                 change.owner = change.node.owner
                                 change.parent = change.node.get_parent()
                                 change.index = change.node.get_index(false)
-                                PuzzleKitSync3D.instantiate_node(change.node)
-                                PuzzleKitSync3D.property_changed(change.node, "transform", change.node.transform)
+                                PuzzleKitSync3D.instantiate_node_3d(change.node)
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
