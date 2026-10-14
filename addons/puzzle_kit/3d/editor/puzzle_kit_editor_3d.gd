@@ -14,6 +14,8 @@ const TileOutline3D := preload("res://addons/puzzle_kit/3d/editor/display/tile_o
 const PalettePreview := preload("res://addons/puzzle_kit/3d/editor/palette_preview.gd")
 const PalettePreviewGenerator := preload("res://addons/puzzle_kit/3d/editor/palette_preview_generator.gd")
 
+const PuzzleKitSync3D := preload("res://addons/puzzle_kit/3d/editor/puzzle_kit_sync_3d.gd")
+
 const SETTING_PIECE_DIRECTORY := "puzzle_kit/editor/piece_directory"
 const SETTING_PAINT_OVERWRITES := "puzzle_kit/editor/paint_overwrites"
 const SETTING_PICK_COPIES_ROTATION := "puzzle_kit/editor/pick_copies_rotation"
@@ -1397,6 +1399,8 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                                 change.owner = change.node.owner
                                 change.parent = change.node.get_parent()
                                 change.index = change.node.get_index(false)
+                                PuzzleKitSync3D.instantiate_node(change.node)
+                                PuzzleKitSync3D.property_changed(change.node, "transform", change.node.transform)
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
