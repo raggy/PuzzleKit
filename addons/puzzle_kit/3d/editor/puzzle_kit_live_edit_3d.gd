@@ -114,24 +114,11 @@ func _instantiate_node(parent_node_path: NodePath, node_scene_file_path: String,
         parent_node.add_child(node)
 
 func _node_prop_res(path_id: int, property_name: StringName, value_resource_path: String) -> void:
-    if not path_id in node_path_cache:
-        printerr("No node path cached for id: %s" % path_id)
-        return
-    var path := node_path_cache[path_id]
     if not ResourceLoader.exists(value_resource_path):
         printerr("No resource at path: %s" % value_resource_path)
         return
     var value_resource := ResourceLoader.load(value_resource_path)
-    if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
-        return
-    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
-    for scene_node: Node in scene_nodes:
-        if not scene_node.has_node(path):
-            printerr("Couldn't find node at %s in %s" % [path, scene_node])
-            continue
-        var node := scene_node.get_node(path)
-        node.set(property_name, value_resource)
+    _node_prop(path_id, property_name, value_resource)
 
 func _node_prop_node(path_id: int, property_name: StringName, value_path_id: int) -> void:
     if not path_id in node_path_cache:
@@ -174,19 +161,11 @@ func _node_prop(path_id: int, property_name: StringName, value: Variant) -> void
         node.set(property_name, value)
 
 func _res_prop_res(path_id: int, property_name: StringName, value_resource_path: String) -> void:
-    if not path_id in res_path_cache:
-        printerr("No res path cached for id: %s" % path_id)
-        return
-    var resource_path := res_path_cache[path_id]
-    if not ResourceLoader.exists(resource_path):
-        printerr("No resource at path: %s" % resource_path)
-        return
-    var resource := ResourceLoader.load(resource_path)
     if not ResourceLoader.exists(value_resource_path):
         printerr("No resource at path: %s" % value_resource_path)
         return
     var value_resource := ResourceLoader.load(value_resource_path)
-    resource.set(property_name, value_resource)
+    _res_prop(path_id, property_name, value_resource)
 
 func _res_prop(path_id: int, property_name: StringName, value: Variant) -> void:
     if not path_id in res_path_cache:
