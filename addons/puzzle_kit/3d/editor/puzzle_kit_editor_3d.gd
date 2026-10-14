@@ -2606,8 +2606,8 @@ class CallbackContext extends RefCounted:
 
     func get_selected_piece_positions() -> Array[Vector3i]:
         var positions: Array[Vector3i] = []
-        for piece in selected_pieces:
-            positions.append(piece.grid_position)
+        for selected_piece in selected_pieces:
+            positions.append(selected_piece.grid_position)
         return positions
 #endregion
 
