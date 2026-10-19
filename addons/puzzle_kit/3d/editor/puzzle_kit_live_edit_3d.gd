@@ -32,47 +32,31 @@ func _capture(message: String, data: Array) -> bool:
     var message_id: int = data.pop_front()
     if message == "set_current_message_id":
         next_message_id = message_id + 1
-        print("Next message id is %s" % next_message_id)
     else:
-        message_queue.append(message_id)
-        message_queue.append(message)
-        message_queue.append(data)
+        message_queue.append([message_id, message, data])
     _dequeue_messages()
     return true
 
 func _dequeue_messages() -> void:
     while not message_queue.is_empty():
-        if message_queue.size() % 3 != 0:
-            printerr("message_queue had invalid number of elements, clearing")
-            message_queue.clear()
-            break
-        var found_next_message := false
+        var search_again := false
         @warning_ignore("integer_division")
-        for i in range(message_queue.size() / 3):
-            if not message_queue[i * 3] is int:
-                printerr("Invalid message id in message_queue: %s" % message_queue[i * 3])
-                continue
-            if message_queue[i * 3] == next_message_id:
-                found_next_message = true
-                next_message_id += 1
-                if not message_queue[1] is String:
-                    printerr("Invalid message in message_queue: %s" % message_queue[1])
-                    message_queue.pop_front()
-                    message_queue.pop_front()
-                    message_queue.pop_front()
-                    continue
-                if not message_queue[2] is Array:
-                    printerr("Invalid data in message_queue: %s" % message_queue[2])
-                    message_queue.pop_front()
-                    message_queue.pop_front()
-                    message_queue.pop_front()
-                    continue
-                message_queue.pop_front() # message id
-                var message: String = message_queue.pop_front()
-                var data: Array = message_queue.pop_front()
-                _parse_message(message, data)
+        for i in range(message_queue.size()):
+            var message_sequence: Array = message_queue[i]
+            if not message_sequence[0] is int or not message_sequence[1] is String or not message_sequence[2] is Array:
+                printerr("Invalid message sequence in message_queue: %s" % message_sequence)
+                message_queue.remove_at(i)
+                search_again = true
                 break
-        if not found_next_message:
+            if message_sequence[0] == next_message_id:
+                message_queue.remove_at(i)
+                var message: String = message_sequence[1]
+                var data: Array = message_sequence[2]
+                _parse_message(message, data)
+                search_again = true
+                next_message_id += 1
+                break
+        if not search_again:
             break
 
 func _parse_message(message: String, data: Array) -> void:
@@ -282,7 +266,7 @@ func _reparent_node(node_path: NodePath, parent_node_path: NodePath, node_name: 
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
         if not scene_node.has_node(node_path):
-            printerr("Couldn't find  node at %s in %s" % [node_path, scene_node])
+            printerr("Couldn't find node at %s in %s" % [node_path, scene_node])
             continue
         if not scene_node.has_node(parent_node_path):
             printerr("Couldn't find parent node at %s in %s" % [parent_node_path, scene_node])
