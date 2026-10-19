@@ -276,7 +276,7 @@ func _reparent_node(node_path: NodePath, parent_node_path: NodePath, node_name: 
             printerr("Node was not a descendant of %s" % scene_node)
             continue
         var parent_node := scene_node.get_node(parent_node_path)
-        if not scene_node.is_ancestor_of(parent_node):
+        if not scene_node.is_ancestor_of(parent_node) and not scene_node == parent_node:
             printerr("Parent node was not a descendant of %s" % scene_node)
             continue
         node.get_parent().remove_child(node)
