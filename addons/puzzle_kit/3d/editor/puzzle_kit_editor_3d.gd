@@ -2422,7 +2422,7 @@ func _group_selection() -> void:
 func _add_child_if_not_already_there(parent_node: Node, node: Node, index: int) -> void:
     if node.get_parent() == parent_node:
         return
-    parent_node.add_child(node)
+    parent_node.add_child(node, true)
     parent_node.move_child(node, index)
 
 func _add_do_set_owner_node_and_children(node: Node) -> void:
@@ -2469,23 +2469,37 @@ func _ungroup_selection() -> void:
         undo_redo.add_undo_method(selected_board_node_parent, "add_child", selected_board)
         undo_redo.add_undo_method(selected_board_node_parent, "move_child", selected_board, selected_board.get_index())
         undo_redo.add_undo_property(selected_board, "owner", get_node_owner(selected_board))
+        undo_redo.add_undo_method(PuzzleKitSync3D, "restore_node", selected_board.get_instance_id(), EditorInterface.get_edited_scene_root().get_path_to(selected_board_node_parent))
+        undo_redo.add_undo_method(PuzzleKitSync3D, "queue_message_break")
+
+        var path_to_selected_board := EditorInterface.get_edited_scene_root().get_path_to(selected_board)
+        var path_to_selected_board_node_parent := EditorInterface.get_edited_scene_root().get_path_to(selected_board_node_parent)
+
+        var selected_board_affine_inverse_global_transform := selected_board.global_transform.affine_inverse()
 
         for child in selected_board_node_children:
+            var child_previous_name := child.name
+            var child_previous_node_path := EditorInterface.get_edited_scene_root().get_path_to(child)
+            if child is Node3D:
+                var child_node3d := child as Node3D
+                undo_redo.add_do_property(child_node3d, "transform", selected_board_affine_inverse_global_transform * child_node3d.global_transform)
+                undo_redo.add_undo_property(child_node3d, "transform", child_node3d.transform)
             # Move the selected board's children into the parent board
-            undo_redo.add_do_method(selected_board, "remove_child", child)
-            undo_redo.add_do_method(previous_sibling, "add_sibling", child, true)
+            selected_board.remove_child(child)
+            previous_sibling.add_sibling(child, true)
+            undo_redo.add_do_method(self, "_add_sibling_if_not_already_there", previous_sibling, child)
             undo_redo.add_do_property(child, "owner", get_node_owner(child))
+            undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", child_previous_node_path, path_to_selected_board_node_parent, child.name)
             undo_redo.add_undo_method(parent_board, "remove_child", child)
             undo_redo.add_undo_method(selected_board, "add_child", child)
             undo_redo.add_undo_property(child, "owner", get_node_owner(child))
-            undo_redo.add_undo_property(child, "name", child.name)
-            if child is Node3D:
-                var child_node3d := child as Node3D
-                undo_redo.add_do_property(child_node3d, "global_transform", child_node3d.global_transform)
-                undo_redo.add_undo_property(child_node3d, "global_transform", child_node3d.global_transform)
+            undo_redo.add_undo_property(child, "name", child_previous_name)
+            undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", NodePath(path_to_selected_board_node_parent.get_concatenated_names().path_join(child.name)), path_to_selected_board, child_previous_name)
             previous_sibling = child
 
         # Remove the selected board from its parent
+        undo_redo.add_do_method(PuzzleKitSync3D, "queue_message_break")
+        undo_redo.add_do_method(PuzzleKitSync3D, "remove_and_keep_node", path_to_selected_board, selected_board.get_instance_id())
         undo_redo.add_do_method(selected_board_node_parent, "remove_child", selected_board)
         undo_redo.add_undo_reference(selected_board)
 
@@ -2493,6 +2507,10 @@ func _ungroup_selection() -> void:
     undo_redo.commit_action(true)
     _update_child_board_outlines()
 
+func _add_sibling_if_not_already_there(sibling_node: Node, node: Node) -> void:
+    if node.get_parent() == sibling_node.get_parent():
+        return
+    sibling_node.add_sibling(node, true)
 #endregion
 
 static func get_node_owner(node: Node) -> Node:
