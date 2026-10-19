@@ -2387,26 +2387,43 @@ func _group_selection() -> void:
     created_board.name = "Board3D"
 
     # Add created board to the selected nodes' parent
-    undo_redo.add_do_method(parent_node, "add_child", created_board, true)
-    undo_redo.add_do_method(parent_node, "move_child", created_board, first_node.get_index())
+    parent_node.add_child(created_board, true)
+    parent_node.move_child(created_board, first_node.get_index())
+    undo_redo.add_do_method(self, "_add_child_if_not_already_there", parent_node, created_board, created_board.get_index())
     undo_redo.add_do_property(created_board, "owner", get_node_owner(parent_node))
+    undo_redo.add_do_method(PuzzleKitSync3D, "create_board_3d", EditorInterface.get_edited_scene_root().get_path_to(parent_node), created_board.name, created_board.get_index())
+    undo_redo.add_do_method(PuzzleKitSync3D, "queue_message_break")
+
+    var path_to_created_board := EditorInterface.get_edited_scene_root().get_path_to(created_board)
+    var path_to_parent_node := EditorInterface.get_edited_scene_root().get_path_to(parent_node)
     
     for node in editor_selected_nodes:
         # Move the selected nodes into the board
         undo_redo.add_do_method(parent_node, "remove_child", node)
         undo_redo.add_do_method(created_board, "add_child", node, true)
         _add_do_set_owner_node_and_children(node)
+        undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", EditorInterface.get_edited_scene_root().get_path_to(node), path_to_created_board, node.name)
         undo_redo.add_undo_method(created_board, "remove_child", node)
         undo_redo.add_undo_method(parent_node, "add_child", node)
         undo_redo.add_undo_method(parent_node, "move_child", node, node.get_index() + 1)
         _add_undo_set_owner_node_and_children(node)
         undo_redo.add_undo_property(node, "name", node.name)
+        undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", NodePath(path_to_created_board.get_concatenated_names().path_join(node.name)), path_to_parent_node, node.name)
 
     # When undoing, remove the created board
+    undo_redo.add_undo_method(PuzzleKitSync3D, "queue_message_break")
+    undo_redo.add_undo_method(PuzzleKitSync3D, "remove_node", created_board)
     undo_redo.add_undo_method(parent_node, "remove_child", created_board)
+    undo_redo.add_do_reference(created_board)
     # Commit undo history (and call the do methods)
     undo_redo.commit_action(true)
     _update_child_board_outlines()
+
+func _add_child_if_not_already_there(parent_node: Node, node: Node, index: int) -> void:
+    if node.get_parent() == parent_node:
+        return
+    parent_node.add_child(node)
+    parent_node.move_child(node, index)
 
 func _add_do_set_owner_node_and_children(node: Node) -> void:
     undo_redo.add_do_property(node, "owner", get_node_owner(node))

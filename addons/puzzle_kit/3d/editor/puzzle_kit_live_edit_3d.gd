@@ -55,6 +55,15 @@ func _capture(message: String, data: Array) -> bool:
             var node_transform: Transform3D = data[3]
             _instantiate_node_3d(parent_node_path, node_scene_file_path, node_name, node_transform)
             return true
+        "create_board_3d":
+            if data.size() != 3 or not data[0] is NodePath or not data[1] is String or not data[2] is int:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return true
+            var parent_node_path: NodePath = data[0]
+            var board_name: String = data[1]
+            var pos: int = data[2]
+            _create_board_3d(parent_node_path, board_name, pos)
+            return true
         "remove_node":
             if data.size() != 1 or not data[0] is NodePath:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
@@ -75,6 +84,14 @@ func _capture(message: String, data: Array) -> bool:
             var keep_id: int = data[0]
             var parent_node_path: NodePath = data[1]
             _restore_node(keep_id, parent_node_path)
+        "reparent_node":
+            if data.size() != 3 or not data[0] is NodePath or not data[1] is NodePath or not data[2] is String:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return true
+            var node_path: NodePath = data[0]
+            var parent_node_path: NodePath = data[1]
+            var node_name: String = data[2]
+            _reparent_node(node_path, parent_node_path, node_name)
         "node_prop_res":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
@@ -140,6 +157,21 @@ func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: Stri
         node.transform = node_transform
         parent_node.add_child(node)
 
+func _create_board_3d(parent_node_path: NodePath, board_name: String, pos: int) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        if not scene_node.has_node(parent_node_path):
+            printerr("Couldn't find parent node at %s in %s" % [parent_node_path, scene_node])
+            continue
+        var parent_node := scene_node.get_node(parent_node_path)
+        var board := Board3D.new()
+        board.name = board_name
+        parent_node.add_child(board)
+        parent_node.move_child(board, pos)
+
 func _remove_node(path: NodePath) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
         printerr("No instances of edited scene %s" % edited_scene_path)
@@ -194,6 +226,30 @@ func _restore_node(keep_id: int, parent_node_path: NodePath) -> void:
         removed_nodes_for_scene_node.erase(keep_id)
         if removed_nodes_for_scene_node.is_empty():
             removed_nodes.erase(scene_node)
+        parent_node.add_child(node)
+
+func _reparent_node(node_path: NodePath, parent_node_path: NodePath, node_name: String) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        if not scene_node.has_node(node_path):
+            printerr("Couldn't find  node at %s in %s" % [node_path, scene_node])
+            continue
+        if not scene_node.has_node(parent_node_path):
+            printerr("Couldn't find parent node at %s in %s" % [parent_node_path, scene_node])
+            continue
+        var node := scene_node.get_node(node_path)
+        if not scene_node.is_ancestor_of(node):
+            printerr("Node was not a descendant of %s" % scene_node)
+            continue
+        var parent_node := scene_node.get_node(parent_node_path)
+        if not scene_node.is_ancestor_of(parent_node):
+            printerr("Parent node was not a descendant of %s" % scene_node)
+            continue
+        node.get_parent().remove_child(node)
+        node.name = node_name
         parent_node.add_child(node)
 
 func _node_prop_res(path_id: int, property_name: StringName, value_resource_path: String) -> void:

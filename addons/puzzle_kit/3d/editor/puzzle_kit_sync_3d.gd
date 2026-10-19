@@ -24,6 +24,9 @@ func _dequeue_messages() -> void:
         return
 
     while not message_queue.is_empty():
+        if message_queue[0] == "break":
+            message_queue.pop_front()
+            break
         if message_queue.size() == 1:
             printerr("message_queue had only one element, clearing")
             message_queue.clear()
@@ -71,8 +74,17 @@ static func queue_message(message: String, data: Array) -> void:
     message_queue.append(message)
     message_queue.append(data)
 
+## Break until next frame to try to ensure the previous messages happen before the rest of the queue
+static func queue_message_break() -> void:
+    if not message_queue:
+        message_queue = []
+    message_queue.append("break")
+
 static func instantiate_node_3d(node: Node3D) -> void:
     queue_message("puzzle_kit_3d:instantiate_node_3d", [EditorInterface.get_edited_scene_root().get_path_to(node.get_parent()), node.scene_file_path, node.name, node.transform])
+
+static func create_board_3d(parent_node_path: NodePath, board_name: String, pos: int) -> void:
+    queue_message("puzzle_kit_3d:create_board_3d", [parent_node_path, board_name, pos])
 
 static func remove_node(node: Node) -> void:
     queue_message("puzzle_kit_3d:remove_node", [EditorInterface.get_edited_scene_root().get_path_to(node)])
@@ -83,8 +95,8 @@ static func remove_and_keep_node(at: NodePath, node_id: int) -> void:
 static func restore_node(node_id: int, parent_node_path: NodePath) -> void:
     queue_message("puzzle_kit_3d:restore_node", [node_id, parent_node_path])
 
-static func reparent_node(at: NodePath, new_place: NodePath, new_name: String, pos: int) -> void:
-    queue_message("puzzle_kit_3d:reparent_node", [at, new_place, new_name, pos])
+static func reparent_node(at: NodePath, new_place: NodePath, new_name: String) -> void:
+    queue_message("puzzle_kit_3d:reparent_node", [at, new_place, new_name])
 
 static func property_changed(object: Object, property: StringName, value: Variant) -> void:
     if object is Node:
