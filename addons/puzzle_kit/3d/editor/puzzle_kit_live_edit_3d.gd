@@ -68,6 +68,13 @@ func _capture(message: String, data: Array) -> bool:
             var path: NodePath = data[0]
             var keep_id: int = data[1]
             _remove_and_keep_node(path, keep_id)
+        "restore_node":
+            if data.size() != 2 or not data[0] is int or not data[1] is NodePath:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return true
+            var keep_id: int = data[0]
+            var parent_node_path: NodePath = data[1]
+            _restore_node(keep_id, parent_node_path)
         "node_prop_res":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
@@ -139,7 +146,6 @@ func _remove_node(path: NodePath) -> void:
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
-        print("Searching in %s" % scene_node)
         if not scene_node.has_node(path):
             printerr("Couldn't find node at %s in %s" % [path, scene_node])
             continue
@@ -166,6 +172,29 @@ func _remove_and_keep_node(path: NodePath, keep_id: int) -> void:
         node.get_parent().remove_child(node)
         var removed_nodes_for_scene_node: Dictionary = removed_nodes.get_or_add(scene_node, {})
         removed_nodes_for_scene_node[keep_id] = node
+
+func _restore_node(keep_id: int, parent_node_path: NodePath) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        if not scene_node.has_node(parent_node_path):
+            printerr("Couldn't find parent node at %s in %s" % [parent_node_path, scene_node])
+            continue
+        var parent_node := scene_node.get_node(parent_node_path)
+        if not scene_node in removed_nodes:
+            printerr("No removed nodes for %s" % scene_node)
+            continue
+        var removed_nodes_for_scene_node: Dictionary = removed_nodes.get(scene_node)
+        if not keep_id in removed_nodes_for_scene_node:
+            printerr("Node ID %s not kept for %s" % [keep_id, scene_node])
+            continue
+        var node: Node = removed_nodes_for_scene_node[keep_id]
+        removed_nodes_for_scene_node.erase(keep_id)
+        if removed_nodes_for_scene_node.is_empty():
+            removed_nodes.erase(scene_node)
+        parent_node.add_child(node)
 
 func _node_prop_res(path_id: int, property_name: StringName, value_resource_path: String) -> void:
     if not ResourceLoader.exists(value_resource_path):

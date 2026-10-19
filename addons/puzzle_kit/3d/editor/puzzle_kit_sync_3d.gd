@@ -55,17 +55,17 @@ static func remove_node(node: Node) -> void:
 
     message_all("puzzle_kit_3d:remove_node", [edited_scene.get_path_to(node)])
 
-static func remove_and_keep_node(node: Node) -> void:
+static func remove_and_keep_node(at: NodePath, node_id: int) -> void:
     if not live_debug:
         return
 
-    message_all("puzzle_kit_3d:remove_and_keep_node", [edited_scene.get_path_to(node), node.get_instance_id()])
+    message_all("puzzle_kit_3d:remove_and_keep_node", [at, node_id])
 
-static func restore_node(node: Node) -> void:
+static func restore_node(node_id: int, parent_node_path: NodePath) -> void:
     if not live_debug:
         return
     
-    message_all("puzzle_kit_3d:restore_node", [node.get_instance_id(), edited_scene.get_path_to(node), node.get_index()])
+    message_all("puzzle_kit_3d:restore_node", [node_id, parent_node_path])
 
 static func reparent_node(at: NodePath, new_place: NodePath, new_name: String, pos: int) -> void:
     if not live_debug:

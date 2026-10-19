@@ -1399,7 +1399,6 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                                 change.owner = change.node.owner
                                 change.parent = change.node.get_parent()
                                 change.index = change.node.get_index(false)
-                                PuzzleKitSync3D.instantiate_node_3d(change.node)
                             change.register_with_undo_redo(undo_redo)
                         undo_redo.commit_action(false)
                         _paint_changes.clear()
@@ -2623,8 +2622,10 @@ class AddRemoveChange:
 
     var action: Action
     var node: Node3D
+    var node_path: NodePath
     var owner: Node
     var parent: Node
+    var parent_node_path: NodePath
     var index: int
     var global_transform: Transform3D
 
@@ -2632,8 +2633,10 @@ class AddRemoveChange:
         var change := AddRemoveChange.new()
         change.action = a
         change.node = n
+        change.node_path = EditorInterface.get_edited_scene_root().get_path_to(n)
         change.owner = n.owner
         change.parent = n.get_parent()
+        change.parent_node_path = EditorInterface.get_edited_scene_root().get_path_to(change.parent)
         change.index = n.get_index(false)
         change.global_transform = n.global_transform
         return change
@@ -2646,10 +2649,14 @@ class AddRemoveChange:
                 undo_redo.add_undo_method(self, "do_remove")
                 undo_redo.add_undo_method(PuzzleKitSync3D, "remove_node", node)
                 undo_redo.add_do_reference(node)
+                PuzzleKitSync3D.instantiate_node_3d(node)
             Action.REMOVE:
                 undo_redo.add_do_method(self, "do_remove")
+                undo_redo.add_do_method(PuzzleKitSync3D, "remove_and_keep_node", node_path, node.get_instance_id())
                 undo_redo.add_undo_method(self, "do_add")
+                undo_redo.add_undo_method(PuzzleKitSync3D, "restore_node", node.get_instance_id(), parent_node_path)
                 undo_redo.add_undo_reference(node)
+                PuzzleKitSync3D.remove_and_keep_node(node_path, node.get_instance_id())
 
     func do_add() -> void:
         parent.add_child(node, true)
