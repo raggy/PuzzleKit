@@ -1,25 +1,52 @@
 extends EditorDebuggerPlugin
 
-static var instance: EditorDebuggerPlugin
-
-static var live_debug := true
-static var edited_scene: Node: set = set_edited_scene
+static var message_queue: Array
 
 static var last_path_id: int = 0
 static var node_path_cache: Dictionary[NodePath, int] = {}
 static var res_path_cache: Dictionary[String, int] = {}
 
+var live_debug := true
+
 func _init() -> void:
-    instance = self
     EditorInterface.get_editor_settings().changed.connect(_update_live_debug_from_editor_settings)
     _update_live_debug_from_editor_settings()
+
+    var scene_tree := Engine.get_main_loop() as SceneTree
+    scene_tree.process_frame.connect(_dequeue_messages)
 
 func _update_live_debug_from_editor_settings() -> void:
     live_debug = EditorInterface.get_editor_settings().get_project_metadata("debug_options", "run_live_debug", true)
 
-static func set_edited_scene(value: Node) -> void:
-    edited_scene = value
-    message_all("puzzle_kit_3d:set_edited_scene", [value.scene_file_path if value else ""])
+func _dequeue_messages() -> void:
+    if not live_debug:
+        message_queue.clear()
+        return
+
+    while not message_queue.is_empty():
+        if message_queue.size() == 1:
+            printerr("message_queue had only one element, clearing")
+            message_queue.clear()
+            break
+        if not message_queue[0] is String:
+            printerr("Invalid message in message_queue: %s" % message_queue[0])
+            message_queue.pop_front()
+            message_queue.pop_front()
+            continue
+        if not message_queue[1] is Array:
+            printerr("Invalid data in message_queue: %s" % message_queue[1])
+            message_queue.pop_front()
+            message_queue.pop_front()
+            continue
+        var message: String = message_queue.pop_front()
+        var data: Array = message_queue.pop_front()
+        for session: EditorDebuggerSession in get_sessions():
+            if not session.is_active:
+                continue
+            session.send_message(message, data)
+
+func set_edited_scene(value: Node) -> void:
+    queue_message("puzzle_kit_3d:set_edited_scene", [value.scene_file_path if value else ""])
 
 func _setup_session(_session_id: int) -> void:
     node_path_cache.clear()
@@ -33,65 +60,48 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
     match message:
         "puzzle_kit_3d:setup_session":
             var session := get_session(session_id)
+            var edited_scene := EditorInterface.get_edited_scene_root()
             session.send_message("puzzle_kit_3d:set_edited_scene", [edited_scene.scene_file_path if edited_scene else ""])
             return true
     return false
 
-static func message_all(message: String, data: Array) -> void:
-    for session: EditorDebuggerSession in instance.get_sessions():
-        if not session.is_active:
-            continue
-        session.send_message(message, data)
+static func queue_message(message: String, data: Array) -> void:
+    if not message_queue:
+        message_queue = []
+    message_queue.append(message)
+    message_queue.append(data)
 
 static func instantiate_node_3d(node: Node3D) -> void:
-    if not live_debug:
-        return
-
-    message_all("puzzle_kit_3d:instantiate_node_3d", [edited_scene.get_path_to(node.get_parent()), node.scene_file_path, node.name, node.transform])
+    queue_message("puzzle_kit_3d:instantiate_node_3d", [EditorInterface.get_edited_scene_root().get_path_to(node.get_parent()), node.scene_file_path, node.name, node.transform])
 
 static func remove_node(node: Node) -> void:
-    if not live_debug:
-        return
-
-    message_all("puzzle_kit_3d:remove_node", [edited_scene.get_path_to(node)])
+    queue_message("puzzle_kit_3d:remove_node", [EditorInterface.get_edited_scene_root().get_path_to(node)])
 
 static func remove_and_keep_node(at: NodePath, node_id: int) -> void:
-    if not live_debug:
-        return
-
-    message_all("puzzle_kit_3d:remove_and_keep_node", [at, node_id])
+    queue_message("puzzle_kit_3d:remove_and_keep_node", [at, node_id])
 
 static func restore_node(node_id: int, parent_node_path: NodePath) -> void:
-    if not live_debug:
-        return
-    
-    message_all("puzzle_kit_3d:restore_node", [node_id, parent_node_path])
+    queue_message("puzzle_kit_3d:restore_node", [node_id, parent_node_path])
 
 static func reparent_node(at: NodePath, new_place: NodePath, new_name: String, pos: int) -> void:
-    if not live_debug:
-        return
-    
-    message_all("puzzle_kit_3d:reparent_node", [at, new_place, new_name, pos])
+    queue_message("puzzle_kit_3d:reparent_node", [at, new_place, new_name, pos])
 
 static func property_changed(object: Object, property: StringName, value: Variant) -> void:
-    if not live_debug:
-        return
-
     if object is Node:
         var node := object as Node
-        var path := edited_scene.get_path_to(node)
+        var path := EditorInterface.get_edited_scene_root().get_path_to(node)
         var path_id := _get_node_path_cache(path)
 
         if value is Resource:
             var resource_value: Resource = value
-            message_all("puzzle_kit_3d:node_prop_res", [path_id, property, resource_value.resource_path])
+            queue_message("puzzle_kit_3d:node_prop_res", [path_id, property, resource_value.resource_path])
         elif value is Node:
             var node_value: Node = value
-            var node_value_path := edited_scene.get_path_to(node_value)
+            var node_value_path := EditorInterface.get_edited_scene_root().get_path_to(node_value)
             var node_value_path_id := _get_node_path_cache(node_value_path)
-            message_all("puzzle_kit_3d:node_prop_node", [path_id, property, node_value_path_id])
+            queue_message("puzzle_kit_3d:node_prop_node", [path_id, property, node_value_path_id])
         else:
-            message_all("puzzle_kit_3d:node_prop", [path_id, property, value])
+            queue_message("puzzle_kit_3d:node_prop", [path_id, property, value])
         
         return
     
@@ -102,9 +112,9 @@ static func property_changed(object: Object, property: StringName, value: Varian
 
         if value is Resource:
             var resource_value: Resource = value
-            message_all("puzzle_kit_3d:res_prop_res", [path_id, property, resource_value.resource_path])
+            queue_message("puzzle_kit_3d:res_prop_res", [path_id, property, resource_value.resource_path])
         else:
-            message_all("puzzle_kit_3d:res_prop", [path_id, property, value])
+            queue_message("puzzle_kit_3d:res_prop", [path_id, property, value])
         
         return
 
@@ -115,7 +125,7 @@ static func _get_node_path_cache(path: NodePath) -> int:
     last_path_id += 1
 
     node_path_cache[path] = last_path_id
-    message_all("puzzle_kit_3d:node_path", [path, last_path_id])
+    queue_message("puzzle_kit_3d:node_path", [path, last_path_id])
 
     return last_path_id
 
@@ -126,6 +136,6 @@ static func _get_res_path_cache(path: String) -> int:
     last_path_id += 1
 
     res_path_cache[path] = last_path_id
-    message_all("puzzle_kit_3d:res_path", [path, last_path_id])
+    queue_message("puzzle_kit_3d:res_path", [path, last_path_id])
 
     return last_path_id

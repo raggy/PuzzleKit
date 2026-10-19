@@ -29,7 +29,6 @@ func _enter_tree() -> void:
     add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCENE_TREE, _context_menu)
 
     add_debugger_plugin(_sync)
-    _sync.edited_scene = EditorInterface.get_edited_scene_root()
     scene_changed.connect(_sync.set_edited_scene)
 
 func _exit_tree() -> void:
