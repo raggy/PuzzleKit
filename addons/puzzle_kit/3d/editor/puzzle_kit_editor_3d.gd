@@ -2642,7 +2642,10 @@ class AddRemoveChange:
         match action:
             Action.ADD:
                 undo_redo.add_do_method(self, "do_add")
+                undo_redo.add_do_method(PuzzleKitSync3D, "instantiate_node_3d", node)
                 undo_redo.add_undo_method(self, "do_remove")
+                undo_redo.add_undo_method(PuzzleKitSync3D, "remove_node", node)
+                undo_redo.add_do_reference(node)
             Action.REMOVE:
                 undo_redo.add_do_method(self, "do_remove")
                 undo_redo.add_undo_method(self, "do_add")

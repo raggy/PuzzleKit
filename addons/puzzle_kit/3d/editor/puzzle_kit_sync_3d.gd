@@ -49,6 +49,12 @@ static func instantiate_node_3d(node: Node3D) -> void:
 
     message_all("puzzle_kit_3d:instantiate_node_3d", [edited_scene.get_path_to(node.get_parent()), node.scene_file_path, node.name, node.transform])
 
+static func remove_node(node: Node) -> void:
+    if not live_debug:
+        return
+
+    message_all("puzzle_kit_3d:remove_node", [edited_scene.get_path_to(node)])
+
 static func remove_and_keep_node(node: Node) -> void:
     if not live_debug:
         return

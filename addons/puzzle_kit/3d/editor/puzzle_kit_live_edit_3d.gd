@@ -55,6 +55,12 @@ func _capture(message: String, data: Array) -> bool:
             var node_transform: Transform3D = data[3]
             _instantiate_node_3d(parent_node_path, node_scene_file_path, node_name, node_transform)
             return true
+        "remove_node":
+            if data.size() != 1 or not data[0] is NodePath:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return true
+            var path: NodePath = data[0]
+            _remove_node(path)
         "remove_and_keep_node":
             if data.size() != 2 or not data[0] is NodePath or not data[1] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
@@ -127,6 +133,23 @@ func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: Stri
         node.transform = node_transform
         parent_node.add_child(node)
 
+func _remove_node(path: NodePath) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        print("Searching in %s" % scene_node)
+        if not scene_node.has_node(path):
+            printerr("Couldn't find node at %s in %s" % [path, scene_node])
+            continue
+        var node := scene_node.get_node(path)
+        if not scene_node.is_ancestor_of(node):
+            printerr("Node was not a descendant of %s" % scene_node)
+            continue
+        node.get_parent().remove_child(node)
+        node.queue_free()
+
 func _remove_and_keep_node(path: NodePath, keep_id: int) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
         printerr("No instances of edited scene %s" % edited_scene_path)
@@ -137,7 +160,8 @@ func _remove_and_keep_node(path: NodePath, keep_id: int) -> void:
             printerr("Couldn't find node at %s in %s" % [path, scene_node])
             continue
         var node := scene_node.get_node(path)
-        if not node.is_ancestor_of(scene_node):
+        if not scene_node.is_ancestor_of(node):
+            printerr("Node was not a descendant of %s" % scene_node)
             continue
         node.get_parent().remove_child(node)
         var removed_nodes_for_scene_node: Dictionary = removed_nodes.get_or_add(scene_node, {})
