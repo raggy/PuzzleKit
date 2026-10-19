@@ -2506,6 +2506,8 @@ func _ungroup_selection() -> void:
 func _add_sibling_if_not_already_there(sibling_node: Node, node: Node) -> void:
     if node.get_parent() == sibling_node.get_parent():
         return
+    if node.get_parent():
+        node.get_parent().remove_child(node)
     sibling_node.add_sibling(node, true)
 #endregion
 
