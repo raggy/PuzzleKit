@@ -7,6 +7,7 @@ static var node_path_cache: Dictionary[NodePath, int] = {}
 static var res_path_cache: Dictionary[String, int] = {}
 
 var live_debug := true
+var next_message_id := 0
 
 func _init() -> void:
     EditorInterface.get_editor_settings().changed.connect(_update_live_debug_from_editor_settings)
@@ -24,9 +25,6 @@ func _dequeue_messages() -> void:
         return
 
     while not message_queue.is_empty():
-        if message_queue[0] == "break":
-            message_queue.pop_front()
-            break
         if message_queue.size() == 1:
             printerr("message_queue had only one element, clearing")
             message_queue.clear()
@@ -43,6 +41,8 @@ func _dequeue_messages() -> void:
             continue
         var message: String = message_queue.pop_front()
         var data: Array = message_queue.pop_front()
+        data.push_front(next_message_id)
+        next_message_id += 1
         for session: EditorDebuggerSession in get_sessions():
             if not session.is_active:
                 continue
@@ -64,7 +64,10 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
         "puzzle_kit_3d:setup_session":
             var session := get_session(session_id)
             var edited_scene := EditorInterface.get_edited_scene_root()
-            session.send_message("puzzle_kit_3d:set_edited_scene", [edited_scene.scene_file_path if edited_scene else ""])
+            session.send_message("puzzle_kit_3d:set_current_message_id", [next_message_id])
+            next_message_id += 1
+            session.send_message("puzzle_kit_3d:set_edited_scene", [next_message_id, edited_scene.scene_file_path if edited_scene else ""])
+            next_message_id += 1
             return true
     return false
 
@@ -73,12 +76,6 @@ static func queue_message(message: String, data: Array) -> void:
         message_queue = []
     message_queue.append(message)
     message_queue.append(data)
-
-## Break until next frame to try to ensure the previous messages happen before the rest of the queue
-static func queue_message_break() -> void:
-    if not message_queue:
-        message_queue = []
-    message_queue.append("break")
 
 static func instantiate_node_3d(node: Node3D) -> void:
     queue_message("puzzle_kit_3d:instantiate_node_3d", [EditorInterface.get_edited_scene_root().get_path_to(node.get_parent()), node.scene_file_path, node.name, node.transform])

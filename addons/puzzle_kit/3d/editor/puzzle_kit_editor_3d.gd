@@ -2392,7 +2392,6 @@ func _group_selection() -> void:
     undo_redo.add_do_method(self, "_add_child_if_not_already_there", parent_node, created_board, created_board.get_index())
     undo_redo.add_do_property(created_board, "owner", get_node_owner(parent_node))
     undo_redo.add_do_method(PuzzleKitSync3D, "create_board_3d", EditorInterface.get_edited_scene_root().get_path_to(parent_node), created_board.name, created_board.get_index())
-    undo_redo.add_do_method(PuzzleKitSync3D, "queue_message_break")
 
     var path_to_created_board := EditorInterface.get_edited_scene_root().get_path_to(created_board)
     var path_to_parent_node := EditorInterface.get_edited_scene_root().get_path_to(parent_node)
@@ -2411,7 +2410,6 @@ func _group_selection() -> void:
         undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", NodePath(path_to_created_board.get_concatenated_names().path_join(node.name)), path_to_parent_node, node.name)
 
     # When undoing, remove the created board
-    undo_redo.add_undo_method(PuzzleKitSync3D, "queue_message_break")
     undo_redo.add_undo_method(PuzzleKitSync3D, "remove_node", created_board)
     undo_redo.add_undo_method(parent_node, "remove_child", created_board)
     undo_redo.add_do_reference(created_board)
@@ -2470,7 +2468,6 @@ func _ungroup_selection() -> void:
         undo_redo.add_undo_method(selected_board_node_parent, "move_child", selected_board, selected_board.get_index())
         undo_redo.add_undo_property(selected_board, "owner", get_node_owner(selected_board))
         undo_redo.add_undo_method(PuzzleKitSync3D, "restore_node", selected_board.get_instance_id(), EditorInterface.get_edited_scene_root().get_path_to(selected_board_node_parent))
-        undo_redo.add_undo_method(PuzzleKitSync3D, "queue_message_break")
 
         var path_to_selected_board := EditorInterface.get_edited_scene_root().get_path_to(selected_board)
         var path_to_selected_board_node_parent := EditorInterface.get_edited_scene_root().get_path_to(selected_board_node_parent)
@@ -2498,7 +2495,6 @@ func _ungroup_selection() -> void:
             previous_sibling = child
 
         # Remove the selected board from its parent
-        undo_redo.add_do_method(PuzzleKitSync3D, "queue_message_break")
         undo_redo.add_do_method(PuzzleKitSync3D, "remove_and_keep_node", path_to_selected_board, selected_board.get_instance_id())
         undo_redo.add_do_method(selected_board_node_parent, "remove_child", selected_board)
         undo_redo.add_undo_reference(selected_board)

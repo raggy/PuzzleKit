@@ -1,5 +1,8 @@
 extends Node
 
+var message_queue: Array
+var next_message_id: int
+
 var edited_scene_path := ""
 
 var nodes_by_scene_file_path: Dictionary[String, Array] = {}
@@ -21,73 +24,120 @@ func _exit_tree() -> void:
     EngineDebugger.unregister_message_capture("puzzle_kit_3d")
 
 func _capture(message: String, data: Array) -> bool:
+    if not message_queue:
+        message_queue = []
+    if not data[0] is int:
+        printerr("Invalid data in message (data[0] should be int): %s" % data)
+        return true
+    var message_id: int = data.pop_front()
+    if message == "set_current_message_id":
+        next_message_id = message_id + 1
+        print("Next message id is %s" % next_message_id)
+    else:
+        message_queue.append(message_id)
+        message_queue.append(message)
+        message_queue.append(data)
+    _dequeue_messages()
+    return true
+
+func _dequeue_messages() -> void:
+    while not message_queue.is_empty():
+        if message_queue.size() % 3 != 0:
+            printerr("message_queue had invalid number of elements, clearing")
+            message_queue.clear()
+            break
+        var found_next_message := false
+        @warning_ignore("integer_division")
+        for i in range(message_queue.size() / 3):
+            if not message_queue[i * 3] is int:
+                printerr("Invalid message id in message_queue: %s" % message_queue[i * 3])
+                continue
+            if message_queue[i * 3] == next_message_id:
+                found_next_message = true
+                next_message_id += 1
+                if not message_queue[1] is String:
+                    printerr("Invalid message in message_queue: %s" % message_queue[1])
+                    message_queue.pop_front()
+                    message_queue.pop_front()
+                    message_queue.pop_front()
+                    continue
+                if not message_queue[2] is Array:
+                    printerr("Invalid data in message_queue: %s" % message_queue[2])
+                    message_queue.pop_front()
+                    message_queue.pop_front()
+                    message_queue.pop_front()
+                    continue
+                message_queue.pop_front() # message id
+                var message: String = message_queue.pop_front()
+                var data: Array = message_queue.pop_front()
+                _parse_message(message, data)
+                break
+        if not found_next_message:
+            break
+
+func _parse_message(message: String, data: Array) -> void:
     prints(message, data)
     match message:
         "set_edited_scene":
             if data.size() != 1 or not data[0] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             edited_scene_path = data[0]
-            return true
         "node_path":
             if data.size() != 2 or not data[0] is NodePath or not data[1] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path: NodePath = data[0]
             var path_id: int = data[1]
             node_path_cache[path_id] = path
-            return true
         "res_path":
             if data.size() != 2 or not data[0] is String or not data[1] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path: String = data[0]
             var path_id: int = data[1]
             res_path_cache[path_id] = path
-            return true
         "instantiate_node_3d":
             if data.size() != 4 or not data[0] is NodePath or not data[1] is String or not data[2] is StringName or not data[3] is Transform3D:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var parent_node_path: NodePath = data[0]
             var node_scene_file_path: String = data[1]
             var node_name: String = data[2]
             var node_transform: Transform3D = data[3]
             _instantiate_node_3d(parent_node_path, node_scene_file_path, node_name, node_transform)
-            return true
         "create_board_3d":
             if data.size() != 3 or not data[0] is NodePath or not data[1] is String or not data[2] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var parent_node_path: NodePath = data[0]
             var board_name: String = data[1]
             var pos: int = data[2]
             _create_board_3d(parent_node_path, board_name, pos)
-            return true
         "remove_node":
             if data.size() != 1 or not data[0] is NodePath:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path: NodePath = data[0]
             _remove_node(path)
         "remove_and_keep_node":
             if data.size() != 2 or not data[0] is NodePath or not data[1] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path: NodePath = data[0]
             var keep_id: int = data[1]
             _remove_and_keep_node(path, keep_id)
         "restore_node":
             if data.size() != 2 or not data[0] is int or not data[1] is NodePath:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var keep_id: int = data[0]
             var parent_node_path: NodePath = data[1]
             _restore_node(keep_id, parent_node_path)
         "reparent_node":
             if data.size() != 3 or not data[0] is NodePath or not data[1] is NodePath or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var node_path: NodePath = data[0]
             var parent_node_path: NodePath = data[1]
             var node_name: String = data[2]
@@ -95,7 +145,7 @@ func _capture(message: String, data: Array) -> bool:
         "node_prop_res":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path_id: int = data[0]
             var property_name: StringName = data[1]
             var value_resource_path: String = data[2]
@@ -103,7 +153,7 @@ func _capture(message: String, data: Array) -> bool:
         "node_prop_node":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is int:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path_id: int = data[0]
             var property_name: StringName = data[1]
             var value_path_id: int = data[2]
@@ -111,7 +161,7 @@ func _capture(message: String, data: Array) -> bool:
         "node_prop":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is Variant:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path_id: int = data[0]
             var property_name: StringName = data[1]
             var value: Variant = data[2]
@@ -119,7 +169,7 @@ func _capture(message: String, data: Array) -> bool:
         "res_prop_res":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path_id: int = data[0]
             var property_name: StringName = data[1]
             var value_resource_path: String = data[2]
@@ -127,13 +177,11 @@ func _capture(message: String, data: Array) -> bool:
         "res_prop":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is Variant:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
-                return true
+                return
             var path_id: int = data[0]
             var property_name: StringName = data[1]
             var value: Variant = data[2]
             _res_prop(path_id, property_name, value)
-
-    return false
 
 func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: String, node_name: String, node_transform: Transform3D) -> void:
     var packed_scene := load(node_scene_file_path) as PackedScene
