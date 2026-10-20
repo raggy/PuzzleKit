@@ -2477,6 +2477,7 @@ func _ungroup_selection() -> void:
         for child in selected_board_node_children:
             var child_previous_name := child.name
             var child_previous_node_path := EditorInterface.get_edited_scene_root().get_path_to(child)
+            var child_previous_owner := get_node_owner(child)
             if child is Node3D:
                 var child_node3d := child as Node3D
                 undo_redo.add_do_property(child_node3d, "transform", selected_board_affine_inverse_global_transform * child_node3d.global_transform)
@@ -2485,11 +2486,11 @@ func _ungroup_selection() -> void:
             selected_board.remove_child(child)
             previous_sibling.add_sibling(child, true)
             undo_redo.add_do_method(self, "_add_sibling_if_not_already_there", previous_sibling, child)
-            undo_redo.add_do_property(child, "owner", get_node_owner(child))
+            undo_redo.add_do_property(child, "owner", child_previous_owner)
             undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", child_previous_node_path, path_to_selected_board_node_parent, child.name)
             undo_redo.add_undo_method(parent_board, "remove_child", child)
             undo_redo.add_undo_method(selected_board, "add_child", child)
-            undo_redo.add_undo_property(child, "owner", get_node_owner(child))
+            undo_redo.add_undo_property(child, "owner", child_previous_owner)
             undo_redo.add_undo_property(child, "name", child_previous_name)
             undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", NodePath(path_to_selected_board_node_parent.get_concatenated_names().path_join(child.name)), path_to_selected_board, child_previous_name)
             previous_sibling = child
