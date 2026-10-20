@@ -18,6 +18,7 @@ func _enter_tree() -> void:
         _checkpoint_active = piece._original_active
         _checkpoint_parent_piece = piece._original_parent_piece
         _checkpoint_transform = piece._original_transform
+        _checkpoint_properties = piece.get_property_values()
 
 func _exit_tree() -> void:
     piece = null
