@@ -38,7 +38,6 @@ func _capture(message: String, data: Array) -> bool:
 func _dequeue_messages() -> void:
     while not message_queue.is_empty():
         var search_again := false
-        @warning_ignore("integer_division")
         for i in range(message_queue.size()):
             var message_sequence: Array = message_queue[i]
             if not message_sequence[0] is int or not message_sequence[1] is String or not message_sequence[2] is Array:
