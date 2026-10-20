@@ -128,6 +128,12 @@ static func property_changed(object: Object, property: StringName, value: Varian
         
         return
 
+static func add_to_group(node: Node, group: StringName) -> void:
+    queue_message("puzzle_kit_3d:add_to_group", [EditorInterface.get_edited_scene_root().get_path_to(node), group])
+
+static func remove_from_group(node: Node, group: StringName) -> void:
+    queue_message("puzzle_kit_3d:remove_from_group", [EditorInterface.get_edited_scene_root().get_path_to(node), group])
+
 static func _get_node_path_cache(path: NodePath) -> int:
     if path in node_path_cache:
         return node_path_cache[path]

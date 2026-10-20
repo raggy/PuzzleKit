@@ -2725,6 +2725,14 @@ class AddRemoveChange:
                 undo_redo.add_undo_method(PuzzleKitSync3D, "remove_node", node)
                 undo_redo.add_do_reference(node)
                 PuzzleKitSync3D.instantiate_node_3d(node)
+                var packed_scene := load(node.scene_file_path) as PackedScene
+                var scene_state := packed_scene.get_state()
+                var scene_node_groups := scene_state.get_node_groups(0)
+                for group in node.get_groups():
+                    if group in scene_node_groups:
+                        continue
+                    PuzzleKitSync3D.add_to_group(node, group)
+                    undo_redo.add_do_method(PuzzleKitSync3D, "add_to_group", node, group)
             Action.REMOVE:
                 undo_redo.add_do_method(self, "do_remove")
                 undo_redo.add_do_method(PuzzleKitSync3D, "remove_and_keep_node", node_path, node.get_instance_id())

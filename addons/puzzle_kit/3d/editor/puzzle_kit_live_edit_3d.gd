@@ -170,6 +170,20 @@ func _parse_message(message: String, data: Array) -> void:
             var property_name: StringName = data[1]
             var value: Variant = data[2]
             _res_prop(path_id, property_name, value)
+        "add_to_group":
+            if data.size() != 2 or not data[0] is NodePath or not data[1] is StringName:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return
+            var node_path: NodePath = data[0]
+            var group: StringName = data[1]
+            _add_to_group(node_path, group)
+        "remove_from_group":
+            if data.size() != 2 or not data[0] is NodePath or not data[1] is StringName:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return
+            var node_path: NodePath = data[0]
+            var group: StringName = data[1]
+            _remove_from_group(node_path, group)
 
 func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: String, node_name: String, node_transform: Transform3D) -> void:
     var packed_scene := load(node_scene_file_path) as PackedScene
@@ -367,6 +381,44 @@ func _res_prop(path_id: int, property_name: StringName, value: Variant) -> void:
         return
     var resource := ResourceLoader.load(resource_path)
     resource.set(property_name, value)
+
+func _add_to_group(node_path: NodePath, group: StringName) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        if not scene_node.has_node(node_path):
+            printerr("Couldn't find node at %s in %s" % [node_path, scene_node])
+            continue
+        var node := scene_node.get_node(node_path)
+        if not scene_node.is_ancestor_of(node):
+            printerr("Node was not a descendant of %s" % scene_node)
+            continue
+        node.add_to_group(group)
+        # Recalculate Piece3D.flags
+        if node is Piece3D:
+            var piece := node as Piece3D
+            piece.flags = GroupFilter.groups_to_flags(piece.get_groups())
+
+func _remove_from_group(node_path: NodePath, group: StringName) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        if not scene_node.has_node(node_path):
+            printerr("Couldn't find node at %s in %s" % [node_path, scene_node])
+            continue
+        var node := scene_node.get_node(node_path)
+        if not scene_node.is_ancestor_of(node):
+            printerr("Node was not a descendant of %s" % scene_node)
+            continue
+        node.remove_from_group(group)
+        # Recalculate Piece3D.flags
+        if node is Piece3D:
+            var piece := node as Piece3D
+            piece.flags = GroupFilter.groups_to_flags(piece.get_groups())
 
 func _on_scene_changed() -> void:
     _rebuild_scene_cache()
