@@ -31,33 +31,42 @@ func _capture(message: String, data: Array) -> bool:
     if message == "set_current_message_id":
         next_message_id = message_id + 1
     else:
-        message_queue.append([message_id, message, data])
+        if message_id == next_message_id:
+            _parse_message(message, data)
+        else:
+            message_queue.append([message_id, message, data])
     _dequeue_messages()
     return true
 
 func _dequeue_messages() -> void:
+    message_queue.sort_custom(_message_queue_sort)
     while not message_queue.is_empty():
-        var search_again := false
-        for i in range(message_queue.size()):
-            var message_sequence: Array = message_queue[i]
-            if not message_sequence[0] is int or not message_sequence[1] is String or not message_sequence[2] is Array:
-                printerr("Invalid message sequence in message_queue: %s" % message_sequence)
-                message_queue.remove_at(i)
-                search_again = true
-                break
-            if message_sequence[0] == next_message_id:
-                message_queue.remove_at(i)
-                var message: String = message_sequence[1]
-                var data: Array = message_sequence[2]
-                _parse_message(message, data)
-                search_again = true
-                next_message_id += 1
-                break
-        if not search_again:
+        var message_queue_head: Variant = message_queue.get(0)
+        if not message_queue_head is Array:
+            printerr("Head of message queue was not an Array: %s" % message_queue_head)
+            message_queue.remove_at(0)
+            continue
+        var message_sequence: Array = message_queue_head
+        if not message_sequence[0] is int or not message_sequence[1] is String or not message_sequence[2] is Array:
+            printerr("Invalid message sequence in message_queue: %s" % message_sequence)
+            message_queue.remove_at(0)
+            continue
+        if message_sequence[0] != next_message_id:
+            # Since message_queue is sorted in ascending order of message_id, if the head is incorrect, we can stop looking for now
             break
+        message_queue.remove_at(0)
+        var message: String = message_sequence[1]
+        var data: Array = message_sequence[2]
+        _parse_message(message, data)
+
+func _message_queue_sort(a: Array, b: Array) -> bool:
+    if a.is_empty() or b.is_empty() or not a[0] is int or not b[0] is int:
+        return false
+    return a[0] < b[0]
 
 func _parse_message(message: String, data: Array) -> void:
     # prints(message, data)
+    next_message_id += 1
     match message:
         "set_edited_scene":
             if data.size() != 1 or not data[0] is String:
