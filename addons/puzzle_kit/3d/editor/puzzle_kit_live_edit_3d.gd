@@ -235,7 +235,7 @@ func _remove_node(path: NodePath) -> void:
         if not scene_node.is_ancestor_of(node):
             printerr("Node was not a descendant of %s" % scene_node)
             continue
-        node.queue_free()
+        node.free()
 
 func _remove_and_keep_node(path: NodePath, keep_id: int) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
