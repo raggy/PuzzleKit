@@ -58,7 +58,7 @@ func _dequeue_messages() -> void:
             break
 
 func _parse_message(message: String, data: Array) -> void:
-    prints(message, data)
+    # prints(message, data)
     match message:
         "set_edited_scene":
             if data.size() != 1 or not data[0] is String:
