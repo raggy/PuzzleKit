@@ -23,6 +23,9 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
     EngineDebugger.unregister_message_capture("puzzle_kit_3d")
 
+func _process(_delta: float) -> void:
+    _dequeue_messages()
+
 func _capture(message: String, data: Array) -> bool:
     if not data[0] is int:
         printerr("Invalid data in message (data[0] should be int): %s" % data)
@@ -31,11 +34,7 @@ func _capture(message: String, data: Array) -> bool:
     if message == "set_current_message_id":
         next_message_id = message_id + 1
     else:
-        if message_id == next_message_id:
-            _parse_message(message, data)
-        else:
-            message_queue.append([message_id, message, data])
-    _dequeue_messages()
+        message_queue.append([message_id, message, data])
     return true
 
 func _dequeue_messages() -> void:
