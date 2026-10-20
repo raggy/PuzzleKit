@@ -72,8 +72,6 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
     return false
 
 static func queue_message(message: String, data: Array) -> void:
-    if not message_queue:
-        message_queue = []
     message_queue.append(message)
     message_queue.append(data)
 

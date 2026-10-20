@@ -24,8 +24,6 @@ func _exit_tree() -> void:
     EngineDebugger.unregister_message_capture("puzzle_kit_3d")
 
 func _capture(message: String, data: Array) -> bool:
-    if not message_queue:
-        message_queue = []
     if not data[0] is int:
         printerr("Invalid data in message (data[0] should be int): %s" % data)
         return true
