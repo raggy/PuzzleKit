@@ -191,7 +191,6 @@ func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: Stri
         printerr("Could not load PackedScene at %s" % node_scene_file_path)
         return
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -209,7 +208,6 @@ func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: Stri
 
 func _create_board_3d(parent_node_path: NodePath, board_name: String, pos: int) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -224,7 +222,6 @@ func _create_board_3d(parent_node_path: NodePath, board_name: String, pos: int) 
 
 func _remove_node(path: NodePath) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -239,7 +236,6 @@ func _remove_node(path: NodePath) -> void:
 
 func _remove_and_keep_node(path: NodePath, keep_id: int) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -256,7 +252,6 @@ func _remove_and_keep_node(path: NodePath, keep_id: int) -> void:
 
 func _restore_node(keep_id: int, parent_node_path: NodePath) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -279,7 +274,6 @@ func _restore_node(keep_id: int, parent_node_path: NodePath) -> void:
 
 func _reparent_node(node_path: NodePath, parent_node_path: NodePath, node_name: String) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -303,7 +297,6 @@ func _reparent_node(node_path: NodePath, parent_node_path: NodePath, node_name: 
 
 func _reset_piece_state(node_path: NodePath) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -334,7 +327,6 @@ func _node_prop_node(path_id: int, property_name: StringName, value_path_id: int
         return
     var value_path := node_path_cache[value_path_id]
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -354,7 +346,6 @@ func _node_prop(path_id: int, property_name: StringName, value: Variant) -> void
         return
     var path := node_path_cache[path_id]
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -384,7 +375,6 @@ func _res_prop(path_id: int, property_name: StringName, value: Variant) -> void:
 
 func _add_to_group(node_path: NodePath, group: StringName) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
@@ -403,7 +393,6 @@ func _add_to_group(node_path: NodePath, group: StringName) -> void:
 
 func _remove_from_group(node_path: NodePath, group: StringName) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
-        printerr("No instances of edited scene %s" % edited_scene_path)
         return
     var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
     for scene_node: Node in scene_nodes:
