@@ -988,6 +988,9 @@ func transform_selection(action_name: String, rotation_axis: Vector3, rotation_a
             selected_root_node_offset_normalized_transformed = selected_root_node_offset_normalized_transformed.rotated(rotation_axis, rotation_angle)
         undo_redo.add_do_property(selected_root_node, "position", round(selection_center + selected_root_node_offset_normalized_transformed * selected_root_node_offset_length))
         undo_redo.add_undo_property(selected_root_node, "position", selected_root_node.position)
+        var path_to_selected_root_node := EditorInterface.get_edited_scene_root().get_path_to(selected_root_node)
+        undo_redo.add_do_method(PuzzleKitSync3D, "reset_piece_state", path_to_selected_root_node)
+        undo_redo.add_undo_method(PuzzleKitSync3D, "reset_piece_state", path_to_selected_root_node)
     undo_redo.commit_action(true)
     _queue_board_outline_redraw()
     _update_child_board_outlines()
@@ -1769,6 +1772,9 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                                 else:
                                     undo_redo.add_do_property(node, "position", node.position + mouse_world_offset)
                                 undo_redo.add_undo_property(node, "position", node.position)
+                                var path_to_node := EditorInterface.get_edited_scene_root().get_path_to(node)
+                                undo_redo.add_do_method(PuzzleKitSync3D, "reset_piece_state", path_to_node)
+                                undo_redo.add_undo_method(PuzzleKitSync3D, "reset_piece_state", path_to_node)
                             undo_redo.commit_action(true)
         return true
     return false

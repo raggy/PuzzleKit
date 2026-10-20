@@ -124,6 +124,12 @@ func _parse_message(message: String, data: Array) -> void:
             var parent_node_path: NodePath = data[1]
             var node_name: String = data[2]
             _reparent_node(node_path, parent_node_path, node_name)
+        "reset_piece_state":
+            if data.size() != 1 or not data[0] is NodePath:
+                printerr("Incorrect arguments for %s: %s" % [message, data])
+                return
+            var node_path: NodePath = data[0]
+            _reset_piece_state(node_path)
         "node_prop_res":
             if data.size() != 3 or not data[0] is int or not data[1] is StringName or not data[2] is String:
                 printerr("Incorrect arguments for %s: %s" % [message, data])
@@ -280,6 +286,22 @@ func _reparent_node(node_path: NodePath, parent_node_path: NodePath, node_name: 
         node.get_parent().remove_child(node)
         node.name = node_name
         parent_node.add_child(node)
+
+func _reset_piece_state(node_path: NodePath) -> void:
+    if not edited_scene_path in nodes_by_scene_file_path:
+        printerr("No instances of edited scene %s" % edited_scene_path)
+        return
+    var scene_nodes := nodes_by_scene_file_path[edited_scene_path]
+    for scene_node: Node in scene_nodes:
+        if not scene_node.has_node(node_path):
+            printerr("Couldn't find node at %s in %s" % [node_path, scene_node])
+            continue
+        var node := scene_node.get_node(node_path)
+        for piece in Piece3D.find_descendant_pieces(node):
+            piece._commit_changes()
+            if piece.visual:
+                piece.visual._reset_cached_state_to_current()
+                piece.visual._snap_to_piece_state()
 
 func _node_prop_res(path_id: int, property_name: StringName, value_resource_path: String) -> void:
     if not ResourceLoader.exists(value_resource_path):

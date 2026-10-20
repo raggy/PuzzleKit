@@ -93,6 +93,9 @@ static func restore_node(node_id: int, parent_node_path: NodePath) -> void:
 static func reparent_node(at: NodePath, new_place: NodePath, new_name: String) -> void:
     queue_message("puzzle_kit_3d:reparent_node", [at, new_place, new_name])
 
+static func reset_piece_state(at: NodePath) -> void:
+    queue_message("puzzle_kit_3d:reset_piece_state", [at])
+
 static func property_changed(object: Object, property: StringName, value: Variant) -> void:
     if object is Node:
         var node := object as Node
