@@ -764,7 +764,7 @@ func _queue_board_outline_redraw() -> void:
         return
 
     _board_outline_will_redraw = true
-    call_deferred("_queue_board_outline_redraw")
+    call_deferred("_update_board_outline")
 
 func _update_board_outline() -> void:
     _board_outline_will_redraw = false
@@ -1388,37 +1388,9 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
         else:
             if mb.button_index == input_mouse_button:
                 if input_action == InputAction.INPUT_PAINT || input_action == InputAction.INPUT_FILL:
-                    if not _paint_changes.is_empty():
-                        var to_board_transform := _board.transform.affine_inverse()
-                        # Setup undo history
-                        # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                        undo_redo.create_action("PuzzleKit Paint" if input_action == InputAction.INPUT_PAINT else "PuzzleKit Fill", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
-                        # Perform all remove actions first to keep running session in-sync
-                        for change in _paint_changes:
-                            if change.action == AddRemoveChange.Action.REMOVE:
-                                change.register_with_undo_redo(undo_redo)
-                        for change in _paint_changes:
-                            if change.action == AddRemoveChange.Action.ADD:
-                                _drawing_board.remove_child(change.node)
-                                change.node.transform = to_board_transform * change.node.transform
-                                _board.add_child(change.node, true)
-                                change.node.owner = get_node_owner(_board)
-                                change.owner = change.node.owner
-                                change.parent = change.node.get_parent()
-                                change.index = change.node.get_index(false)
-                                change.register_with_undo_redo(undo_redo)
-                        undo_redo.commit_action(false)
-                        _paint_changes.clear()
-                        _queue_board_outline_redraw()
+                    _commit_paint_changes("PuzzleKit Paint" if input_action == InputAction.INPUT_PAINT else "PuzzleKit Fill")
                 elif input_action == InputAction.INPUT_ERASE:
-                    if not _paint_changes.is_empty():
-                        # Setup undo history
-                        # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
-                        undo_redo.create_action("PuzzleKit Erase", UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
-                        for change in _paint_changes:
-                            change.register_with_undo_redo(undo_redo)
-                        undo_redo.commit_action(false)
-                        _paint_changes.clear()
+                    _commit_paint_changes("PuzzleKit Erase")
                 elif input_action == InputAction.INPUT_SELECT:
                     for box_selection_preview: BoxSelectionPreview in _box_selection_preview_by_viewport.values():
                         box_selection_preview.clear()
@@ -1484,6 +1456,34 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
             return EditorPlugin.AFTER_GUI_INPUT_STOP
 
     return EditorPlugin.AFTER_GUI_INPUT_PASS
+
+func _commit_paint_changes(action_name: String) -> void:
+    if _paint_changes.is_empty():
+        return
+
+    var to_board_transform := _board.transform.affine_inverse()
+    # Setup undo history
+    # `backward_undo_ops` is set to true in `create_action` so we don't need to add undo methods in reverse
+    undo_redo.create_action(action_name, UndoRedo.MERGE_DISABLE, get_node_owner(_board), true, true)
+    undo_redo.add_undo_method(self, "_queue_board_outline_redraw")
+    # Perform all remove actions first to keep running session in-sync
+    for change in _paint_changes:
+        if change.action == AddRemoveChange.Action.REMOVE:
+            change.register_with_undo_redo(undo_redo)
+    for change in _paint_changes:
+        if change.action == AddRemoveChange.Action.ADD:
+            _drawing_board.remove_child(change.node)
+            change.node.transform = to_board_transform * change.node.transform
+            _board.add_child(change.node, true)
+            change.node.owner = get_node_owner(_board)
+            change.owner = change.node.owner
+            change.parent = change.node.get_parent()
+            change.index = change.node.get_index(false)
+            change.register_with_undo_redo(undo_redo)
+    undo_redo.add_do_method(self, "_queue_board_outline_redraw")
+    undo_redo.commit_action(false)
+    _paint_changes.clear()
+    _queue_board_outline_redraw()
 
 func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> bool:
     if input_action == InputAction.INPUT_PAINT:
@@ -1641,7 +1641,6 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     var change := AddRemoveChange.create_from(piece_root_node3d, AddRemoveChange.Action.REMOVE)
                     _paint_changes.append(change)
                     piece_root_node3d.get_parent().remove_child(piece_root_node3d)
-                    _queue_board_outline_redraw()
         return true
     if input_action == InputAction.INPUT_PICK:
         update_cursor_state(camera, mouse_position)

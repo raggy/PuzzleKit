@@ -212,6 +212,12 @@ func _instantiate_node_3d(parent_node_path: NodePath, node_scene_file_path: Stri
         node.name = node_name
         node.transform = node_transform
         parent_node.add_child(node)
+        # Treat instantiated pieces as original
+        for piece in Piece3D.find_descendant_pieces(node):
+            piece._original_active = true
+            piece._previous_active = true
+            if piece.history:
+                piece.history._checkpoint_active = true
 
 func _create_board_3d(parent_node_path: NodePath, board_name: String, pos: int) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:
