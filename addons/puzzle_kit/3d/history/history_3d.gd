@@ -52,7 +52,7 @@ func reset() -> void:
     undo_step.stop_before = true
     _undo_steps.append(undo_step)
 
-    for piece in _board._pieces:
+    for piece: Piece3D in _board._pieces.duplicate():
         # We don't track this piece
         if not piece.history:
             continue
@@ -60,7 +60,7 @@ func reset() -> void:
         if group_filter and not piece.is_in_group(group_filter):
             continue
         
-        undo_step.states.append(piece.history.get_current_state())
+        undo_step.states.append(piece.get_current_state())
         piece.history.reset_to_checkpoint()
     
     resetted.emit()
@@ -100,10 +100,10 @@ func _set_board(value: Board3D) -> void:
     if value:
         value.changes_committing.connect(_create_undo_step)
 
-func _create_undo_step() -> void:
+func _create_undo_step(changed_pieces: Array[Piece3D]) -> void:
     var undo_step := PieceStateSnapshot3D.new()
 
-    for piece in _board._pieces:
+    for piece in changed_pieces:
         # We don't track this piece
         if not piece.history:
             continue
@@ -111,9 +111,9 @@ func _create_undo_step() -> void:
         if group_filter and not piece.is_in_group(group_filter):
             continue
         # Piece didn't change
-        if not piece.history.has_changed():
+        if not piece.has_changed():
             continue
-        undo_step.states.append(piece.history.get_previous_state())
+        undo_step.states.append(piece.get_previous_state())
  
     # No pieces changed
     if undo_step.states.size() == 0:
@@ -176,7 +176,7 @@ func _apply_undo_step(step: PieceStateSnapshot3D) -> void:
     # Keep track of recently deactivated pieces
     if auto_free_inactive_orphaned_pieces:
         for state in step.states:
-            if state.piece.active and not state.active and not state.piece.history._in_checkpoint:
+            if state.piece.active and not state.active and not state.piece.history._checkpoint_active:
                 _recently_deactivated_pieces.append(state.piece)
     
     step.apply(_board)
