@@ -7,6 +7,7 @@ signal changes_committing()
 signal changes_reverting()
 signal property_registered(property_path: NodePath)
 signal teleported()
+signal transformed_in_editor()
 
 @export_group("Editor")
 ## The layers this piece will be considered overlapping with when painting with the PuzzleKit editor.

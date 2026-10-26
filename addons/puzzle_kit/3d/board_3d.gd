@@ -5,6 +5,7 @@ extends Node3D
 
 signal piece_added(piece: Piece3D)
 signal piece_removed(piece: Piece3D)
+signal piece_transformed_in_editor(piece: Piece3D)
 signal changes_committing(pieces: Array[Piece3D])
 signal changes_reverting(pieces: Array[Piece3D])
 
@@ -37,6 +38,8 @@ var _cells_by_piece: Dictionary[Piece3D, Cell] = {}
 
 var _aabb: AABB
 var _aabb_needs_recalculating: bool = false
+
+var _transformed_signal_callables_by_piece: Dictionary[Piece3D, Callable] = {}
 
 func _enter_tree() -> void:
     parent_board = _find_board_ancestor()
@@ -400,6 +403,10 @@ func _register_piece(piece: Piece3D) -> void:
     # Register on parent board
     if parent_board:
         parent_board._register_piece(piece)
+    # Signals
+    var piece_transformed_in_editor_callable := piece_transformed_in_editor.emit.bind(piece)
+    piece.transformed_in_editor.connect(piece_transformed_in_editor_callable)
+    _transformed_signal_callables_by_piece[piece] = piece_transformed_in_editor_callable
 
 func _deregister_piece(piece: Piece3D) -> void:
     _pieces.erase(piece)
@@ -419,6 +426,10 @@ func _deregister_piece(piece: Piece3D) -> void:
     # Deregister from parent board
     if parent_board:
         parent_board._deregister_piece(piece)
+    # Signals
+    if piece in _transformed_signal_callables_by_piece:
+        piece.transformed_in_editor.disconnect(_transformed_signal_callables_by_piece[piece])
+        _transformed_signal_callables_by_piece.erase(piece)
 
 func _update_cells() -> void:
     for piece in _active_pieces:
