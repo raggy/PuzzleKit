@@ -217,6 +217,7 @@ var _selection_root_node_bounding_boxes: Dictionary[Node3D, Rect2] = {}
 var _selection_bounding_boxes_cached_camera_global_transform: Transform3D
 var _selection_bounding_boxes_cached_camera_size: float
 var _selection_piece_outlines: Dictionary[Node3D, PieceOutline3D] = {}
+var _selection_1x1_piece_multimesh_outline: MultiMeshInstance3D
 var _selection_first_click_time: int = 0
 var _selection_translate_nodes: Array[Node3D] = []
 var _selection_translate_clicked_node: Node3D
@@ -224,6 +225,7 @@ var _selection_translate_plane_offset: float = 0.0
 var _selection_translate_previous_world_position: Vector3
 var _selection_translate_index: int = 0
 var _initial_selection: Array[Node] = []
+var _new_selection_set: Dictionary[Node, int] = {}
 
 var _grid: Array[ArrayMesh]
 var _grid_instances: Array[MeshInstance3D]
@@ -334,6 +336,17 @@ func _ready() -> void:
     _board_outline.fill_material = board_fill_material
     _board_outline.visible = false
     add_child(_board_outline)
+
+    _selection_1x1_piece_multimesh_outline = MultiMeshInstance3D.new()
+    _selection_1x1_piece_multimesh_outline.multimesh = MultiMesh.new()
+    _selection_1x1_piece_multimesh_outline.multimesh.transform_format = MultiMesh.TRANSFORM_3D
+    var mesh_1x1 := ArrayMesh.new()
+    PieceOutline3D.populate_mesh(mesh_1x1, Vector3.ZERO, Vector3.ZERO, {Vector3.ZERO: 1}, Transform3D.IDENTITY)
+    mesh_1x1.surface_set_material(0, valid_draw_outline_material)
+    mesh_1x1.surface_set_material(1, valid_draw_outline_xray_material)
+    mesh_1x1.surface_set_material(2, valid_draw_fill_material)
+    _selection_1x1_piece_multimesh_outline.multimesh.mesh = mesh_1x1
+    add_child(_selection_1x1_piece_multimesh_outline)
 
     _grid = []
     _grid_instances = []
@@ -1006,7 +1019,7 @@ func _set_editor_layer_visible(layer: int, value: bool) -> void:
         else:
             viewport_camera.cull_mask &= ~(1 << viewport_layer)
 
-func _update_selection_outlines() -> void:
+func _update_selection_outlines(selected_nodes: Array[Node] = EditorInterface.get_selection().get_selected_nodes()) -> void:
     if not _board or mode_buttons_group.get_pressed_button() == transform_mode_button:
         # Clear all outlines
         for piece_outline: PieceOutline3D in _selection_piece_outlines.values():
@@ -1014,22 +1027,33 @@ func _update_selection_outlines() -> void:
         _selection_piece_outlines.clear()
         return
     
-    var selected_root_nodes: Array[Node3D] = []
+    var selected_root_node_set: Dictionary[Node3D, int] = {}
+    var selected_1x1_piece_transforms: Array[Transform3D] = []
     
-    for node in EditorInterface.get_selection().get_selected_nodes():
+    for node in selected_nodes:
         var root_node := _get_node_root_in_ancestor(node, _board) as Node3D
 
         if not root_node:
             continue
 
-        if root_node in selected_root_nodes:
+        if root_node in selected_root_node_set:
             # Already processed this root node
             continue
         
         if root_node == _board:
             continue
         
-        selected_root_nodes.append(root_node)
+        selected_root_node_set[root_node] = 1
+
+        if root_node is Piece3D and (root_node as Piece3D).get_child_piece_count() == 0:
+            # Render selection for simple pieces in a multi-mesh instead
+            selected_1x1_piece_transforms.append(root_node.global_transform)
+            # Remove outline for piece if it exists
+            if root_node in _selection_piece_outlines:
+                var piece_outline := _selection_piece_outlines[root_node]
+                piece_outline.free()
+                _selection_piece_outlines.erase(root_node)
+            continue
         
         if root_node in _selection_piece_outlines:
             var piece_outline := _selection_piece_outlines[root_node]
@@ -1046,12 +1070,17 @@ func _update_selection_outlines() -> void:
     
     # Remove piece outlines that are no longer selected
     for root_node: Node3D in _selection_piece_outlines.keys().duplicate():
-        if root_node in selected_root_nodes:
+        if root_node in selected_root_node_set:
             continue
         
         var piece_outline := _selection_piece_outlines[root_node]
         piece_outline.free()
         _selection_piece_outlines.erase(root_node)
+    
+    # Setup multi-mesh
+    _selection_1x1_piece_multimesh_outline.multimesh.instance_count = selected_1x1_piece_transforms.size()
+    for i in range(selected_1x1_piece_transforms.size()):
+        _selection_1x1_piece_multimesh_outline.multimesh.set_instance_transform(i, selected_1x1_piece_transforms[i])
 
 #region Grid
 func _draw_grids(cell_size: Vector3) -> void:
@@ -1399,7 +1428,18 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     _selection_root_node_bounding_boxes.clear()
                     _initial_selection.clear()
                     _selection_translate_clicked_node = null
-                    if not _selection_movement_threshold_passed:
+                    var editor_selection := EditorInterface.get_selection()
+                    if _selection_movement_threshold_passed:
+                        # Box selection
+                        var current_editor_selection := editor_selection.get_selected_nodes()
+                        var new_selection_nodes: Array[Node] = _new_selection_set.keys()
+                        # Deselect nodes that should no longer be selected
+                        for node: Node in current_editor_selection.filter(func(x: Node) -> bool: return not x in _new_selection_set):
+                            editor_selection.remove_node(node)
+                        # Select nodes that should now be selected
+                        for node: Node in new_selection_nodes.filter(func(x: Node) -> bool: return not x in current_editor_selection):
+                            editor_selection.add_node(node)
+                    else:
                         # Select what's under cursor
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
                         var is_double_click := Time.get_ticks_msec() - _selection_first_click_time <= 500
@@ -1407,7 +1447,6 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                         var select_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
                         if select_node is Node3D:
                             new_selection = select_node
-                        var editor_selection := EditorInterface.get_selection()
                         if _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
                             if new_selection in editor_selection.get_selected_nodes():
                                 editor_selection.remove_node(new_selection)
@@ -1740,25 +1779,20 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     box_selection_preview.rect = Rect2(_selection_original_mouse_position, mouse_position - _selection_original_mouse_position).abs()
                     # Box selection
                     _update_box_selection_bounding_boxes(camera)
-                    var new_selection: Array[Node] = []
+                    _new_selection_set.clear()
                     # Reset to initial selection if we're not just replacing
                     if _selection_mode == SelectionMode.SELECTION_MODE_ADD or _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
-                        new_selection = _initial_selection.duplicate()
+                        for node in _initial_selection:
+                            _new_selection_set[node] = 1
                     # Find nodes contained in the selection box and modify their selection state
                     for node: Node3D in _selection_root_node_bounding_boxes.keys():
                         var node_bounding_box := _selection_root_node_bounding_boxes[node]
                         if box_selection_preview.rect.encloses(node_bounding_box):
                             if _selection_mode == SelectionMode.SELECTION_MODE_REMOVE:
-                                new_selection.erase(node)
-                            elif not node in new_selection:
-                                new_selection.append(node)
-                    var current_editor_selection := editor_selection.get_selected_nodes()
-                    # Deselect nodes that should no longer be selected
-                    for node: Node in current_editor_selection.filter(func(x: Node) -> bool: return not x in new_selection):
-                        editor_selection.remove_node(node)
-                    # Select nodes that should now be selected
-                    for node: Node in new_selection.filter(func(x: Node) -> bool: return not x in current_editor_selection):
-                        editor_selection.add_node(node)
+                                _new_selection_set.erase(node)
+                            elif not node in _new_selection_set:
+                                _new_selection_set[node] = 1
+                    _update_selection_outlines(_new_selection_set.keys())
                 SelectionDragMode.SELECTION_DRAG_MODE_TRANSLATE:
                     var translate_plane := _create_plane(edit_axis, _selection_translate_plane_offset)
                     var translate_plane_intersection: Variant = translate_plane.intersects_ray(camera.project_ray_origin(mouse_position), camera.project_ray_normal(mouse_position))
