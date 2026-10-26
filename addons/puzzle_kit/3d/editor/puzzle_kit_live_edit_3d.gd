@@ -319,6 +319,7 @@ func _reset_piece_state(node_path: NodePath) -> void:
         var node := scene_node.get_node(node_path)
         for piece in Piece3D.find_descendant_pieces(node):
             piece._commit_changes()
+            piece._original_transform = piece.global_transform
             if piece.visual:
                 piece.visual._reset_cached_state_to_current()
                 piece.visual._snap_to_piece_state()
