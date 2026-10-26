@@ -6,6 +6,10 @@ extends Node3D
 signal piece_added(piece: Piece3D)
 signal piece_removed(piece: Piece3D)
 signal piece_transformed_in_editor(piece: Piece3D)
+signal child_board_added(board: Board3D)
+signal child_board_removed(board: Board3D)
+signal descendant_board_added(board: Board3D)
+signal descendant_board_removed(board: Board3D)
 signal changes_committing(pieces: Array[Piece3D])
 signal changes_reverting(pieces: Array[Piece3D])
 
@@ -357,9 +361,19 @@ func _set_parent_board(value: Board3D) -> void:
         return
     if parent_board:
         parent_board._child_boards.erase(self)
+        parent_board.child_board_removed.emit(self)
+        var ancestor_board := parent_board
+        while ancestor_board:
+            ancestor_board.descendant_board_removed.emit(self)
+            ancestor_board = ancestor_board.parent_board
     parent_board = value
     if value:
         value._child_boards.append(self)
+        value.child_board_added.emit(self)
+        var ancestor_board := value
+        while ancestor_board:
+            ancestor_board.descendant_board_added.emit(self)
+            ancestor_board = ancestor_board.parent_board
 
 ## Returns the furthest ancestor `Board3D` in the scene tree
 func get_root_board() -> Board3D:
