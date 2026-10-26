@@ -2175,6 +2175,8 @@ func erase_pieces_overlapping_preview() -> bool:
                 # Piece doesn't collide with our paint layer
                 continue
             var piece_root_node := _get_piece_root_in_board(piece_overlapping, _board)
+            if not piece_root_node:
+                continue
             if piece_root_node is Board3D:
                 # Don't erase whole boards
                 if piece.editor_paint_allow_overlap:
