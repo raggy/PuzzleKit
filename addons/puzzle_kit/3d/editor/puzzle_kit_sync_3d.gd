@@ -51,10 +51,6 @@ func _dequeue_messages() -> void:
 func set_edited_scene(value: Node) -> void:
     queue_message("puzzle_kit_3d:set_edited_scene", [value.scene_file_path if value else ""])
 
-func _setup_session(_session_id: int) -> void:
-    node_path_cache.clear()
-    res_path_cache.clear()
-
 func _has_capture(capture: String) -> bool:
     return capture == "puzzle_kit_3d"
 
@@ -62,6 +58,8 @@ func _has_capture(capture: String) -> bool:
 func _capture(message: String, data: Array, session_id: int) -> bool:
     match message:
         "puzzle_kit_3d:setup_session":
+            node_path_cache.clear()
+            res_path_cache.clear()
             var session := get_session(session_id)
             var edited_scene := EditorInterface.get_edited_scene_root()
             session.send_message("puzzle_kit_3d:set_current_message_id", [next_message_id])
@@ -90,7 +88,10 @@ static func remove_and_keep_node(at: NodePath, node_id: int) -> void:
 static func restore_node(node_id: int, parent_node_path: NodePath) -> void:
     queue_message("puzzle_kit_3d:restore_node", [node_id, parent_node_path])
 
-static func reparent_node(at: NodePath, new_place: NodePath, new_name: String) -> void:
+static func reparent_node(node: Node, new_place: NodePath, new_name: String) -> void:
+    queue_message("puzzle_kit_3d:reparent_node", [EditorInterface.get_edited_scene_root().get_path_to(node), new_place, new_name])
+
+static func reparent_node_at(at: NodePath, new_place: NodePath, new_name: String) -> void:
     queue_message("puzzle_kit_3d:reparent_node", [at, new_place, new_name])
 
 static func reset_piece_state(at: NodePath) -> void:

@@ -306,7 +306,7 @@ func _reparent_node(node_path: NodePath, parent_node_path: NodePath, node_name: 
             continue
         node.get_parent().remove_child(node)
         node.name = node_name
-        parent_node.add_child(node)
+        parent_node.add_child(node, true)
 
 func _reset_piece_state(node_path: NodePath) -> void:
     if not edited_scene_path in nodes_by_scene_file_path:

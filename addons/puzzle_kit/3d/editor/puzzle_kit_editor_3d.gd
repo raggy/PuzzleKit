@@ -212,7 +212,7 @@ var _selection_mode: SelectionMode
 var _selection_drag_mode: SelectionDragMode
 var _selection_movement_threshold_passed: bool
 var _selection_original_mouse_position: Vector2
-var _selection_root_nodes: Array[Node3D] = []
+var _selection_root_nodes: Dictionary[Node3D, int] = {}
 var _selection_root_node_bounding_boxes: Dictionary[Node3D, Rect2] = {}
 var _selection_bounding_boxes_cached_camera_global_transform: Transform3D
 var _selection_bounding_boxes_cached_camera_size: float
@@ -828,6 +828,12 @@ func _remove_child_board_outline_for(board: Board3D) -> void:
     _child_board_outlines.erase(board)
     board.tree_exiting.disconnect(_remove_child_board_outline_for)
 
+func _redraw_child_board_outline_for(board: Board3D) -> void:
+    if not board in _child_board_outlines:
+        return
+    var board_outline := _child_board_outlines[board]
+    board_outline.generate_from(board, true)
+
 static func _find_nearest_ancestor_board(node: Node) -> Board3D:
     if not node.is_inside_tree():
         return null
@@ -956,9 +962,11 @@ func _menu_option_to_property_name(id: Menu) -> StringName:
 
 func transform_selection(action_name: String, rotation_axis: Vector3, rotation_angle: float, scale_factor: Vector3) -> void:
     var editor_selection := EditorInterface.get_selection()
-    var editor_selected_nodes := editor_selection.get_selected_nodes()
+    var editor_selected_nodes: Dictionary[Node, int] = {}
+    for node in editor_selection.get_selected_nodes():
+        editor_selected_nodes[node] = 1
     # Get a list of all selected root nodes
-    var selected_root_nodes: Array[Node3D] = []
+    var selected_root_nodes: Dictionary[Node3D, int] = {}
     var selection_aabb := AABB()
     for piece in _board.get_pieces():
         var piece_root_node := _get_piece_root_in_board(piece, _board) as Node3D
@@ -970,7 +978,7 @@ func transform_selection(action_name: String, rotation_axis: Vector3, rotation_a
         if piece_root_node in selected_root_nodes:
             # Already found
             continue
-        selected_root_nodes.append(piece_root_node)
+        selected_root_nodes[piece_root_node] = 1
         var node_aabb := AABB(Vector3(piece.grid_position) - Vector3(0.5, 0.5, 0.5), Vector3.ONE)
         if piece_root_node is Board3D:
             var board_node := piece_root_node as Board3D
@@ -1081,6 +1089,12 @@ func _update_selection_outlines(selected_nodes: Array[Node] = EditorInterface.ge
     _selection_1x1_piece_multimesh_outline.multimesh.instance_count = selected_1x1_piece_transforms.size()
     for i in range(selected_1x1_piece_transforms.size()):
         _selection_1x1_piece_multimesh_outline.multimesh.set_instance_transform(i, selected_1x1_piece_transforms[i])
+
+func _redraw_selection_outline_for(node: Node3D) -> void:
+    if not node in _selection_piece_outlines:
+        return
+    var node_outline := _selection_piece_outlines[node]
+    node_outline.generate_from(node, true)
 
 #region Grid
 func _draw_grids(cell_size: Vector3) -> void:
@@ -1336,16 +1350,15 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                 return EditorPlugin.AFTER_GUI_INPUT_PASS
             # Tool modes and tool actions:
             for button in viewport_shortcut_buttons:
-                if button.disabled:
-                    continue
                 if button.shortcut and button.shortcut.has_valid_event() and button.shortcut.matches_event(event):
-                    if button.toggle_mode:
-                        button.button_pressed = button.button_group or not button.pressed
-                        if button.button_group == mode_buttons_group:
-                            _on_tool_mode_changed()
-                    else:
-                        # Can't press a button without toggle mode, so just emit the signal directly.
-                        button.pressed.emit()
+                    if not button.disabled:
+                        if button.toggle_mode:
+                            button.button_pressed = button.button_group or not button.pressed
+                            if button.button_group == mode_buttons_group:
+                                _on_tool_mode_changed()
+                        else:
+                            # Can't press a button without toggle mode, so just emit the signal directly.
+                            button.pressed.emit()
                     accept_event()
                     return EditorPlugin.AFTER_GUI_INPUT_STOP
 
@@ -1429,17 +1442,18 @@ func forward_spatial_input_event(viewport_camera: Camera3D, event: InputEvent) -
                     _initial_selection.clear()
                     _selection_translate_clicked_node = null
                     var editor_selection := EditorInterface.get_selection()
-                    if _selection_movement_threshold_passed:
+                    if _selection_movement_threshold_passed and _selection_drag_mode == SelectionDragMode.SELECTION_DRAG_MODE_BOX_SELECT:
                         # Box selection
                         var current_editor_selection := editor_selection.get_selected_nodes()
-                        var new_selection_nodes: Array[Node] = _new_selection_set.keys()
                         # Deselect nodes that should no longer be selected
-                        for node: Node in current_editor_selection.filter(func(x: Node) -> bool: return not x in _new_selection_set):
+                        for node in current_editor_selection:
+                            if node in _new_selection_set:
+                                continue
                             editor_selection.remove_node(node)
                         # Select nodes that should now be selected
-                        for node: Node in new_selection_nodes.filter(func(x: Node) -> bool: return not x in current_editor_selection):
+                        for node in _new_selection_set:
                             editor_selection.add_node(node)
-                    else:
+                    elif not _selection_movement_threshold_passed:
                         # Select what's under cursor
                         update_cursor_state_raycast_piece(viewport_camera, mb.position)
                         var is_double_click := Time.get_ticks_msec() - _selection_first_click_time <= 500
@@ -1727,11 +1741,13 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
             # Get a list of all selectable nodes
             _selection_root_nodes.clear()
             for piece in _board.get_pieces():
-                var piece_root_node := _get_piece_root_in_board(piece, _board)
+                var piece_root_node := _get_piece_root_in_board(piece, _board) as Node3D
+                if not piece_root_node:
+                    continue
                 if piece_root_node in _selection_root_nodes:
                     # Already found
                     continue
-                _selection_root_nodes.append(piece_root_node)
+                _selection_root_nodes[piece_root_node] = 1
             # Save initial selection
             _initial_selection = editor_selection.get_selected_nodes()
             # Calculate screen-space bounding boxes for selectable nodes
@@ -1769,8 +1785,8 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                 # Save list of translateable nodes
                 var editor_selected_nodes := editor_selection.get_selected_nodes()
                 _selection_translate_nodes.clear()
-                for node in _selection_root_nodes:
-                    if node in editor_selected_nodes:
+                for node in editor_selected_nodes:
+                    if node in _selection_root_nodes:
                         _selection_translate_nodes.append(node)
         if _selection_movement_threshold_passed:
             match _selection_drag_mode:
@@ -2391,6 +2407,9 @@ func _can_group_selection() -> bool:
     return true
 
 func _can_ungroup_selection() -> bool:
+    return _can_ungroup_selected_boards() or _can_ungroup_selected_nodes_from_edited_nested_board()
+
+func _can_ungroup_selected_boards() -> bool:
     var editor_selection := EditorInterface.get_selection()
     var editor_selected_nodes := editor_selection.get_selected_nodes()
 
@@ -2415,6 +2434,35 @@ func _can_ungroup_selection() -> bool:
 
     return true
 
+func _can_ungroup_selected_nodes_from_edited_nested_board() -> bool:
+    if not _board:
+        return false
+
+    if not _board.parent_board:
+        return false
+
+    if _board.scene_file_path:
+        # Currently-edited board is an instance of a scene
+        return false
+
+    var editor_selection := EditorInterface.get_selection()
+    var editor_selected_nodes := editor_selection.get_selected_nodes()
+
+    if editor_selected_nodes.is_empty():
+        # No selection to ungroup
+        return false
+
+    for node in editor_selected_nodes:
+        if node is Board3D:
+            # Board selected
+            return false
+        
+        if not _board.is_ancestor_of(node):
+            # Selected node is not a descendant of edited board
+            return false
+
+    return true
+
 func _group_selection() -> void:
     if not _can_group_selection():
         return
@@ -2426,40 +2474,77 @@ func _group_selection() -> void:
     var editor_selected_nodes := editor_selection.get_selected_nodes()
     editor_selected_nodes.sort_custom(func(a: Node, b: Node) -> bool: return a.get_index() < b.get_index())
 
+    var group_board: Board3D = null
+    # If exactly one board in selection, save it and add other nodes to it
+    for node in editor_selected_nodes:
+        if not node is Board3D:
+            continue
+        if group_board:
+            # Found more than one board, need to create a new one to group up instead
+            group_board = null
+            break
+        group_board = node
+    
+    if group_board:
+        # Remove existing board from editor_selected_nodes so we don't try to add it to itself
+        editor_selected_nodes.erase(group_board)
+
     var first_node := editor_selected_nodes[0]
     var parent_node := first_node.get_parent()
-    var created_board := Board3D.new()
-    created_board.name = _generate_serial_child_name(parent_node, created_board, &"Board3D")
+    var create_new_board := not group_board
 
-    # Add created board to the selected nodes' parent
-    undo_redo.add_do_method(parent_node, "add_child", created_board)
-    undo_redo.add_do_method(parent_node, "move_child", created_board, first_node.get_index())
-    undo_redo.add_do_property(created_board, "owner", get_node_owner(parent_node))
-    undo_redo.add_do_method(PuzzleKitSync3D, "create_board_3d", EditorInterface.get_edited_scene_root().get_path_to(parent_node), created_board.name, created_board.get_index())
+    if create_new_board:
+        group_board = Board3D.new()
+        group_board.name = _generate_serial_child_name(parent_node, group_board, &"Board3D")
+        # Add created board to the selected nodes' parent
+        undo_redo.add_do_method(parent_node, "add_child", group_board)
+        undo_redo.add_do_method(parent_node, "move_child", group_board, first_node.get_index())
+        undo_redo.add_do_property(group_board, "owner", get_node_owner(parent_node))
+        undo_redo.add_do_method(PuzzleKitSync3D, "create_board_3d", EditorInterface.get_edited_scene_root().get_path_to(parent_node), group_board.name, group_board.get_index())
 
     var path_to_parent_node := EditorInterface.get_edited_scene_root().get_path_to(parent_node)
-    var path_to_created_board := NodePath(path_to_parent_node.get_concatenated_names().path_join(created_board.name))
+    var path_to_group_board := NodePath(path_to_parent_node.get_concatenated_names().path_join(group_board.name))
+    var transform_mult := group_board.global_transform.affine_inverse() if group_board.is_inside_tree() else Transform3D.IDENTITY
     
     for node in editor_selected_nodes:
         # Move the selected nodes into the board
+        undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", node, path_to_group_board, node.name)
         undo_redo.add_do_method(parent_node, "remove_child", node)
-        undo_redo.add_do_method(created_board, "add_child", node, true)
+        undo_redo.add_do_method(group_board, "add_child", node, true)
         _add_do_set_owner_node_and_children(node)
-        undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", EditorInterface.get_edited_scene_root().get_path_to(node), path_to_created_board, node.name)
-        undo_redo.add_undo_method(created_board, "remove_child", node)
+        undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", node, path_to_parent_node, node.name)
+        undo_redo.add_undo_method(group_board, "remove_child", node)
         undo_redo.add_undo_method(parent_node, "add_child", node)
         undo_redo.add_undo_method(parent_node, "move_child", node, node.get_index() + 1)
-        _add_undo_set_owner_node_and_children(node)
         undo_redo.add_undo_property(node, "name", node.name)
-        undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", NodePath(path_to_created_board.get_concatenated_names().path_join(node.name)), path_to_parent_node, node.name)
+        _add_undo_set_owner_node_and_children(node)
+        if node is Node3D:
+            var node3d := node as Node3D
+            var node_next_transform := transform_mult * node3d.global_transform
+            undo_redo.add_do_property(node3d, "transform", node_next_transform)
+            undo_redo.add_do_method(PuzzleKitSync3D, "property_changed", node3d, &"transform", node_next_transform)
+            undo_redo.add_undo_property(node3d, "transform", node3d.transform)
+            undo_redo.add_undo_method(PuzzleKitSync3D, "property_changed", node3d, &"transform", node3d.transform)
 
-    # When undoing, remove the created board
-    undo_redo.add_undo_method(PuzzleKitSync3D, "remove_node", created_board)
-    undo_redo.add_undo_method(parent_node, "remove_child", created_board)
-    undo_redo.add_do_reference(created_board)
+    if create_new_board:
+        # When undoing, remove the created board
+        undo_redo.add_undo_method(PuzzleKitSync3D, "remove_node", group_board)
+        undo_redo.add_undo_method(parent_node, "remove_child", group_board)
+        undo_redo.add_do_reference(group_board)
+    else:
+        undo_redo.add_do_method(self, "_redraw_child_board_outline_for", group_board)
+        undo_redo.add_do_method(self, "_redraw_selection_outline_for", group_board)
+        undo_redo.add_undo_method(self, "_redraw_child_board_outline_for", group_board)
+        undo_redo.add_undo_method(self, "_redraw_selection_outline_for", group_board)
+
     # Commit undo history (and call the do methods)
     undo_redo.commit_action(true)
-    _update_child_board_outlines()
+
+    if create_new_board:
+        _update_child_board_outlines()
+    elif group_board in _child_board_outlines:
+        var group_board_outline := _child_board_outlines[group_board]
+        group_board_outline.generate_from(group_board, true)
 
 func _add_do_set_owner_node_and_children(node: Node) -> void:
     undo_redo.add_do_property(node, "owner", get_node_owner(node))
@@ -2472,12 +2557,18 @@ func _add_undo_set_owner_node_and_children(node: Node) -> void:
         _add_undo_set_owner_node_and_children(node.get_child(i))
 
 func _ungroup_selection() -> void:
-    if not _can_ungroup_selection():
+    if _can_ungroup_selected_boards():
+        _ungroup_selected_boards()
+        return
+    
+    if _can_ungroup_selected_nodes_from_edited_nested_board():
+        _ungroup_selected_nodes_from_edited_nested_board()
         return
 
+func _ungroup_selected_boards() -> void:
     # Setup undo history
     undo_redo.create_action("PuzzleKit Ungroup", UndoRedo.MERGE_DISABLE, get_node_owner(_board), false, true)
-    
+
     var editor_selection := EditorInterface.get_selection()
     var editor_selected_nodes := editor_selection.get_selected_nodes()
 
@@ -2514,18 +2605,16 @@ func _ungroup_selection() -> void:
         var transform_mult := selected_board_node_3d_parent.global_transform.affine_inverse() if selected_board_node_3d_parent else Transform3D.IDENTITY
 
         for child in selected_board_node_children:
-            var child_next_name := _generate_serial_child_name(selected_board_node_parent, child)
             # Move the selected board's children into the parent board
+            undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", child, path_to_selected_board_node_parent, child.name)
             undo_redo.add_do_method(selected_board, "remove_child", child)
             undo_redo.add_do_method(previous_sibling, "add_sibling", child)
-            undo_redo.add_do_property(child, "name", child_next_name)
             undo_redo.add_do_property(child, "owner", get_node_owner(child))
-            undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", EditorInterface.get_edited_scene_root().get_path_to(child), path_to_selected_board_node_parent, child_next_name)
+            undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", child, path_to_selected_board, child.name)
             undo_redo.add_undo_method(parent_board, "remove_child", child)
             undo_redo.add_undo_method(selected_board, "add_child", child)
             undo_redo.add_undo_property(child, "name", child.name)
             undo_redo.add_undo_property(child, "owner", get_node_owner(child))
-            undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", NodePath(path_to_selected_board_node_parent.get_concatenated_names().path_join(child_next_name)), path_to_selected_board, child.name)
             if child is Node3D:
                 var child_node3d := child as Node3D
                 var child_next_transform := transform_mult * child_node3d.global_transform
@@ -2543,6 +2632,47 @@ func _ungroup_selection() -> void:
     # Commit undo history (and call the do methods)
     undo_redo.commit_action(true)
     _update_child_board_outlines()
+
+func _ungroup_selected_nodes_from_edited_nested_board() -> void:
+    # Setup undo history
+    undo_redo.create_action("PuzzleKit Ungroup", UndoRedo.MERGE_DISABLE, get_node_owner(_board), false, true)
+
+    var editor_selection := EditorInterface.get_selection()
+    var editor_selected_nodes := editor_selection.get_selected_nodes()
+
+    var parent_board := _board.parent_board
+    var previous_sibling: Node = _board
+
+    var path_to_board := EditorInterface.get_edited_scene_root().get_path_to(_board)
+    var path_to_parent_board := EditorInterface.get_edited_scene_root().get_path_to(parent_board)
+
+    var transform_mult := parent_board.global_transform.affine_inverse()
+
+    for node in editor_selected_nodes:
+        # Move the selected board's children into the parent board
+        undo_redo.add_do_method(PuzzleKitSync3D, "reparent_node", node, path_to_parent_board, node.name)
+        undo_redo.add_do_method(_board, "remove_child", node)
+        undo_redo.add_do_method(previous_sibling, "add_sibling", node)
+        undo_redo.add_do_property(node, "owner", get_node_owner(node))
+        undo_redo.add_undo_method(PuzzleKitSync3D, "reparent_node", node, path_to_board, node.name)
+        undo_redo.add_undo_method(parent_board, "remove_child", node)
+        undo_redo.add_undo_method(_board, "add_child", node)
+        undo_redo.add_undo_property(node, "name", node.name)
+        undo_redo.add_undo_property(node, "owner", get_node_owner(node))
+        if node is Node3D:
+            var node3d := node as Node3D
+            var node_next_transform := transform_mult * node3d.global_transform
+            undo_redo.add_do_property(node3d, "transform", node_next_transform)
+            undo_redo.add_do_method(PuzzleKitSync3D, "property_changed", node3d, &"transform", node_next_transform)
+            undo_redo.add_undo_property(node3d, "transform", node3d.transform)
+            undo_redo.add_undo_method(PuzzleKitSync3D, "property_changed", node3d, &"transform", node3d.transform)
+        previous_sibling = node
+
+    undo_redo.add_do_method(self, "_redraw_child_board_outline_for", _board)
+    undo_redo.add_undo_method(self, "_redraw_child_board_outline_for", _board)
+
+    # Commit undo history (and call the do methods)
+    undo_redo.commit_action(true)
 
 func _generate_serial_child_name(parent: Node, child: Node, suggested_name: StringName = child.name) -> StringName:
     # Translated from node.cpp's _generate_serial_child_name

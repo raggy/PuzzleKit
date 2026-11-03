@@ -25,17 +25,22 @@ const DIRECTIONS_UP: Array[Vector3i] = [Vector3i.UP]
 const DIRECTIONS_FORWARD: Array[Vector3i] = [Vector3i.FORWARD]
 const DIRECTIONS_BACK: Array[Vector3i] = [Vector3i.BACK]
 
+## Should the board forcibly update cells during positional queries?
+## Can be overridden per-query with the `update_cells` parameter
+## Recommended to leave this as true unless you are strictly updating cells manually, or the game state is not queried after positional changes are made
+var default_to_updating_cells: bool = true
+
 ## The closest ancestor `Board3D` in the scene tree
 var parent_board: Board3D: set = _set_parent_board
 ## Array of the closest descendant `Board3D` in the scene tree.
 ## Editing this manually will probably break things!
 var _child_boards: Array[Board3D] = []
 
-var _pieces: Array[Piece3D] = []
-var _active_pieces: Array[Piece3D] = []
-var _inactive_pieces: Array[Piece3D] = []
+var _pieces: Dictionary[Piece3D, bool] = {}
+var _active_pieces: Dictionary[Piece3D, bool] = {}
+var _inactive_pieces: Dictionary[Piece3D, bool] = {}
 
-var _pieces_by_flags: Dictionary[int, Array] = {}
+var _pieces_by_flags: Dictionary[int, Dictionary] = {}
 
 var _cells_by_position: Dictionary[Vector3i, Cell] = {}
 var _cells_by_piece: Dictionary[Piece3D, Cell] = {}
@@ -57,7 +62,7 @@ func _process(_delta: float) -> void:
         _aabb_needs_recalculating = false
 
 #region Queries
-func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> bool:
+func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> bool:
     if update_cells:
         _update_cells()
 
@@ -79,10 +84,10 @@ func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null, update_
     
     return true
 
-func is_occupied(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> bool:
+func is_occupied(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> bool:
     return not is_empty(grid_position, group_filter, update_cells)
 
-func get_piece_at(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> Piece3D:
+func get_piece_at(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> Piece3D:
     if update_cells:
         _update_cells()
 
@@ -104,7 +109,7 @@ func get_piece_at(grid_position: Vector3i, group_filter: GroupFilter = null, upd
     
     return null
 
-func get_pieces_at(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> Array[Piece3D]:
+func get_pieces_at(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> Array[Piece3D]:
     if update_cells:
         _update_cells()
 
@@ -130,13 +135,18 @@ func get_pieces_at(grid_position: Vector3i, group_filter: GroupFilter = null, up
 ## Get the first piece registered (optionally filtered by group, optionally including inactive)
 func get_piece(group_filter: GroupFilter = null, include_inactive: bool = false) -> Piece3D:
     if not group_filter:
-        if not include_inactive and not _active_pieces.is_empty():
+        if not include_inactive:
             # No group filter, not inactive: return first active piece
-            return _active_pieces[0]
+            for piece in _active_pieces:
+                return piece
+            # _active_pieces is empty
+            return null
 
-        if not _pieces.is_empty():
-            # No group filter, incl. inactive: return first piece
-            return _pieces[0]
+        # No group filter, incl. inactive: return first piece
+        for piece in _pieces:
+            return piece
+        # _pieces is empty
+        return null
 
     for flags in _pieces_by_flags:
         if not group_filter.matches(flags):
@@ -158,9 +168,9 @@ func get_pieces(group_filter: GroupFilter = null, include_inactive: bool = false
     if not group_filter:
         # We just want all pieces
         if include_inactive:
-            return _pieces
+            return _pieces.keys()
         # We just want all active pieces
-        return _active_pieces
+        return _active_pieces.keys()
 
     var pieces: Array[Piece3D] = []
     for flags in _pieces_by_flags:
@@ -200,7 +210,7 @@ func count_pieces(group_filter: GroupFilter = null, include_inactive: bool = fal
     return piece_count
 
 ## Get all pieces adjacent to `pieces`, filtered by `group` and in specified `directions`. If `max_search_depth` is specified, returned pieces will be at most `max_search_depth` steps away
-func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = null, directions: Array[Vector3i] = DIRECTIONS_ADJACENT, max_search_depth: int = -1, update_cells: bool = true) -> Array[Piece3D]:
+func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = null, directions: Array[Vector3i] = DIRECTIONS_ADJACENT, max_search_depth: int = -1, update_cells: bool = default_to_updating_cells) -> Array[Piece3D]:
     if update_cells:
         _update_cells()
 
@@ -241,7 +251,7 @@ func get_pieces_touching(pieces: Array[Piece3D], group_filter: GroupFilter = nul
     
     return pieces_touching
 
-func get_nearest_in_direction(grid_position: Vector3i, grid_direction: Vector3i, group_filter: GroupFilter = null, update_cells: bool = true) -> Piece3D:
+func get_nearest_in_direction(grid_position: Vector3i, grid_direction: Vector3i, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> Piece3D:
     if update_cells:
         _update_cells()
     
@@ -304,7 +314,7 @@ func raycast_points(from: Vector3, direction: Vector3) -> Array[Vector3i]:
             next_edge.z += dt.z
     return points
 
-func raycast_piece(from: Vector3, direction: Vector3, group_filter: GroupFilter = null, update_cells: bool = true) -> Piece3D:
+func raycast_piece(from: Vector3, direction: Vector3, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> Piece3D:
     if update_cells:
         _update_cells()
 
@@ -314,7 +324,7 @@ func raycast_piece(from: Vector3, direction: Vector3, group_filter: GroupFilter 
             return piece
     return null
 
-func raycast_pieces(from: Vector3, direction: Vector3, group_filter: GroupFilter = null, update_cells: bool = true) -> Array[Piece3D]:
+func raycast_pieces(from: Vector3, direction: Vector3, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> Array[Piece3D]:
     if update_cells:
         _update_cells()
 
@@ -326,13 +336,13 @@ func raycast_pieces(from: Vector3, direction: Vector3, group_filter: GroupFilter
 #endregion
 
 #region Commit/revert
-func commit_changes(pieces: Array[Piece3D] = _pieces) -> void:
+func commit_changes(pieces: Array[Piece3D] = _pieces.keys()) -> void:
     changes_committing.emit(pieces)
 
     for piece in pieces:
         piece._commit_changes()
 
-func revert_changes(pieces: Array[Piece3D] = _pieces) -> void:
+func revert_changes(pieces: Array[Piece3D] = _pieces.keys()) -> void:
     changes_reverting.emit(pieces)
 
     for piece in pieces:
@@ -399,20 +409,21 @@ func _find_board_ancestor() -> Board3D:
 #region Internal
 func _register_piece(piece: Piece3D) -> void:
     piece._board_cached_active = piece.is_active_in_tree()
-    _pieces.append(piece)
+    _pieces[piece] = true
     # Add to _pieces_by_flags
-    if not piece.flags in _pieces_by_flags:
-        _pieces_by_flags[piece.flags] = []
-    _pieces_by_flags[piece.flags].append(piece)
+    if piece.flags in _pieces_by_flags:
+        _pieces_by_flags[piece.flags][piece] = true
+    else:
+        _pieces_by_flags[piece.flags] = { piece: true }
     if piece._board_cached_active:
-        _active_pieces.append(piece)
+        _active_pieces[piece] = true
         # Add piece to cell
         var cell := _get_or_create_cell(piece.grid_position)
         cell.pieces.append(piece)
         _cells_by_piece[piece] = cell
         _expand_aabb(piece.grid_position)
     else:
-        _inactive_pieces.append(piece)
+        _inactive_pieces[piece] = true
     piece_added.emit(piece)
     # Register on parent board
     if parent_board:
@@ -483,7 +494,7 @@ func _activate_piece(piece: Piece3D) -> void:
     if piece._board_cached_active:
         return
     _inactive_pieces.erase(piece)
-    _active_pieces.append(piece)
+    _active_pieces[piece] = true
     # Add piece to cell
     var cell := _get_or_create_cell(piece.grid_position)
     cell.pieces.append(piece)
@@ -498,7 +509,7 @@ func _deactivate_piece(piece: Piece3D) -> void:
     if not piece._board_cached_active:
         return
     _active_pieces.erase(piece)
-    _inactive_pieces.append(piece)
+    _inactive_pieces[piece] = true
     # Remove piece from cell
     if _cells_by_piece.has(piece):
         var cell := _cells_by_piece[piece]

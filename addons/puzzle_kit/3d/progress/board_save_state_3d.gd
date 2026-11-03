@@ -52,7 +52,7 @@ func apply_to_board(board: Board3D, group_filter: String = "") -> bool:
             continue
         piece.active = false
 
-    var board_pieces_cache := PieceReferenceCache3D.generate_from(board._pieces, board)
+    var board_pieces_cache := PieceReferenceCache3D.generate_from(board._pieces.keys(), board)
 
     # Recreate non-original pieces
     var new_pieces: Array[Piece3D] = []
