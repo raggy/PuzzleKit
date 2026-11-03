@@ -34,13 +34,13 @@ func setup(_visual: PieceVisual3D) -> void:
     visual = _visual
     piece_was_active = visual.piece._previous_active
     piece_will_be_active = visual.piece.active
-    piece_transform_start = visual.piece._previous_transform
-    piece_transform_end = visual.piece.global_transform
+    piece_transform_start = visual.previous_piece_transform
+    piece_transform_end = visual.current_piece_transform
     # The animated state is cached for multiple animations between Board3D.commit_changes() calls
     piece_visual_cached_active = visual.cached_active
     piece_visual_cached_transform = visual.cached_transform
     visual.cached_active = visual.piece.active
-    visual.cached_transform = visual.piece.global_transform
+    visual.cached_transform = visual.current_piece_transform
 
     _setup()
 

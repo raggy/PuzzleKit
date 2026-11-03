@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://bwu56yn51ochr"]
+[gd_scene format=3 uid="uid://bwu56yn51ochr"]
 
 [ext_resource type="Script" uid="uid://b7wwdt4l1d20h" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_t4aj3"]
 [ext_resource type="Script" uid="uid://ctl6vovilcjom" path="res://addons/puzzle_kit/3d/animation/piece_visual_3d.gd" id="2_1yub5"]
@@ -16,12 +16,12 @@ material = SubResource("ShaderMaterial_1pou2")
 radial_segments = 8
 rings = 4
 
-[node name="Coconut" type="Node3D" groups=["coconut", "pushable"]]
+[node name="Coconut" type="Node3D" unique_id=417740364 groups=["coconut", "pushable"]]
 script = ExtResource("1_t4aj3")
 
-[node name="Visual" type="MeshInstance3D" parent="."]
+[node name="Visual" type="MeshInstance3D" parent="." unique_id=696507542]
 mesh = SubResource("SphereMesh_cjxn8")
 script = ExtResource("2_1yub5")
 
-[node name="PieceHistory3D" type="Node" parent="."]
+[node name="PieceHistory3D" type="Node" parent="." unique_id=411475914]
 script = ExtResource("5_fhqxo")

@@ -2,7 +2,7 @@
 extends EditorPlugin
 
 const subplugins: Array[String] = [
-    # "puzzle_kit/piece_3d_editor",
+    "puzzle_kit/3d/editor",
 ]
 
 func _enable_plugin() -> void:

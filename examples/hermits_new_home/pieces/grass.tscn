@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://ql5al82sv5"]
+[gd_scene format=3 uid="uid://ql5al82sv5"]
 
 [ext_resource type="Script" uid="uid://b7wwdt4l1d20h" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_6l3wu"]
 [ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/single_color_shader.tres" id="2_imtr5"]
@@ -11,8 +11,8 @@ shader_parameter/Color = Color(1, 0.670588, 0.623529, 1)
 [sub_resource type="BoxMesh" id="BoxMesh_txay2"]
 material = SubResource("ShaderMaterial_xxh86")
 
-[node name="Grass" type="Node3D" groups=["grass"]]
+[node name="Grass" type="Node3D" unique_id=1984963498 groups=["grass"]]
 script = ExtResource("1_6l3wu")
 
-[node name="Visual" type="MeshInstance3D" parent="."]
+[node name="Visual" type="MeshInstance3D" parent="." unique_id=1507298127]
 mesh = SubResource("BoxMesh_txay2")

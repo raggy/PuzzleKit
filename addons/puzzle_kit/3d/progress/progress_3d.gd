@@ -93,11 +93,14 @@ func _set_board(value: Board3D) -> void:
     if value:
         value.changes_committing.connect(_queue_auto_save)
 
-func _queue_auto_save() -> void:
+func _queue_auto_save(changed_pieces: Array[Piece3D]) -> void:
     if not auto_save:
         return
     
     if _auto_save_timer:
+        return
+    
+    if changed_pieces.is_empty():
         return
     
     _auto_save_timer = get_tree().create_timer(auto_save_frequency)
