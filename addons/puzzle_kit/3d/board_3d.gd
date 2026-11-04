@@ -46,7 +46,7 @@ var _cells_by_position: Dictionary[Vector3i, Cell] = {}
 var _cells_by_piece: Dictionary[Piece3D, Cell] = {}
 
 var _aabb: AABB
-var _aabb_needs_recalculating: bool = false
+var _aabb_recalculate_queued: bool = false
 
 var _transformed_signal_callables_by_piece: Dictionary[Piece3D, Callable] = {}
 
@@ -55,11 +55,6 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
     parent_board = null
-
-func _process(_delta: float) -> void:
-    if _aabb_needs_recalculating:
-        _recalculate_aabb()
-        _aabb_needs_recalculating = false
 
 #region Queries
 func is_empty(grid_position: Vector3i, group_filter: GroupFilter = null, update_cells: bool = default_to_updating_cells) -> bool:
@@ -419,9 +414,7 @@ func _register_piece(piece: Piece3D) -> void:
         _active_pieces[piece] = true
         # Add piece to cell
         var cell := _get_or_create_cell(piece.grid_position)
-        cell.pieces.append(piece)
-        _cells_by_piece[piece] = cell
-        _expand_aabb(piece.grid_position)
+        _add_to_cell(piece, cell)
     else:
         _inactive_pieces[piece] = true
     piece_added.emit(piece)
@@ -445,8 +438,7 @@ func _deregister_piece(piece: Piece3D) -> void:
     # Remove piece from cell if it was active
     if _cells_by_piece.has(piece):
         var cell := _cells_by_piece[piece]
-        cell.pieces.erase(piece)
-        _cells_by_piece.erase(piece)
+        _remove_from_cell(piece, cell)
     piece_removed.emit(piece)
     # Deregister from parent board
     if parent_board:
@@ -473,14 +465,10 @@ func _update_piece_cell(piece: Piece3D) -> void:
         return
     # Remove from old cell
     if previous_cell:
-        previous_cell.pieces.erase(piece)
-        _cells_by_piece.erase(piece)
-        _aabb_needs_recalculating = true
+        _remove_from_cell(piece, previous_cell)
     # Add to new cell
     if new_cell:
-        new_cell.pieces.append(piece)
-        _cells_by_piece[piece] = new_cell
-        _expand_aabb(piece.grid_position)
+        _add_to_cell(piece, new_cell)
     # Update cell on parent board
     if parent_board:
         parent_board._update_piece_cell(piece)
@@ -490,6 +478,20 @@ func _get_or_create_cell(grid_position: Vector3i) -> Cell:
         _cells_by_position[grid_position] = Cell.new(grid_position)
     return _cells_by_position[grid_position]
 
+func _add_to_cell(piece: Piece3D, cell: Cell) -> void:
+    cell.pieces.append(piece)
+    _cells_by_piece[piece] = cell
+    if cell.pieces.size() == 1:
+        _expand_aabb(cell.grid_position)
+
+func _remove_from_cell(piece: Piece3D, cell: Cell) -> void:
+    cell.pieces.erase(piece)
+    _cells_by_piece.erase(piece)
+    if cell.is_empty():
+        if not _aabb_recalculate_queued and _is_on_aabb_edge(cell.grid_position):
+            _queue_recalculate_aabb()
+        _cells_by_position.erase(cell.grid_position)
+
 func _activate_piece(piece: Piece3D) -> void:
     if piece._board_cached_active:
         return
@@ -497,9 +499,7 @@ func _activate_piece(piece: Piece3D) -> void:
     _active_pieces[piece] = true
     # Add piece to cell
     var cell := _get_or_create_cell(piece.grid_position)
-    cell.pieces.append(piece)
-    _cells_by_piece[piece] = cell
-    _expand_aabb(piece.grid_position)
+    _add_to_cell(piece, cell)
     if parent_board:
         parent_board._activate_piece(piece)
     # Change _board_cached_active after we update parent board so it doesn't fail initial check
@@ -513,9 +513,7 @@ func _deactivate_piece(piece: Piece3D) -> void:
     # Remove piece from cell
     if _cells_by_piece.has(piece):
         var cell := _cells_by_piece[piece]
-        cell.pieces.erase(piece)
-        _cells_by_piece.erase(piece)
-        _aabb_needs_recalculating = true
+        _remove_from_cell(piece, cell)
     if parent_board:
         parent_board._deactivate_piece(piece)
     # Change _board_cached_active after we update parent board so it doesn't fail initial check
@@ -523,6 +521,15 @@ func _deactivate_piece(piece: Piece3D) -> void:
 #endregion
 
 #region AABB
+func _is_on_aabb_edge(point: Vector3) -> bool:
+    var p_aabb := AABB(point - Vector3(0.5, 0.5, 0.5), Vector3.ONE)
+    return is_equal_approx(p_aabb.position.x, _aabb.position.x) \
+        or is_equal_approx(p_aabb.position.y, _aabb.position.y) \
+        or is_equal_approx(p_aabb.position.z, _aabb.position.z) \
+        or is_equal_approx(p_aabb.end.x, _aabb.end.x) \
+        or is_equal_approx(p_aabb.end.y, _aabb.end.y) \
+        or is_equal_approx(p_aabb.end.z, _aabb.end.z)
+
 func _expand_aabb(point: Vector3) -> void:
     if not _aabb.has_volume():
         # This is the first point, centre AABB on it
@@ -530,10 +537,22 @@ func _expand_aabb(point: Vector3) -> void:
         return
     _aabb = _aabb.merge(AABB(point - Vector3(0.5, 0.5, 0.5), Vector3.ONE))
 
+func _queue_recalculate_aabb() -> void:
+    if _aabb_recalculate_queued:
+        return
+    
+    _aabb_recalculate_queued = true
+    _recalculate_aabb.call_deferred()
+
 func _recalculate_aabb() -> void:
+    _aabb_recalculate_queued = false
     _aabb = AABB()
-    for piece in _active_pieces:
-        _expand_aabb(piece.grid_position)
+    for grid_position in _cells_by_position:
+        if not _aabb.has_volume():
+            # This is the first point, centre AABB on it
+            _aabb = AABB(Vector3(grid_position) - Vector3(0.5, 0.5, 0.5), Vector3.ONE)
+            continue
+        _aabb = _aabb.merge(AABB(Vector3(grid_position) - Vector3(0.5, 0.5, 0.5), Vector3.ONE))
 #endregion
 
 class Cell extends RefCounted:
@@ -544,4 +563,4 @@ class Cell extends RefCounted:
         grid_position = _grid_position
     
     func is_empty() -> bool:
-        return pieces.size() == 0
+        return pieces.is_empty()

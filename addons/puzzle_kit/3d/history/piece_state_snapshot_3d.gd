@@ -7,21 +7,19 @@ var stop_before: bool = false
 var states: Array[PieceState3D] = []
 
 func apply(board: Board3D) -> void:
-    # Set piece top-level to avoid transform being changed by parent piece
-    for piece in board._pieces:
-        if not piece.history:
-            continue
-        piece._piece_state_cached_top_level = piece.top_level
-        piece.top_level = true
+    # Set child piece top-level to avoid transform being changed by parent piece
+    for state in states:
+        for child_piece in state.piece._child_pieces:
+            child_piece._piece_state_cached_top_level = child_piece.top_level
+            child_piece.top_level = true
 
     for state in states:
         state.apply()
 
     # Restore top-level to previous value
-    for piece in board._pieces:
-        if not piece.history:
-            continue
-        piece.top_level = piece._piece_state_cached_top_level
+    for state in states:
+        for child_piece in state.piece._child_pieces:
+            child_piece.top_level = child_piece._piece_state_cached_top_level
 
 func has_a_piece_in_group(group: String) -> bool:
     for state in states:
