@@ -18,8 +18,8 @@ static func from_board(board: Board3D, group_filter: String = "") -> BoardSaveSt
         # Don't save non-original, inactive pieces that also aren't active in the checkpoint
         if not piece.active and not piece._original_active and not piece.history._checkpoint_active:
             continue
-        # Don't save state for a piece that hasn't changed
-        if not piece.history.has_changes_to_save():
+        # Don't save state for an original piece that hasn't changed
+        if piece._original_active and not piece.history.has_changes_to_save():
             continue
         var piece_save_state := PieceSaveState3D.from_piece(piece, board, piece_to_reference)
         # Invalid PieceSaveState

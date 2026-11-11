@@ -48,13 +48,13 @@ func has_changes_to_save() -> bool:
         return true
     if piece.parent_piece != piece._original_parent_piece:
         return true
-    if piece.global_transform != piece._original_transform:
+    if not piece.global_transform.is_equal_approx(piece._original_transform):
         return true
     if _checkpoint_active != piece._original_active:
         return true
     if _checkpoint_parent_piece != piece._original_parent_piece:
         return true
-    if _checkpoint_transform != piece._original_transform:
+    if not _checkpoint_transform.is_equal_approx(piece._original_transform):
         return true
     for property_path in piece._extra_property_paths:
         var original_value: Variant = piece.get_original_value(property_path)

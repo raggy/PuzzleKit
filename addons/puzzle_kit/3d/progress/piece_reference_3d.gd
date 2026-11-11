@@ -29,7 +29,7 @@ static func from_piece(_piece: Piece3D, board: Board3D, piece_to_reference: Dict
     var ref := PieceReference3D.new()
     ref.piece = _piece
     ref.original_active = ref_piece._original_active
-    ref.original_transform = ref_piece._original_transform
+    ref.original_transform = Transform3D(ref_piece._original_transform.basis, ref_piece._original_transform.origin.round())
     ref.original_descendant_path = _piece._original_descendant_path
     var board_path := str(board.get_path())
     if _piece._original_node_path.begins_with(board_path):
@@ -67,9 +67,9 @@ func dereference_from(cache: PieceReferenceCache3D) -> bool:
 func _does_piece_match(p: Piece3D) -> bool:
     # Looking for a piece at root of its scene
     if original_descendant_path.is_empty():
-        return p._original_active == original_active and p._original_transform == original_transform and p.scene_file_path == scene_file_path
+        return p._original_active == original_active and p._original_transform.is_equal_approx(original_transform) and p.scene_file_path == scene_file_path
     # Looking for a descendant piece
     var ancestor := p._original_ancestor
     if not ancestor:
         return false
-    return p._original_descendant_path == original_descendant_path and ancestor._original_active == original_active and ancestor._original_transform == original_transform and ancestor.scene_file_path == scene_file_path
+    return p._original_descendant_path == original_descendant_path and ancestor._original_active == original_active and ancestor._original_transform.is_equal_approx(original_transform) and ancestor.scene_file_path == scene_file_path

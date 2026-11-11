@@ -1156,6 +1156,8 @@ func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
 
 func _on_palette_item_selected(index: int) -> void:
     _setup_draw_scene_from_palette_index(index)
+    _cursor_piece_container.basis = Basis.IDENTITY
+    _on_clear_groups_pressed()
     # Automatically change tool when palette item is manually selected
     if not _draw_scene:
         erase_mode_button.set_pressed(true)
@@ -2136,7 +2138,8 @@ func update_cursor_state_raycast_piece(camera: Camera3D, mouse_position: Vector2
     
     var piece_root_node3d := piece_root_node as Node3D
     _cursor.visible = true
-    _cursor.global_transform = piece_root_node3d.global_transform
+    _cursor.global_position = piece_root_node3d.global_position
+    _cursor_piece_container.global_transform = piece_root_node3d.global_transform
     _cursor_piece_outline.generate_from(piece_root_node3d)
     _cursor_piece = weakref(piece)
     _cursor_root_node = weakref(piece_root_node3d)
