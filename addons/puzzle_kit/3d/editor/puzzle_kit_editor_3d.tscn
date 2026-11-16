@@ -2,21 +2,22 @@
 
 [ext_resource type="Script" uid="uid://vbuogr241dq1" path="res://addons/puzzle_kit/3d/editor/puzzle_kit_editor_3d.gd" id="1_heuv1"]
 [ext_resource type="Theme" uid="uid://ivxe8dvpx2ic" path="res://addons/puzzle_kit/3d/editor/themes/node_path_button_theme.tres" id="2_6u3ku"]
+[ext_resource type="PackedScene" uid="uid://cvw7l33d25iie" path="res://addons/puzzle_kit/3d/editor/palette.tscn" id="2_acw8w"]
 [ext_resource type="Theme" uid="uid://cwk4r50hc4woj" path="res://addons/puzzle_kit/3d/editor/themes/add_to_group_theme.tres" id="3_hp4jr"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6u3ku"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_acw8w"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
 content_margin_bottom = 4.0
-bg_color = Color(0.1, 0.1, 0.1, 1)
+bg_color = Color(0.105882354, 0.105882354, 0.105882354, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 corner_detail = 5
 
-[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "fill_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "flip_x_button", "flip_y_button", "flip_z_button", "group_button", "ungroup_button", "viewport_shortcut_buttons", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette", "group_name_filter", "groups_clear_button", "groups_container", "options_button", "container_board", "info_no_board", "extension_buttons_container")]
+[node name="PuzzleKitEditor3D" type="VBoxContainer" unique_id=2137481469 node_paths=PackedStringArray("transform_mode_button", "paint_mode_button", "fill_mode_button", "erase_mode_button", "pick_mode_button", "select_mode_button", "rotate_x_button", "rotate_y_button", "rotate_z_button", "flip_x_button", "flip_y_button", "flip_z_button", "group_button", "ungroup_button", "draw_offset_spin_box", "piece_directory_input", "piece_directory_pick_button", "piece_directory_pick_dialog", "path_to_board", "palette_container", "group_name_filter", "groups_clear_button", "groups_container", "options_button", "container_board", "info_no_board", "extension_buttons_container")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -38,13 +39,13 @@ flip_y_button = NodePath("Toolbar/FlipYButton")
 flip_z_button = NodePath("Toolbar/FlipZButton")
 group_button = NodePath("Toolbar/GroupButton")
 ungroup_button = NodePath("Toolbar/UngroupButton")
-viewport_shortcut_buttons = [NodePath("Toolbar/TransformModeButton"), NodePath("Toolbar/PaintModeButton"), NodePath("Toolbar/FillModeButton"), NodePath("Toolbar/EraseModeButton"), NodePath("Toolbar/PickModeButton"), NodePath("Toolbar/SelectModeButton"), NodePath("Toolbar/RotateXButton"), NodePath("Toolbar/RotateYButton"), NodePath("Toolbar/RotateZButton"), NodePath("Toolbar/FlipXButton"), NodePath("Toolbar/FlipYButton"), NodePath("Toolbar/FlipZButton"), NodePath("Toolbar/GroupButton"), NodePath("Toolbar/UngroupButton"), NodePath("Toolbar/PickPieceDirectory")]
 draw_offset_spin_box = NodePath("Toolbar/DrawOffsetSpinBox")
 piece_directory_input = NodePath("Toolbar/PieceDirectory")
 piece_directory_pick_button = NodePath("Toolbar/PickPieceDirectory")
 piece_directory_pick_dialog = NodePath("PieceDirectoryDialog")
 path_to_board = NodePath("ScrollContainer/PathToBoard")
-palette = NodePath("HSplitContainer_Board/ScrollContainer/PiecePalette")
+palette_scene = ExtResource("2_acw8w")
+palette_container = NodePath("HSplitContainer_Board/ScrollContainer/VBoxContainer")
 group_name_filter = NodePath("HSplitContainer_Board/VBoxContainer/GroupNameFilter")
 groups_clear_button = NodePath("HSplitContainer_Board/VBoxContainer/HBoxContainer/ClearGroupsButton")
 groups_container = NodePath("HSplitContainer_Board/VBoxContainer/ScrollContainer/GroupsContainer")
@@ -193,21 +194,12 @@ custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_acw8w")
 horizontal_scroll_mode = 0
 
-[node name="PiecePalette" type="ItemList" parent="HSplitContainer_Board/ScrollContainer" unique_id=1092692555]
+[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer_Board/ScrollContainer" unique_id=567949718]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_6u3ku")
-allow_reselect = true
-max_text_lines = 2
-auto_height = true
-max_columns = 0
-same_column_width = true
-fixed_column_width = 80
-icon_mode = 0
-fixed_icon_size = Vector2i(64, 64)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer_Board" unique_id=2133804596]
 custom_minimum_size = Vector2(300, 0)

@@ -22,6 +22,10 @@ const SETTING_PICK_COPIES_ROTATION := "puzzle_kit/editor/pick_copies_rotation"
 const SETTING_PICK_COPIES_OFFSET := "puzzle_kit/editor/pick_copies_offset"
 const SETTING_PICK_COPIES_GROUPS := "puzzle_kit/editor/pick_copies_groups"
 
+const CONFIG_FILE_PATH := "res://.godot/puzzle_kit/editor.cfg"
+
+const CONFIG_SECTION_FOLDED_PALETTE_PATHS := "folded_palette_paths"
+
 const GRID_CURSOR_SIZE := 50
 
 const GIZMO_BASE_LAYER := 27
@@ -77,7 +81,8 @@ const CHILD_BOARD_COLOR := Color(0.8, 0.6, 1, 0.6)
 
 @export var path_to_board: Container
 
-@export var palette: ItemList
+@export var palette_scene: PackedScene
+@export var palette_container: Container
 
 @export var group_name_filter: LineEdit
 @export var groups_clear_button: Button
@@ -139,6 +144,8 @@ enum SelectionDragMode {
 
 static var _instance: PuzzleKitEditor3D
 
+var config: ConfigFile
+
 var options_axis_ids: Array[Menu] = [Menu.MENU_OPTION_X_AXIS, Menu.MENU_OPTION_Y_AXIS, Menu.MENU_OPTION_Z_AXIS]
 
 var mode_buttons_group: ButtonGroup
@@ -153,7 +160,12 @@ var input_mouse_button: MouseButton = MOUSE_BUTTON_NONE
 
 var undo_redo: EditorUndoRedoManager
 
+var palettes: Dictionary[String, ItemList] = {}
+var palette_selected_callbacks: Dictionary[String, Callable] = {}
+var palette_foldables: Dictionary[String, FoldableContainer] = {}
+var palette_foldable_changed_callbacks: Dictionary[String, Callable] = {}
 var palette_preview_generator: PalettePreviewGenerator
+var _scenes_paths_by_palette_path_and_index: Dictionary[String, Dictionary] = {}
 
 var valid_draw_outline_material: Material
 var valid_draw_outline_xray_material: Material
@@ -172,7 +184,6 @@ var child_board_outline_xray_material: Material
 var child_board_fill_material: Material
 var grid_material: Material
 
-var _palette_index_to_path: Dictionary[int, String] = {}
 var _draw_preview: Node3D
 var _draw_preview_pieces: Array[Piece3D]
 var _draw_preview_extra_pieces: Array[Piece3D]
@@ -291,6 +302,9 @@ func _exit_tree() -> void:
 func _ready() -> void:
     if is_part_of_edited_scene():
         return
+
+    config = ConfigFile.new()
+    config.load(CONFIG_FILE_PATH)
 
     valid_draw_outline_material = create_tool_material(VALID_COLOR * OUTLINE_COLOR_MULT)
     valid_draw_outline_xray_material = create_xray_tool_material(VALID_COLOR * OUTLINE_COLOR_MULT)
@@ -418,8 +432,6 @@ func _ready() -> void:
     piece_directory_pick_button.pressed.connect(_on_piece_directory_pick_button_pressed)
     piece_directory_pick_dialog.dir_selected.connect(_on_piece_directory_pick_dialog_dir_selected)
     
-    palette.item_selected.connect(_on_palette_item_selected)
-
     palette_preview_generator = PalettePreviewGenerator.new()
     add_child(palette_preview_generator)
 
@@ -1154,8 +1166,13 @@ func _on_piece_directory_pick_dialog_dir_selected(dir: String) -> void:
     ProjectSettings.save()
     _update_palette()
 
-func _on_palette_item_selected(index: int) -> void:
-    _setup_draw_scene_from_palette_index(index)
+func _on_palette_item_selected(index: int, palette_subdirectory: String) -> void:
+    for other_palette_subdirectory in palettes:
+        if other_palette_subdirectory == palette_subdirectory:
+            continue
+        palettes[other_palette_subdirectory].deselect_all()
+    _draw_scene = _get_scene_for_palette_index(index, palette_subdirectory)
+    auto_setup_draw_preview()
     _cursor_piece_container.basis = Basis.IDENTITY
     _on_clear_groups_pressed()
     # Automatically change tool when palette item is manually selected
@@ -1166,34 +1183,37 @@ func _on_palette_item_selected(index: int) -> void:
         paint_mode_button.set_pressed(true)
         _on_tool_mode_changed()
 
-func _set_palette_selected_index(index: int) -> void:
-    palette.select(index, true)
-    _setup_draw_scene_from_palette_index(index)
+func _select_scene_in_palettes(selected_scene_file_path: String) -> void:
+    for palette_subdirectory in palettes:
+        var palette := palettes[palette_subdirectory]
+        var index := _get_palette_index_for_path(selected_scene_file_path, palette_subdirectory)
+        if index == -1:
+            # Scene not in this palette
+            palette.deselect_all()
+            continue
+        # Found scene to select
+        palette.select(index)
+        _on_palette_item_selected(index, palette_subdirectory)
 
-func _setup_draw_scene_from_palette_index(index: int) -> void:
-    _draw_scene = _get_palette_scene_at_index(index)
-    auto_setup_draw_preview()
-
-func _get_palette_scene_at_index(index: int) -> PackedScene:
-    if not index in _palette_index_to_path:
+func _get_scene_for_palette_index(index: int, palette_subdirectory: String) -> PackedScene:
+    if not palette_subdirectory in _scenes_paths_by_palette_path_and_index:
         return null
-
-    var path := _palette_index_to_path[index]
-
-    if path == "":
+    var scene_paths_by_index: Dictionary = _scenes_paths_by_palette_path_and_index[palette_subdirectory]
+    if not index in scene_paths_by_index:
         return null
+    var scene_path: String = scene_paths_by_index[index]
+    return load(scene_path) as PackedScene
 
-    var scene := load(path)
-
-    if scene:
-        return scene
-    
-    return null
+func _get_palette_index_for_path(file_path: String, palette_subdirectory: String) -> int:
+    if not palette_subdirectory in _scenes_paths_by_palette_path_and_index:
+        return -1
+    var scene_paths_by_index: Dictionary = _scenes_paths_by_palette_path_and_index[palette_subdirectory]
+    for index: int in scene_paths_by_index:
+        if scene_paths_by_index[index] == file_path:
+            return index
+    return -1
 
 func _update_palette() -> void:
-    palette.clear()
-    _palette_index_to_path.clear()
-
     var piece_palette_base_directory: String = ProjectSettings.get_setting(SETTING_PIECE_DIRECTORY, "")
     if piece_palette_base_directory.is_empty():
         # Default to all resources
@@ -1202,10 +1222,70 @@ func _update_palette() -> void:
     if not DirAccess.dir_exists_absolute(piece_palette_base_directory):
         # Keep existing palette by default
         return
+    
+    for palette_subdirectory: String in palettes.keys():
+        # if not palette_subdirectory.begins_with(piece_palette_base_directory):
+        _remove_palette(palette_subdirectory)
 
     _add_to_palette_from_dir(piece_palette_base_directory, piece_palette_base_directory)
 
+    if palettes.size() == 1:
+        for palette_subdirectory in palettes:
+            palette_container.add_child(palettes[palette_subdirectory])
+    else:
+        for palette_subdirectory in palettes:
+            var foldable := FoldableContainer.new()
+            palette_foldables[palette_subdirectory] = foldable
+            if palette_subdirectory == piece_palette_base_directory:
+                foldable.title = "."
+            else:
+                foldable.title = palette_subdirectory.substr(piece_palette_base_directory.length() + 1)
+            if config.get_value(CONFIG_SECTION_FOLDED_PALETTE_PATHS, palette_subdirectory, false) == true:
+                foldable.fold()
+            var foldable_changed_callback := _foldable_changed.bind(palette_subdirectory)
+            foldable.folding_changed.connect(foldable_changed_callback)
+            palette_foldable_changed_callbacks[palette_subdirectory] = foldable_changed_callback
+            foldable.add_child(palettes[palette_subdirectory])
+            palette_container.add_child(foldable)
+
+func _create_palette(palette_subdirectory: String) -> ItemList:
+    if palette_subdirectory in palettes:
+        return palettes[palette_subdirectory]
+    
+    var palette := palette_scene.instantiate() as ItemList
+    if not palette:
+        printerr("Failed to create palette ItemList")
+        return null
+
+    palettes[palette_subdirectory] = palette
+
+    var palette_selected_callback := _on_palette_item_selected.bind(palette_subdirectory)
+    palette_selected_callbacks[palette_subdirectory] = palette_selected_callback
+    palette.item_selected.connect(palette_selected_callback)
+
+    return palette
+
+func _remove_palette(palette_subdirectory: String) -> void:
+    var palette := palettes[palette_subdirectory]
+    palettes.erase(palette_subdirectory)
+    var palette_selected_callback := palette_selected_callbacks[palette_subdirectory]
+    palette_selected_callbacks.erase(palette_subdirectory)
+    palette.item_selected.disconnect(palette_selected_callback)
+    palette.queue_free()
+    if palette_subdirectory in palette_foldables:
+        var foldable := palette_foldables[palette_subdirectory]
+        palette_foldables.erase(palette_subdirectory)
+        var palette_foldable_changed_callback := palette_foldable_changed_callbacks[palette_subdirectory]
+        foldable.folding_changed.disconnect(palette_foldable_changed_callback)
+        foldable.queue_free()
+
 func _add_to_palette_from_dir(path: String, base_path: String) -> void:
+    for dir_name in DirAccess.get_directories_at(path):
+        if dir_name.begins_with("."):
+            # Ignore hidden directories
+            continue
+        _add_to_palette_from_dir(path.path_join(dir_name), base_path)
+    var scenes_by_path: Dictionary[String, PackedScene] = {}
     for filename in DirAccess.get_files_at(path):
         if not filename.ends_with(".scn") and not filename.ends_with(".tscn"):
             # Only interested in scenes
@@ -1215,40 +1295,35 @@ func _add_to_palette_from_dir(path: String, base_path: String) -> void:
         if not packed_scene:
             # Failed to load scene
             continue
-        var scene_state := packed_scene.get_state()
-        # if scene_state.get_node_type(0) != "Node3D":
-        #     # Only interested in scenes with Node3D root nodes
-        #     continue
-        var scene_root_name := scene_state.get_node_name(0)
-        # var relative_file_path := file_path
-        # if relative_file_path.begins_with(base_path):
-        #     relative_file_path = relative_file_path.substr(base_path.length())
-        #     if relative_file_path.begins_with("/"):
-        #         relative_file_path = relative_file_path.substr(1)
-        var item_index := palette.add_item(scene_root_name, _preview_blank)
-        _palette_index_to_path[item_index] = file_path
-        _setup_palette_item_icon(file_path)
-    for dir_name in DirAccess.get_directories_at(path):
-        if dir_name.begins_with("."):
-            # Ignore hidden directories
-            continue
-        _add_to_palette_from_dir(path.path_join(dir_name), base_path)
+        scenes_by_path[file_path] = packed_scene
+    if not scenes_by_path.is_empty():
+        var palette := _create_palette(path)
+        if not palette:
+            printerr("Could not create palette for path: %s" % path)
+            return
+        palette.clear()
+        for file_path in scenes_by_path:
+            var packed_scene := scenes_by_path[file_path]
+            var scene_state := packed_scene.get_state()
+            var scene_root_name := scene_state.get_node_name(0)
+            var item_index := palette.add_item(scene_root_name, _preview_blank)
+            var scene_paths_by_index: Dictionary = _scenes_paths_by_palette_path_and_index.get_or_add(path, {})
+            scene_paths_by_index[item_index] = file_path
+            _setup_palette_item_icon(file_path, palette, path)
 
-func _setup_palette_item_icon(file_path: String) -> void:
+func _setup_palette_item_icon(file_path: String, palette: ItemList, palette_subdirectory: String) -> void:
     var palette_preview := await palette_preview_generator.generate_from_path(file_path)
-    var palette_index := _get_palette_index_for_path(file_path)
-
-    if palette_index == -1:
+    if not palette:
         return
-    
+    var palette_index := _get_palette_index_for_path(file_path, palette_subdirectory)
+    if palette_index == -1:
+        # File path no longer in palette (e.g. was removed before preview was generated)
+        return
     palette.set_item_icon(palette_index, palette_preview.texture)
 
-func _get_palette_index_for_path(file_path: String) -> int:
-    for palette_index in _palette_index_to_path:
-        if _palette_index_to_path[palette_index] == file_path:
-            return palette_index
-    return -1
-
+func _foldable_changed(is_folded: bool, palette_subdirectory: String) -> void:
+    config.set_value(CONFIG_SECTION_FOLDED_PALETTE_PATHS, palette_subdirectory, is_folded)
+    config.save(CONFIG_FILE_PATH)
 #endregion
 
 #region Add to Groups
@@ -1703,12 +1778,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
         var pick_node: Variant = _cursor_root_node.get_ref() if _cursor_root_node else null
         if pick_node is Node3D:
             var node3d: Node3D = pick_node
-            for index: int in _palette_index_to_path.keys():
-                var path := _palette_index_to_path[index]
-                if path == node3d.scene_file_path:
-                    _set_palette_selected_index(index)
-                    found_palette_item = true
-                    break
+            _select_scene_in_palettes(node3d.scene_file_path)
             if _pick_copy_rotation:
                 _cursor_piece_container.global_rotation = node3d.global_rotation
             if _pick_copy_offset:
@@ -1727,6 +1797,7 @@ func do_input_action(camera: Camera3D, mouse_position: Vector2, click: bool) -> 
                     paint_mode_button.set_pressed(true)
                 _on_tool_mode_changed()
             elif not pick_node:
+                _select_scene_in_palettes("")
                 erase_mode_button.set_pressed(true)
                 _on_tool_mode_changed()
                 if _pick_copy_groups:
