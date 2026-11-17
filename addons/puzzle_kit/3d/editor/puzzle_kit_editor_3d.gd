@@ -202,6 +202,7 @@ var _board_outline_will_redraw: bool
 var _child_board_outlines: Dictionary[Board3D, PieceOutline3D] = {}
 
 var _additional_group_piece_outlines: Dictionary[Piece3D, PieceOutline3D] = {}
+var _additional_groups_label: Label = Label.new()
 
 var _cursor: Node3D
 var _cursor_piece_container: Node3D
@@ -445,6 +446,10 @@ func _ready() -> void:
     group_name_filter.text_changed.connect(_on_group_name_filter_text_changed)
     groups_clear_button.pressed.connect(_on_clear_groups_pressed)
     _update_groups_list()
+
+    _additional_groups_label.add_theme_color_override("font_color", Color.WHITE)
+    _additional_groups_label.add_theme_font_size_override("font_size", 16)
+    _additional_groups_label.add_theme_constant_override("outline_size", 8)
 
     edit_axis = Vector3.AXIS_Y
     draw_offset = 0
@@ -2099,6 +2104,7 @@ static func _get_plane_position_from_intersection(intersection_point: Vector3, a
 func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
     _cursor_piece = null
     _cursor_root_node = null
+    _additional_groups_label.visible = false
 
     if input_action == InputAction.INPUT_PICK or mode_buttons_group.get_pressed_button() == pick_mode_button:
         _cursor_piece_container.transform = Transform3D.IDENTITY
@@ -2220,6 +2226,19 @@ func update_cursor_state(camera: Camera3D, mouse_position: Vector2) -> void:
             _cursor_piece_outline.outline_xray_material = invalid_draw_outline_xray_material
             _cursor_piece_outline.fill_material = invalid_draw_fill_material
             update_cursor_state_raycast_piece(camera, mouse_position)
+            if _cursor_piece and _cursor_piece.get_ref():
+                var hover_piece := _cursor_piece.get_ref() as Piece3D
+                if hover_piece._board == _board:
+                    var additional_groups := get_additional_groups(hover_piece)
+                    if not additional_groups.is_empty():
+                        if _additional_groups_label.get_parent() != camera.get_viewport():
+                            if _additional_groups_label.get_parent():
+                                _additional_groups_label.get_parent().remove_child(_additional_groups_label)
+                            camera.get_viewport().add_child(_additional_groups_label)
+                        _additional_groups_label.visible = true
+                        _additional_groups_label.text = "(%s)" % [", ".join(additional_groups)]
+                        _additional_groups_label.add_theme_color_override("font_outline_color", get_color_for_hash(get_hash_for_groups(additional_groups)))
+                        _additional_groups_label.position = mouse_position
         return
 
 func update_cursor_state_on_plane(camera: Camera3D, mouse_position: Vector2, axis: Vector3.Axis, offset: int) -> void:
