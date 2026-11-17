@@ -49,6 +49,19 @@ func without_any(groups: Array[StringName]) -> GroupFilter:
 #endregion
 
 #region Matches
+## Do `flags` pass our filter?
+func matches(flags: int) -> bool:
+    if _all_bitmask and not (flags & _all_bitmask == _all_bitmask):
+        # Failed to match all groups
+        return false
+    if _any_bitmask and not (flags & _any_bitmask != 0):
+        # Failed to match any groups
+        return false
+    if _except_bitmask and not (flags & _except_bitmask == 0):
+        # Failed to match except groups
+        return false
+    return true
+
 ## Does `piece` pass our filter?
 func matches_3d(piece: Piece3D) -> bool:
     if _all_bitmask and not (piece.flags & _all_bitmask == _all_bitmask):

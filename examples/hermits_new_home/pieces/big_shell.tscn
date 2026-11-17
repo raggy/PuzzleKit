@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://75iyhoe7br4t"]
+[gd_scene format=3 uid="uid://75iyhoe7br4t"]
 
 [ext_resource type="Script" uid="uid://b7wwdt4l1d20h" path="res://addons/puzzle_kit/3d/piece_3d.gd" id="1_xbj8a"]
 [ext_resource type="Shader" uid="uid://dvahnt0d6m3rm" path="res://examples/hermits_new_home/single_color_shader.tres" id="2_q3ybe"]
@@ -18,60 +18,60 @@ radial_segments = 8
 rings = 0
 cap_top = false
 
-[node name="BigShell" type="Node3D" groups=["shell"]]
+[node name="BigShell" type="Node3D" unique_id=944741102 groups=["shell"]]
 script = ExtResource("1_xbj8a")
 
-[node name="Visual" type="Node3D" parent="."]
+[node name="Visual" type="Node3D" parent="." unique_id=194666248]
 script = ExtResource("3_1y7rm")
 
-[node name="ShellVisual" type="MeshInstance3D" parent="Visual"]
+[node name="ShellVisual" type="MeshInstance3D" parent="Visual" unique_id=887670842]
 transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 1, 0)
 mesh = SubResource("CylinderMesh_846rb")
 skeleton = NodePath("../..")
 
-[node name="PieceHistory3D" type="Node" parent="."]
+[node name="PieceHistory3D" type="Node" parent="." unique_id=321001066]
 script = ExtResource("4_n67wl")
 
-[node name="Collider" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider" type="Node3D" parent="." unique_id=1290930816 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, -1)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider2" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider2" type="Node3D" parent="." unique_id=1667987758 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider3" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider3" type="Node3D" parent="." unique_id=1891491099 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, -1)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider4" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider4" type="Node3D" parent="." unique_id=2113767320 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider5" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider5" type="Node3D" parent="." unique_id=1406321584 groups=["pushable"]]
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider6" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider6" type="Node3D" parent="." unique_id=185573260 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider7" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider7" type="Node3D" parent="." unique_id=2069725205 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 1)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider8" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider8" type="Node3D" parent="." unique_id=1816776909 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
 
-[node name="Collider9" type="Node3D" parent="." groups=["pushable"]]
+[node name="Collider9" type="Node3D" parent="." unique_id=1158624980 groups=["pushable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1)
 script = ExtResource("1_xbj8a")
 metadata/_custom_type_script = "uid://b7wwdt4l1d20h"
