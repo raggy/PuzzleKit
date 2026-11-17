@@ -1477,10 +1477,12 @@ static func get_additional_groups(node: Node) -> Array[StringName]:
     var packed_scene := load(node.scene_file_path) as PackedScene
     if not packed_scene:
         return []
-    var scene_state := packed_scene.get_state()
     var groups := node.get_groups()
-    for group in scene_state.get_node_groups(0):
-        groups.erase(group)
+    var scene_state := packed_scene.get_state()
+    while scene_state:
+        for group in scene_state.get_node_groups(0):
+            groups.erase(group)
+        scene_state = scene_state.get_base_scene_state()
     return groups
 
 static func get_hash_for_groups(groups: Array[StringName]) -> int:
