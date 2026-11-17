@@ -1490,7 +1490,6 @@ static func get_hash_for_groups(groups: Array[StringName]) -> int:
 static func get_color_for_hash(value: int) -> Color:
     var h := ((value & 0xFF0000) >> 16) / 256.0
     var sv := remap(value & 0x00FFFF, 0, 65536, 0.0, 1.0)
-    prints(h, remap(sv, 0, 1, 0.5, 1), remap(sv, 0, 1, 1, 0.5))
     return Color.from_hsv(h, remap(sv, 0, 1, 0.75, 1), remap(sv, 0, 1, 1, 0.75))
 #endregion
 
