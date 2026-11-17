@@ -183,6 +183,9 @@ var child_board_outline_material: Material
 var child_board_outline_xray_material: Material
 var child_board_fill_material: Material
 var grid_material: Material
+var outline_material_by_group_hash: Dictionary[int, Material]
+var outline_xray_material_by_group_hash: Dictionary[int, Material]
+var fill_material_by_group_hash: Dictionary[int, Material]
 
 var _draw_preview: Node3D
 var _draw_preview_pieces: Array[Piece3D]
@@ -197,6 +200,8 @@ var _board: Board3D
 var _board_outline: PieceOutline3D
 var _board_outline_will_redraw: bool
 var _child_board_outlines: Dictionary[Board3D, PieceOutline3D] = {}
+
+var _additional_group_piece_outlines: Dictionary[Piece3D, PieceOutline3D] = {}
 
 var _cursor: Node3D
 var _cursor_piece_container: Node3D
@@ -287,6 +292,8 @@ func _exit_tree() -> void:
     _set_editor_layer_visible(GIZMO_BASE_LAYER, true)
     _set_editor_layer_visible(GIZMO_EDIT_LAYER, true)
     _set_editor_layer_visible(GIZMO_GRID_LAYER, true)
+
+    _clear_additional_group_outlines()
 
     for viewport: Viewport in _box_selection_preview_by_viewport.keys():
         var box_selection_preview := _box_selection_preview_by_viewport[viewport]
@@ -641,6 +648,9 @@ func edit(board: Board3D) -> void:
         if not board:
             transform_mode_button.button_pressed = true
             _on_tool_mode_changed()
+        _clear_additional_group_outlines()
+        _board.piece_added.disconnect(_draw_additional_group_outline_for_piece)
+        _board.piece_removed.disconnect(_clear_additional_group_outline_for_piece)
 
     _board = board
 
@@ -652,6 +662,9 @@ func edit(board: Board3D) -> void:
         _set_interactable(true)
         container_board.visible = true
         info_no_board.visible = false
+        _draw_additional_group_outlines()
+        _board.piece_added.connect(_draw_additional_group_outline_for_piece)
+        _board.piece_removed.connect(_clear_additional_group_outline_for_piece)
     else:
         set_process(false)
         _set_interactable(false)
@@ -1399,6 +1412,86 @@ func _on_clear_groups_pressed() -> void:
     groups_to_add.clear()
     _sync_group_checkboxes()
     _update_filtered_groups(group_name_filter.text)
+
+func _get_additional_groups_outline_material(value: int) -> Material:
+    if value in outline_material_by_group_hash:
+        return outline_material_by_group_hash[value]
+    var outline_material := create_tool_material(get_color_for_hash(value) * OUTLINE_COLOR_MULT)
+    outline_material_by_group_hash[value] = outline_material
+    return outline_material
+
+func _get_additional_groups_outline_xray_material(value: int) -> Material:
+    if value in outline_xray_material_by_group_hash:
+        return outline_xray_material_by_group_hash[value]
+    var outline_xray_material := create_xray_tool_material(get_color_for_hash(value) * OUTLINE_COLOR_MULT)
+    outline_xray_material_by_group_hash[value] = outline_xray_material
+    return outline_xray_material
+
+func _get_additional_groups_fill_material(value: int) -> Material:
+    if value in fill_material_by_group_hash:
+        return fill_material_by_group_hash[value]
+    var fill_material := create_tool_material(get_color_for_hash(value) * FILL_COLOR_MULT)
+    fill_material_by_group_hash[value] = fill_material
+    return fill_material
+
+func _clear_additional_group_outlines() -> void:
+    for outline: PieceOutline3D in _additional_group_piece_outlines.values():
+        outline.queue_free()
+    _additional_group_piece_outlines.clear()
+
+func _draw_additional_group_outlines() -> void:
+    if not _board:
+        return
+    for piece in _board._pieces:
+        if piece._board != _board:
+            # Part of a nested board
+            continue
+        _draw_additional_group_outline_for_piece(piece)
+
+func _clear_additional_group_outline_for_piece(piece: Piece3D) -> void:
+    if not piece in _additional_group_piece_outlines:
+        return
+    
+    var outline := _additional_group_piece_outlines[piece]
+    outline.queue_free()
+    _additional_group_piece_outlines.erase(piece)
+
+func _draw_additional_group_outline_for_piece(piece: Piece3D) -> void:
+    var additional_groups := get_additional_groups(piece)
+    if additional_groups.is_empty():
+        return
+
+    var additional_groups_hash := get_hash_for_groups(additional_groups)
+    var outline := PieceOutline3D.new()
+    piece.add_child(outline)
+    outline.generate_from(piece)
+    outline.fill_material = _get_additional_groups_fill_material(additional_groups_hash)
+    outline.outline_material = _get_additional_groups_outline_material(additional_groups_hash)
+    outline.outline_xray_material = _get_additional_groups_outline_xray_material(additional_groups_hash)
+    outline.transform = Transform3D.IDENTITY
+    _additional_group_piece_outlines[piece] = outline
+
+static func get_additional_groups(node: Node) -> Array[StringName]:
+    if node.scene_file_path.is_empty():
+        return []
+    var packed_scene := load(node.scene_file_path) as PackedScene
+    if not packed_scene:
+        return []
+    var scene_state := packed_scene.get_state()
+    var groups := node.get_groups()
+    for group in scene_state.get_node_groups(0):
+        groups.erase(group)
+    return groups
+
+static func get_hash_for_groups(groups: Array[StringName]) -> int:
+    groups.sort()
+    return ",".join(groups).hash()
+
+static func get_color_for_hash(value: int) -> Color:
+    var h := ((value & 0xFF0000) >> 16) / 256.0
+    var sv := remap(value & 0x00FFFF, 0, 65536, 0.0, 1.0)
+    prints(h, remap(sv, 0, 1, 0.5, 1), remap(sv, 0, 1, 1, 0.5))
+    return Color.from_hsv(h, remap(sv, 0, 1, 0.75, 1), remap(sv, 0, 1, 1, 0.75))
 #endregion
 
 #region Input
